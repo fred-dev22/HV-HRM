@@ -1,0 +1,184 @@
+@import 'tailwindcss';
+
+/*
+ * Design system P247 — tokens alignés sur P247_FD_LWL_APP/src/style.css,
+ * thème "Rouge HV" (le frontdesk LWL est en orange, seul --color-primary
+ * et ses dérivés changent — la structure des tokens est identique).
+ *
+ * `static` : émet tous les tokens même non référencés — indispensable tant
+ * que des <style scoped> legacy consomment les variables via var().
+ */
+@theme static {
+  /* Red Professional Theme Colors (HV) */
+  --color-background: oklch(97.5% 0.005 25);
+  --color-foreground: oklch(15% 0.01 25);
+
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(11% 0.02 25);
+
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(11% 0.02 25);
+
+  /* Primary Red — rouge HV #EF463B */
+  --color-primary: #ef463b;
+  --color-primary-foreground: oklch(100% 0 0);
+
+  --color-secondary: oklch(89% 0.015 25);
+  --color-secondary-foreground: oklch(11% 0.02 25);
+
+  --color-muted: oklch(93% 0.01 25);
+  --color-muted-foreground: oklch(47% 0.015 25);
+
+  --color-accent: oklch(93% 0.01 25);
+  --color-accent-foreground: oklch(11% 0.02 25);
+
+  /* Destructive — bordeaux distinct du rouge primaire (accent HV #7A1F1F) */
+  --color-destructive: #7a1f1f;
+  --color-destructive-foreground: oklch(100% 0 0);
+
+  --color-border: oklch(88% 0.01 25);
+  --color-input: oklch(88% 0.01 25);
+  --color-ring: #ef463b;
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+
+  /* Custom theme font variables */
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Libre Caslon Text', ui-serif, Georgia, serif;
+  --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+  /* Header & Navigation */
+  --color-header: #1a1a1a;
+  --color-header-foreground: oklch(100% 0 0);
+  --color-nav: oklch(100% 0 0);
+  --color-nav-foreground: oklch(11% 0.02 25);
+  --color-nav-hover: oklch(93% 0.01 25);
+  --color-nav-active: #ef463b;
+
+  /* Cue colors */
+  --color-cue-blue: oklch(65% 0.25 240);
+  --color-cue-green: oklch(50% 0.18 145);
+  --color-cue-yellow: oklch(70% 0.2 85);
+  --color-cue-red: oklch(60% 0.22 25);
+  --color-cue-purple: oklch(55% 0.25 300);
+  --color-cue-orange: oklch(68% 0.23 55);
+
+  /* Status colors (extension HRM — pills, badges, alertes)
+   * Succès reprend le rouge de marque (comme le thème precedent ou le vert
+   * de marque portait aussi le sens "succès") — danger reste la couleur
+   * distincte (bordeaux) pour ne pas se confondre avec succès/primaire. */
+  --color-success: #ef463b;
+  --color-success-bg: #fdeae8;
+  --color-warning: #8a5a0a;
+  --color-warning-bg: #fef5e1;
+  --color-danger: #7a1f1f;
+  --color-danger-bg: #f1e2df;
+  --color-info: #185fa5;
+  --color-info-bg: #e6f1fb;
+  --color-neutral: #6b6b68;
+  --color-neutral-bg: #f0f0ee;
+
+  /* Sidebar colors */
+  --color-sidebar: oklch(100% 0 0);
+  --color-sidebar-foreground: oklch(11% 0.02 25);
+  --color-sidebar-primary: #ef463b;
+  --color-sidebar-primary-foreground: oklch(100% 0 0);
+  --color-sidebar-accent: #fdeae8;
+  --color-sidebar-accent-foreground: #ef463b;
+  --color-sidebar-border: oklch(88% 0.01 25);
+  --color-sidebar-ring: #ef463b;
+
+  /* Chart colors */
+  --color-chart-1: #ef463b;
+  --color-chart-2: oklch(65% 0.25 240);
+  --color-chart-3: oklch(70% 0.2 85);
+  --color-chart-4: oklch(68% 0.23 55);
+  --color-chart-5: oklch(55% 0.25 300);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-size: 14px; /* densité HRM conservée (défaut navigateur 16px ailleurs) */
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  .dark {
+    --color-background: oklch(8% 0.02 25);
+    --color-foreground: oklch(98% 0.01 25);
+
+    --color-card: oklch(11% 0.02 25);
+    --color-card-foreground: oklch(98% 0.01 25);
+
+    --color-popover: oklch(11% 0.02 25);
+    --color-popover-foreground: oklch(98% 0.01 25);
+
+    --color-primary: oklch(65% 0.19 25);
+    --color-primary-foreground: oklch(11% 0.02 25);
+
+    --color-secondary: oklch(17% 0.02 25);
+    --color-secondary-foreground: oklch(98% 0.01 25);
+
+    --color-muted: oklch(17% 0.02 25);
+    --color-muted-foreground: oklch(65% 0.015 25);
+
+    --color-accent: oklch(17% 0.02 25);
+    --color-accent-foreground: oklch(98% 0.01 25);
+
+    --color-destructive: oklch(40% 0.12 20);
+    --color-destructive-foreground: oklch(98% 0.01 25);
+
+    --color-border: oklch(17% 0.02 25);
+    --color-input: oklch(17% 0.02 25);
+    --color-ring: oklch(70% 0.19 25);
+
+    --color-sidebar: oklch(11% 0.02 25);
+    --color-sidebar-foreground: oklch(98% 0.01 25);
+    --color-sidebar-primary: oklch(70% 0.19 25);
+    --color-sidebar-primary-foreground: oklch(11% 0.02 25);
+    --color-sidebar-accent: oklch(17% 0.02 25);
+    --color-sidebar-accent-foreground: oklch(98% 0.01 25);
+    --color-sidebar-border: oklch(17% 0.02 25);
+    --color-sidebar-ring: oklch(70% 0.19 25);
+
+    --color-chart-1: oklch(70% 0.19 25);
+    --color-chart-2: oklch(65% 0.25 240);
+    --color-chart-3: oklch(70% 0.2 85);
+    --color-chart-4: oklch(68% 0.23 55);
+    --color-chart-5: oklch(55% 0.25 300);
+  }
+}
+
+/*
+ * ── Palette de marque HV (hors @theme) ──────────────────────────────
+ * Couleurs de marque brutes consommées par les composants qui gardent
+ * du CSS scoped : l'organigramme (OrgChartView/OrgChartTree/OrgNode),
+ * les avatars (UserAvatar) et l'onboarding. Le @theme ci-dessus reste
+ * la source des tokens sémantiques ; ce bloc ne porte que l'identité
+ * visuelle HV qui n'a pas d'équivalent token sémantique.
+ */
+:root {
+  --hv-red: #ef463b;
+  --hv-red-dark: #c2352b;
+  --hv-red-light: #fdeae8;
+  --hv-red-mid: #f7beb8;
+
+  --hv-maroon: #7a1f1f;
+  --hv-maroon-light: #f1e2df;
+
+  --hv-white: #ffffff;
+
+  /* Niveaux organigramme */
+  --hv-direction-bg: #7a1f1f;
+  --hv-department-bg: #ef463b;
+  --hv-service-border: #ef463b;
+
+  /* Rouge clair primaire (halos / hovers de l'organigramme & onboarding) */
+  --color-primary-light: var(--hv-red-light);
+
+  /* Lignes de connexion de l'organigramme */
+  --color-tree-line: rgba(0, 0, 0, 0.2);
+}
