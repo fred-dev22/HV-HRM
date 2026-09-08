@@ -47,5 +47,19 @@ export function buildLeaveBalanceImportConfig(): ImportConfig {
     sampleRows: [
       { 'Code employé': 'EMP001', 'Code type de congé': 'ANNUAL', 'Solde (jours)': '18', Motif: 'Solde initial (reprise)' },
     ],
+    // Avertissement, pas un blocage : un solde de reprise superieur a
+    // "Jours/an" peut etre legitime (report de conges non pris d'une annee
+    // sur l'autre, ancien systeme qui accumulait differemment) — on alerte
+    // pour permettre une relecture, sans empecher un cas reel. Types a
+    // dotation illimitee (daysPerYear <= 0) : aucune comparaison possible.
+    rowValidation(row) {
+      const leaveType = leaveTypesStore.leaveTypes.find(lt => lt.id === row.values.LeaveTypeId)
+      if (!leaveType || leaveType.daysPerYear <= 0) return undefined
+      const amount = Number(row.values.Amount)
+      if (Number.isFinite(amount) && amount > leaveType.daysPerYear) {
+        return `Solde (${amount} j) supérieur aux ${leaveType.daysPerYear} j/an alloués pour ${leaveType.name} — vérifiez la valeur avant de continuer.`
+      }
+      return undefined
+    },
   }
 }
