@@ -78,7 +78,7 @@ function setMode(mode: 'self' | 'for-employee') {
 
 /* ── Lookup employé ─────────────────────────────────────────── */
 const lookupColumns: LookupColumn[] = [
-  { key: 'code', label: 'Code', width: '90px' },
+  { key: 'code', label: 'Matricule', width: '90px' },
   { key: 'label', label: 'Nom' },
   { key: 'sublabel', label: 'Entité' },
 ]
