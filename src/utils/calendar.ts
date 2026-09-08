@@ -82,9 +82,12 @@ function isFullyAbsentDay(
 // un vendredi PLEINEMENT absent avale le week-end qui suit dans le decompte
 // (meme si la demande continue au-dela — verifie pour CHAQUE vendredi de la
 // periode, pas seulement le dernier jour), une simple demi-journee de
-// presence le vendredi protege le week-end. Miroir exact de
-// computeWorkingDays cote backend (source de verite pour ce qui est
-// reellement debite) — ceci n'est qu'un apercu avant soumission.
+// presence le vendredi protege le week-end. Un jour ferie a l'interieur de ce
+// week-end avale n'est en revanche jamais compte (retour client du 08/09) —
+// seuls les jours non-travailles par le calendrier hebdomadaire le sont,
+// meme si le curseur doit quand meme le traverser pour atteindre la reprise.
+// Miroir exact de computeWorkingDays cote backend (source de verite pour ce
+// qui est reellement debite) — ceci n'est qu'un apercu avant soumission.
 function chargedWorkingDays(
   startDate: Date, endDate: Date,
   startPeriod: 'full' | 'am' | 'pm', endPeriod: 'full' | 'am' | 'pm',
@@ -100,7 +103,7 @@ function chargedWorkingDays(
         const cursor = new Date(cur)
         cursor.setDate(cursor.getDate() + 1)
         while (!isWorkingDay(cursor, calendar)) {
-          count++
+          if (!isHoliday(cursor, calendar).isHoliday) count++
           cursor.setDate(cursor.getDate() + 1)
         }
       }
