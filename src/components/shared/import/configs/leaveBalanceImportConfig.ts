@@ -2,11 +2,13 @@ import { useEmployeeStore } from '../../../../stores/employees'
 import { useLeaveTypesStore } from '../../../../stores/leaveTypes'
 import type { ImportConfig } from '../importTypes'
 
-// Import des soldes de conges initiaux (demande client, 01/09) :
-// avant la mise en service, chaque employe a deja un solde acquis dans
-// l'ancien systeme, qu'il faut reprendre. Un seul mouvement de credit par
-// ligne (meme endpoint que le bouton "Ajuster un solde"), pas de nouvel
-// endpoint backend necessaire.
+// Import des soldes de conges initiaux (demande client, 01/09) : avant la
+// mise en service, chaque employe a deja un solde acquis dans l'ancien
+// systeme, qu'il faut reprendre. Chaque ligne REMPLACE le solde de
+// l'employe pour ce type (confirme par le client le 08/09 : "remplacer" et
+// non "ajouter") — endpoint dedie /leave-transactions/set-balance, distinct
+// du bouton "Ajuster un solde" (credit ponctuel, lui reste un delta
+// relatif). Reimporter le meme fichier plusieurs fois reste donc sans danger.
 export function buildLeaveBalanceImportConfig(): ImportConfig {
   const employeeStore = useEmployeeStore()
   const leaveTypesStore = useLeaveTypesStore()
@@ -14,8 +16,8 @@ export function buildLeaveBalanceImportConfig(): ImportConfig {
 
   return {
     title: 'Soldes de congés initiaux',
-    intro: "Créditez en une fois le solde initial de plusieurs employés pour un type de congé donné, par exemple pour reprendre les soldes acquis dans un ancien système avant la mise en service. Chaque ligne ajoute le nombre de jours indiqué au solde actuel de l'employé pour ce type (0 s'il n'en a pas encore).",
-    createEndpoint: '/leave-transactions/credit',
+    intro: "Fixez en une fois le solde initial de plusieurs employés pour un type de congé donné, par exemple pour reprendre les soldes acquis dans un ancien système avant la mise en service. Chaque ligne remplace le solde actuel de l'employé pour ce type par le nombre de jours indiqué (n'ajoute pas dessus).",
+    createEndpoint: '/leave-transactions/set-balance',
     dependencies: [
       {
         label: 'Au moins un employé doit déjà exister',
@@ -39,11 +41,11 @@ export function buildLeaveBalanceImportConfig(): ImportConfig {
         key: 'LeaveTypeId', csvHeader: 'Code type de congé', label: 'Type de congé', required: true, type: 'select', sample: '',
         options: () => leaveTypesStore.leaveTypes.map(lt => ({ value: lt.id, label: lt.name, code: lt.code })),
       },
-      { key: 'Amount', csvHeader: 'Jours', label: 'Jours', required: true, type: 'number', sample: '18' },
+      { key: 'Amount', csvHeader: 'Solde (jours)', label: 'Solde', required: true, type: 'number', sample: '18' },
       { key: 'Reason', csvHeader: 'Motif', label: 'Motif', required: false, type: 'text', sample: 'Solde initial (reprise)' },
     ],
     sampleRows: [
-      { 'Code employé': 'EMP001', 'Code type de congé': 'ANNUAL', Jours: '18', Motif: 'Solde initial (reprise)' },
+      { 'Code employé': 'EMP001', 'Code type de congé': 'ANNUAL', 'Solde (jours)': '18', Motif: 'Solde initial (reprise)' },
     ],
   }
 }
