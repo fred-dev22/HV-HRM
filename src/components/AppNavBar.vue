@@ -121,14 +121,22 @@ const hrNavItems = computed(() => [
     'CONGE_VOIR_TOUT', 'CONGE_VOIR_EQUIPE',
     'CONFIG_CALENDRIER', 'CONFIG_FRAIS_MISSION',
   ]) },
-  { key: 'recruitment', label: t('nav.recruitment'), visible: RECRUITMENT_MODULE_ENABLED },
+  { key: 'recruitment', label: t('nav.recruitment'), visible: RECRUITMENT_MODULE_ENABLED && auth.hasPermission('RECRUTEMENT_ACCES') },
   { key: 'training',    label: t('nav.training'),    visible: PLACEHOLDER_MODULES_ENABLED },
   { key: 'payroll',     label: t('nav.payroll'),      visible: PLACEHOLDER_MODULES_ENABLED },
   { key: 'reports', label: t('nav.reports'), visible: PLACEHOLDER_MODULES_ENABLED && auth.hasAnyPermission(['RAPPORT_VOIR', 'ENTITE_VOIR']) },
 ].filter((item) => item.visible))
 
+// Ne pose plus navStore.setModule(key) ici : l'onglet actif ET la sidebar
+// suivent tous les deux navigationStore.activeModule, mais desormais deduit
+// UNIQUEMENT de l'URL reelle par le garde de navigation (moduleForPath,
+// voir router/index.ts), a chaque navigation qui aboutit. Le poser ici en
+// plus, de façon optimiste avant meme que router.push() ait fini, creait un
+// etat incoherent des que la navigation n'aboutissait pas exactement au nom
+// de route attendu (redirection d'un garde, navigation dupliquee...) :
+// l'onglet et la sidebar basculaient sur le module cible alors que le
+// contenu affiche restait sur l'ancienne page.
 function handleHRNav(key: string) {
-  navStore.setModule(key)
   const defaults: Record<string, string> = {
     administration: 'hr-dashboard',
     recruitment:    'hr-recruitment',

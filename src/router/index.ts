@@ -66,7 +66,7 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'hr-recruitment-contracts':    'RECRUTEMENT_ACCES',
   'hr-recruitment-trial':        'RECRUTEMENT_ACCES',
   'hr-recruitment-distribution': 'RECRUTEMENT_ACCES',
-  'hr-besoins':                  ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'],
+  'hr-needs':                    ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'],
   'hr-employees':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
   'hr-employee-create':  'EMPLOYE_CREER',
   'hr-employee-edit':    'EMPLOYE_MODIFIER',
@@ -256,7 +256,7 @@ const router = createRouter({
     // Administration (decision du 11/09 : pas de doublon dans le module
     // Recrutement), pour les managers/departements qui expriment un besoin
     // sans acces au module.
-    { path: '/hr/besoins',                  name: 'hr-besoins',                  component: () => import('../views/recruitment/HiringRequestsView.vue'),         meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/needs',                    name: 'hr-needs',                    component: () => import('../views/recruitment/HiringRequestsView.vue'),         meta: { requiresAuth: true, layout: 'dashboard' } },
 
     // ── Module Formation ─────────────────────────────────────────
     { path: '/hr/training',             name: 'hr-training',             component: PH, meta: { requiresAuth: true, title: 'Tableau de bord Formation' } },

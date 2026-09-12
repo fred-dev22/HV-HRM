@@ -41,7 +41,7 @@
           <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED && auth.hasAnyPermission(['MISSION_VOIR_TOUT', 'MISSION_VOIR_EQUIPE'])"  :icon="Plane"    :label="t('sidebar.missions')"  :to="{ name: 'hr-missions' }" />
           <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED && auth.hasAnyPermission(['FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'])"      :icon="Receipt"  :label="t('sidebar.expenses')"  :to="{ name: 'hr-expenses' }" />
           <SidebarItem v-if="auth.hasPermission('ENTITE_VOIR')"                                    :icon="Network"  :label="t('sidebar.org_chart')" :to="{ name: 'hr-org-chart' }" />
-          <SidebarItem v-if="auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-besoins' }" />
+          <SidebarItem v-if="auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-needs' }" />
           <SidebarItem v-if="auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
         </SidebarSection>
 
