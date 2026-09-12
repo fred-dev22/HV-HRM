@@ -23,38 +23,44 @@
         >{{ notifStore.unreadCount }}</span>
         <div
           v-if="activeDropdown === 'notif'"
-          :class="[dropdownClass, 'min-w-[300px] max-w-[340px] p-0']"
+          :class="[dropdownClass, 'min-w-[340px] max-w-[380px] p-0']"
           @click.stop
         >
-          <div class="flex items-center justify-between px-3.5 pt-2.5 pb-2 border-b border-border">
-            <span class="text-xs font-bold text-foreground">Notifications</span>
+          <div class="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-border">
+            <div class="flex items-center gap-2">
+              <span class="text-[13px] font-bold text-foreground">Notifications</span>
+              <span v-if="notifStore.unreadCount > 0" class="bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-px rounded-full">
+                {{ notifStore.unreadCount }}
+              </span>
+            </div>
             <button
               v-if="notifStore.unreadCount > 0"
-              class="text-[11px] text-primary cursor-pointer"
+              class="text-[11px] font-medium text-primary cursor-pointer hover:underline"
               @click="notifStore.markAllAsRead()"
             >
               Tout marquer lu
             </button>
           </div>
-          <div class="max-h-80 overflow-y-auto">
+          <div class="max-h-96 overflow-y-auto">
             <div
               v-for="n in notifStore.notifications"
               :key="n.id"
-              class="flex gap-2.5 px-3.5 py-2.5 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-background"
-              :class="{ 'bg-primary/10': !n.read }"
+              class="relative flex gap-2.5 px-4 py-3 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-background"
+              :class="{ 'bg-primary/5': !n.read }"
               @click="handleNotifClick(n)"
             >
-              <span class="w-2 h-2 rounded-full shrink-0 mt-1" :class="NOTIF_DOT[n.type] ?? NOTIF_DOT.system"></span>
+              <span v-if="!n.read" class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary" title="Non lue"></span>
+              <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" :class="notifStyle(n.type).wrap">
+                <component :is="notifStyle(n.type).icon" class="w-4 h-4" />
+              </span>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs flex-1 truncate" :class="n.read ? 'font-medium text-muted-foreground' : 'font-bold text-foreground'">{{ n.title }}</span>
-                  <span v-if="!n.read" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Non lue"></span>
-                </div>
-                <div class="text-[11px] mt-0.5 truncate" :class="n.read ? 'text-muted-foreground/70' : 'text-muted-foreground'">{{ n.message }}</div>
-                <div class="text-[10px] text-muted-foreground mt-[3px]">{{ formatDate(n.date) }}</div>
+                <span class="block text-[13px] truncate" :class="n.read ? 'font-medium text-foreground' : 'font-bold text-foreground'">{{ n.title }}</span>
+                <p class="text-[12px] mt-0.5 line-clamp-2" :class="n.read ? 'text-muted-foreground' : 'text-foreground/80'">{{ n.message }}</p>
+                <span class="block text-[11px] text-muted-foreground mt-1">{{ formatRelativeDateTime(n.date) }}</span>
               </div>
             </div>
-            <div v-if="notifStore.notifications.length === 0" class="p-5 text-center text-xs text-muted-foreground">
+            <div v-if="notifStore.notifications.length === 0" class="p-6 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
+              <BellOff class="w-6 h-6 text-muted-foreground/50" />
               Aucune notification
             </div>
           </div>
@@ -120,15 +126,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Search, Bell, Settings, HelpCircle, Info, CircleUser, LogOut, X } from 'lucide-vue-next'
+import {
+  Search, Bell, BellOff, Settings, HelpCircle, Info, CircleUser, LogOut, X,
+  CalendarOff, Plane, Receipt, Briefcase, CalendarClock,
+} from 'lucide-vue-next'
 import UserAvatar from './ui/UserAvatar.vue'
 import AboutModal from './AboutModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore, type AppNotification } from '../stores/notifications'
-import { formatDate } from '../lib/date'
+import { formatRelativeDateTime } from '../lib/date'
 import type { AuthUser } from '../types'
 
 defineProps<{ user: AuthUser | null }>()
@@ -145,11 +154,20 @@ const dropdownClass =
 const dropdownItemClass =
   'flex items-center gap-2 px-4 py-[9px] text-[13px] cursor-pointer text-foreground transition-colors hover:bg-primary/10 hover:text-primary'
 
-const NOTIF_DOT: Record<string, string> = {
-  leave:   'bg-primary',
-  mission: 'bg-info',
-  expense: 'bg-warning',
-  system:  'bg-neutral',
+// Icone + couleur par type de notification (voir NotificationService.create
+// cote backend pour la liste des types emis). "recruitment" et "reminder"
+// n'avaient pas d'entree avant (repli silencieux sur "system", gris neutre) —
+// desormais chacun a son icone et sa teinte dediees.
+const NOTIF_STYLE: Record<AppNotification['type'], { icon: Component; wrap: string }> = {
+  leave:       { icon: CalendarOff,   wrap: 'bg-primary/10 text-primary' },
+  mission:     { icon: Plane,         wrap: 'bg-info-bg text-info' },
+  expense:     { icon: Receipt,       wrap: 'bg-warning-bg text-warning' },
+  recruitment: { icon: Briefcase,     wrap: 'bg-success-bg text-success' },
+  reminder:    { icon: CalendarClock, wrap: 'bg-danger-bg text-danger' },
+  system:      { icon: Bell,          wrap: 'bg-neutral-bg text-neutral' },
+}
+function notifStyle(type: AppNotification['type']) {
+  return NOTIF_STYLE[type] ?? NOTIF_STYLE.system
 }
 
 const roleLabel = computed(() => {

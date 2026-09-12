@@ -4,6 +4,7 @@
     :subtitle="`${talentPoolStore.items.length} profil(s)`"
     :columns="columns"
     :items="pageItems"
+    :loading="talentPoolStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} profil(s)`"
     search-placeholder="Rechercher un candidat, un tag…"
@@ -101,6 +102,7 @@
       title="Ajouter un profil"
       banner-label="Nouveau profil au vivier de talents"
       create-label="Ajouter"
+      :is-saving="submitting"
       :save-error="error"
       @close="showCreate = false"
       @create="create"
@@ -155,7 +157,7 @@
  * workflow (TalentPoolEntry n'a pas de statut) : seules les actions
  * "Ajouter un profil" et "Retirer du vivier" existent côté store.
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { UserPlus, Users, Tag } from 'lucide-vue-next'
 import { ListPageLayout, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -165,10 +167,14 @@ import TalentPoolWorkflowActions from '../../components/recruitment/TalentPoolWo
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { useTalentPoolStore } from '../../stores/recruitment'
 import type { TalentPoolEntry } from '../../stores/recruitment'
 
 const talentPoolStore = useTalentPoolStore()
+onMounted(() => talentPoolStore.fetchAll())
 
 /* ── Styles (KPI, repris à l'identique du langage visuel des autres
    écrans du module) ────────────────────────────────────────────── */
@@ -273,11 +279,16 @@ function buildPayload() {
   }
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+async function create() {
   if (!validate()) return
-  talentPoolStore.add(buildPayload())
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Ajout...', () => talentPoolStore.add(buildPayload()), () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 
 /* ── Fiche complète (double-clic ou "Ouvrir la fiche") ───────── */

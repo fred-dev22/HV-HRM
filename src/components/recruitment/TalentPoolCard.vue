@@ -118,7 +118,7 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
           <div v-if="current.evaluations.length === 0" class="text-xs text-muted-foreground italic">Aucune évaluation pour le moment.</div>
           <div v-for="(ev, i) in current.evaluations" :key="i" class="text-[13px] bg-background rounded-md px-3 py-2 flex flex-col gap-0.5 mb-2 last:mb-0">
             <div class="flex items-center justify-between gap-2">
-              <span class="font-medium text-foreground text-xs truncate">{{ ev.evaluatedByName }} — {{ ev.score }} / 5</span>
+              <span class="font-medium text-foreground text-xs truncate">{{ ev.evaluatedByName }} · {{ ev.score }} / 5</span>
               <span class="text-[11px] text-muted-foreground shrink-0">{{ formatDate(ev.date) }}</span>
             </div>
             <p class="text-foreground whitespace-pre-line">{{ ev.comment }}</p>

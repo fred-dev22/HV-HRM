@@ -98,7 +98,6 @@ const pageTitle = computed(() => current.value?.positionTitle ?? '')
               <div :class="readBox">{{ formatDate(current.requestedAt) }}</div>
             </div>
           </div>
-          <div v-if="current.rejectionReason" :class="[cls.fieldErrorBlock, 'mt-3']">{{ current.rejectionReason }}</div>
         </FormSection>
 
         <!-- Section Profil recherché -->

@@ -52,6 +52,21 @@ function moduleForPath(path: string): string {
 // encore en placeholder (recrutement, formation, paie...) n'ont pas de code
 // dédié et restent ouverts à tout l'espace RH, comme aujourd'hui.
 const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
+  // Module Recrutement : une seule permission ouvre tout (RECRUTEMENT_ACCES,
+  // decision client du 05/09). L'expression de besoin, exposee aussi cote
+  // Administration, a ses propres codes.
+  'hr-recruitment':              'RECRUTEMENT_ACCES',
+  'hr-recruitment-positions':    'RECRUTEMENT_ACCES',
+  'hr-recruitment-applications': 'RECRUTEMENT_ACCES',
+  'hr-recruitment-interviews':   'RECRUTEMENT_ACCES',
+  'hr-recruitment-pipeline':     'RECRUTEMENT_ACCES',
+  'hr-recruitment-cv-library':   'RECRUTEMENT_ACCES',
+  'hr-recruitment-spontaneous':  'RECRUTEMENT_ACCES',
+  'hr-recruitment-eval-templates': 'RECRUTEMENT_ACCES',
+  'hr-recruitment-contracts':    'RECRUTEMENT_ACCES',
+  'hr-recruitment-trial':        'RECRUTEMENT_ACCES',
+  'hr-recruitment-distribution': 'RECRUTEMENT_ACCES',
+  'hr-besoins':                  ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'],
   'hr-employees':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
   'hr-employee-create':  'EMPLOYE_CREER',
   'hr-employee-edit':    'EMPLOYE_MODIFIER',
@@ -70,6 +85,7 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'hr-expenses':         ['FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'],
   'employee-to-validate': ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER'],
   'employee-team':        'EMPLOYE_VOIR_EQUIPE',
+  'hr-deadlines':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
 }
 
 const router = createRouter({
@@ -83,6 +99,12 @@ const router = createRouter({
     // anglais comme demande (toutes les routes frontend doivent l'etre a
     // terme, voir Lot K).
     { path: '/approval/:token', name: 'public-approval', component: PublicApprovalView },
+
+    // Reponse a une invitation d'entretien (RSVP) via jeton opaque, sans
+    // connexion — clic direct depuis le mail. Le chemin /entretien-rsvp/:token
+    // est celui emis par le backend (recruitment-notify.service.ts), a ne pas
+    // renommer sans changer les deux cotes.
+    { path: '/entretien-rsvp/:token', name: 'public-interview-rsvp', component: () => import('../views/recruitment/PublicInterviewRsvpView.vue') },
 
     // Portail carriere public (module Recrutement) — accessible sans compte,
     // depuis un lien partage d'une offre publiee (voir JobOfferCard.vue).
@@ -153,6 +175,13 @@ const router = createRouter({
       component: () => import('../views/employee/EmployeePlanningView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
+    // Echeances a venir (backlog "Rappels d'echeances") — fins de CDD / stage /
+    // periode d'essai / contrat, anniversaires. Perimetre entreprise
+    // (EMPLOYE_VOIR_TOUT) ou equipe (EMPLOYE_VOIR_EQUIPE), controle cote serveur.
+    { path: '/hr/deadlines', name: 'hr-deadlines',
+      component: () => import('../views/rh/HrDeadlinesView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
 
     // ── Configuration ─────────────────────────────────────────────
     { path: '/hr/config', redirect: '/hr/config/calendar' },
@@ -218,9 +247,16 @@ const router = createRouter({
     { path: '/hr/recruitment/pipeline',     name: 'hr-recruitment-pipeline',     component: () => import('../views/recruitment/PipelineView.vue'),               meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/hr/recruitment/cv-library',   name: 'hr-recruitment-cv-library',   component: () => import('../views/recruitment/TalentPoolView.vue'),             meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/hr/recruitment/spontaneous',  name: 'hr-recruitment-spontaneous',  component: () => import('../views/recruitment/SpontaneousApplicationsView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
-    { path: '/hr/recruitment/needs',        name: 'hr-recruitment-needs',        component: () => import('../views/recruitment/HiringRequestsView.vue'),         meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/recruitment/eval-templates', name: 'hr-recruitment-eval-templates', component: () => import('../views/recruitment/InterviewEvalTemplatesView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/hr/recruitment/contracts',    name: 'hr-recruitment-contracts',    component: () => import('../views/recruitment/ContractsView.vue'),              meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/hr/recruitment/trial',        name: 'hr-recruitment-trial',        component: () => import('../views/recruitment/TrialPeriodsView.vue'),           meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/recruitment/distribution', name: 'hr-recruitment-distribution', component: () => import('../views/recruitment/DistributionChannelsView.vue'),    meta: { requiresAuth: true, layout: 'dashboard' } },
+
+    // Expression des besoins de recrutement — uniquement cote espace
+    // Administration (decision du 11/09 : pas de doublon dans le module
+    // Recrutement), pour les managers/departements qui expriment un besoin
+    // sans acces au module.
+    { path: '/hr/besoins',                  name: 'hr-besoins',                  component: () => import('../views/recruitment/HiringRequestsView.vue'),         meta: { requiresAuth: true, layout: 'dashboard' } },
 
     // ── Module Formation ─────────────────────────────────────────
     { path: '/hr/training',             name: 'hr-training',             component: PH, meta: { requiresAuth: true, title: 'Tableau de bord Formation' } },

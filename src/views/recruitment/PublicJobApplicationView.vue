@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-primary/10 flex flex-col items-center py-10 px-4">
     <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.1)] mb-6">
-      <img src="/hv-logo.png" alt="HV" class="h-9 w-auto" />
+      <img src="/hv-logo.png" alt="Productive 247" class="h-9 w-auto" />
     </div>
 
     <!-- Offre introuvable / non publiee -->
@@ -51,6 +51,7 @@
         <div class="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[12px] text-muted-foreground">
           <span class="inline-flex items-center gap-1"><Building2 class="w-3.5 h-3.5 shrink-0" /> {{ offer.entityName }}</span>
           <span class="inline-flex items-center gap-1"><MapPin class="w-3.5 h-3.5 shrink-0" /> {{ offer.location }}</span>
+          <span v-if="offer.salaryText" class="inline-flex items-center gap-1"><Coins class="w-3.5 h-3.5 shrink-0" /> {{ offer.salaryText }}</span>
         </div>
         <div class="h-px bg-border my-4"></div>
         <p class="text-[13px] text-foreground/90 whitespace-pre-line leading-relaxed">{{ offer.description }}</p>
@@ -83,25 +84,34 @@
               @dragleave.prevent="dragOver = false"
               @drop.prevent="onDrop"
             >
-              <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="form.cvFileName ? 'bg-success-bg' : 'bg-primary/10'">
-                <FileCheck2 v-if="form.cvFileName" class="w-4.5 h-4.5 text-success" />
+              <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvFile ? 'bg-success-bg' : 'bg-primary/10'">
+                <FileCheck2 v-if="cvFile" class="w-4.5 h-4.5 text-success" />
                 <UploadCloud v-else class="w-4.5 h-4.5 text-primary" />
               </div>
-              <span v-if="form.cvFileName" class="text-[13px] font-medium text-foreground">{{ form.cvFileName }}</span>
+              <span v-if="cvFile" class="text-[13px] font-medium text-foreground">{{ cvFile.name }}</span>
               <span v-else class="text-[13px] font-medium text-foreground">Glissez votre CV ici, ou cliquez pour parcourir</span>
-              <span class="text-[11px] text-muted-foreground">{{ form.cvFileName ? 'Cliquez pour remplacer le fichier' : 'PDF ou Word' }}</span>
+              <span class="text-[11px] text-muted-foreground">{{ cvFile ? 'Cliquez pour remplacer le fichier' : 'PDF ou Word, 5 Mo maximum' }}</span>
               <input type="file" accept=".pdf,.doc,.docx" class="hidden" @change="onFileInput" />
             </label>
           </div>
+
+          <!-- Pot-de-miel : invisible pour un humain, rempli seulement par les bots. -->
+          <div aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden">
+            <label>Site web<input v-model="hp.website" type="text" tabindex="-1" autocomplete="off" /></label>
+            <label>Fax<input v-model="hp.fax" type="text" tabindex="-1" autocomplete="off" /></label>
+          </div>
+
+          <div v-if="turnstileSiteKey" ref="turnstileEl" class="cf-turnstile mt-1" :data-sitekey="turnstileSiteKey"></div>
         </div>
 
         <p v-if="error" class="text-xs text-danger bg-danger-bg px-3 py-2 rounded-md mt-4">{{ error }}</p>
 
         <button
-          class="w-full h-12 bg-primary text-primary-foreground rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-primary/90 mt-5"
+          class="w-full h-12 bg-primary text-primary-foreground rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-primary/90 mt-5 disabled:opacity-60"
+          :disabled="submitting"
           @click="submit"
         >
-          Envoyer ma candidature
+          {{ submitting ? 'Envoi en cours...' : 'Envoyer ma candidature' }}
         </button>
       </div>
     </div>
@@ -111,58 +121,87 @@
 <script setup lang="ts">
 /**
  * Fiche d'une offre + formulaire de candidature, portail carriere public
- * (sans connexion, voir router/index.ts). N'affiche l'offre que si elle est
- * au statut Published — memes raisons que PublicCareersView.vue. Design
- * uniquement : le depot de CV ne fait que retenir le nom du fichier
- * (applicationStore.apply), pas d'upload reel (pas de backend sur ce
- * module). Zone de glisser-deposer calquee sur celle d'ImportWizardModal.vue
- * pour rester coherente avec le reste de l'app.
+ * (sans connexion). Le CV est un vrai fichier televerse (upload SharePoint
+ * cote backend). Anti-spam : pot-de-miel invisible + jeton de formulaire +
+ * Cloudflare Turnstile optionnel (VITE_TURNSTILE_SITE_KEY).
  */
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  CircleAlert, CheckCircle2, ArrowLeft, Briefcase, Building2, MapPin,
+  CircleAlert, CheckCircle2, ArrowLeft, Briefcase, Building2, MapPin, Coins,
   UserRound, Mail, Phone, FileText, UploadCloud, FileCheck2,
 } from 'lucide-vue-next'
-import { useJobOfferStore, useApplicationStore } from '../../stores/recruitment'
+import { usePublicCareersStore } from '../../stores/recruitment'
+import type { PublicJobOffer } from '../../stores/recruitment'
+import { getApiErrorMessage } from '../../lib/api'
+import { validateCvFile, useTurnstile } from './publicApply'
 
 const route = useRoute()
-const jobOfferStore = useJobOfferStore()
-const applicationStore = useApplicationStore()
+const careersStore = usePublicCareersStore()
 
-const offer = computed(() => jobOfferStore.items.find(o => o.id === route.params.id && o.status === 'Published') ?? null)
+const token = String(route.params.id)
+const offer = ref<PublicJobOffer | null>(null)
+onMounted(async () => {
+  try {
+    offer.value = await careersStore.fetchByToken(token)
+    await careersStore.ensureFormToken()
+  } catch {
+    offer.value = null
+  }
+})
 
 const labelClass = 'flex items-center gap-1.5 text-[13px] font-medium text-foreground mb-1.5'
 const inputClass = 'w-full h-11 px-3 border border-border rounded-lg text-sm bg-background text-foreground outline-none transition-colors focus:border-primary'
 
-const form = reactive({ candidateName: '', candidateEmail: '', candidatePhone: '', cvFileName: '' })
+const form = reactive({ candidateName: '', candidateEmail: '', candidatePhone: '' })
+const cvFile = ref<File | null>(null)
+const hp = reactive({ website: '', fax: '' })
 const error = ref('')
 const done = ref(false)
 const dragOver = ref(false)
+const submitting = ref(false)
+
+const { turnstileEl, turnstileSiteKey, turnstileToken, resetTurnstile } = useTurnstile()
 
 function setFile(file: File | undefined) {
   if (!file) return
-  form.cvFileName = file.name
+  const err = validateCvFile(file)
+  if (err) { error.value = err; return }
+  error.value = ''
+  cvFile.value = file
 }
 function onFileInput(e: Event) { setFile((e.target as HTMLInputElement).files?.[0]) }
 function onDrop(e: DragEvent) { dragOver.value = false; setFile(e.dataTransfer?.files?.[0]) }
 
-function submit() {
+async function submit() {
   if (!form.candidateName.trim() || !form.candidateEmail.trim() || !form.candidatePhone.trim()) {
     error.value = 'Merci de remplir tous les champs obligatoires.'
     return
   }
-  if (!form.cvFileName) {
-    error.value = 'Merci de joindre votre CV.'
+  if (!cvFile.value) { error.value = 'Merci de joindre votre CV.'; return }
+  if (turnstileSiteKey && !turnstileToken.value) {
+    error.value = 'Merci de valider le test anti-robot.'
     return
   }
   if (!offer.value) return
   error.value = ''
-  applicationStore.apply({
-    jobOfferId: offer.value.id, jobOfferTitle: offer.value.title,
-    candidateName: form.candidateName.trim(), candidateEmail: form.candidateEmail.trim(),
-    candidatePhone: form.candidatePhone.trim(), cvFileName: form.cvFileName,
-  })
-  done.value = true
+  submitting.value = true
+  try {
+    await careersStore.apply(token, {
+      candidateName: form.candidateName.trim(),
+      candidateEmail: form.candidateEmail.trim(),
+      candidatePhone: form.candidatePhone.trim(),
+      cvFile: cvFile.value,
+      honeypot: { website: hp.website, fax: hp.fax },
+      captchaToken: turnstileToken.value || undefined,
+    })
+    done.value = true
+  } catch (e) {
+    error.value = getApiErrorMessage(e, "L'envoi a échoué, merci de réessayer.")
+    resetTurnstile()
+    await careersStore.ensureFormToken()
+  } finally {
+    submitting.value = false
+  }
 }
 </script>

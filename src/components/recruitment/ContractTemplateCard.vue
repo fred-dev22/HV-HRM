@@ -173,7 +173,7 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
             <iframe :srcdoc="previewHtml" class="w-full h-full border-0" title="Aperçu du modèle" />
           </div>
           <p class="text-[11px] text-muted-foreground mt-1.5">
-            Rendu avec des données d'exemple (candidat, poste, dates fictifs) — juste pour voir le document final, sans l'imprimer.
+            Rendu avec des données d'exemple (candidat, poste, dates fictifs) : juste pour voir le document final, sans l'imprimer.
           </p>
         </FormSection>
       </div>

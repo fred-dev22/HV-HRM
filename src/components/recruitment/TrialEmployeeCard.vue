@@ -69,7 +69,7 @@ function documentInput() {
     : ''
   return {
     candidateName: contract.candidateName, jobTitle: contract.jobTitle, entityName: contract.entityName,
-    templateName: contract.templateName, resolvedContent,
+    templateName: contract.templateName ?? 'Proposition d\'embauche', resolvedContent,
   }
 }
 

@@ -4,13 +4,15 @@ import { api } from '../lib/api'
 
 export interface AppNotification {
   id:      string
-  type:    'leave' | 'mission' | 'expense' | 'system'
+  type:    'leave' | 'mission' | 'expense' | 'recruitment' | 'reminder' | 'system'
   title:   string
   message: string
   href?:   string
   read:    boolean
   date:    string
 }
+
+const KNOWN_TYPES = ['leave', 'mission', 'expense', 'recruitment', 'reminder', 'system'] as const
 
 export interface BackendNotification {
   Id:        string
@@ -25,7 +27,7 @@ export interface BackendNotification {
 function mapNotification(n: BackendNotification): AppNotification {
   return {
     id: n.Id,
-    type: (['leave', 'mission', 'expense', 'system'] as const).includes(n.Type as AppNotification['type'])
+    type: (KNOWN_TYPES as readonly string[]).includes(n.Type)
       ? (n.Type as AppNotification['type'])
       : 'system',
     title: n.Title,

@@ -6,14 +6,16 @@
  */
 import { ref, computed, watch } from 'vue'
 import { Download, UserPlus, CheckCircle2 } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import ContractWorkflowActions from './ContractWorkflowActions.vue'
+import ConvertToEmployeeModal from './ConvertToEmployeeModal.vue'
 import * as cls from '../../lib/formClasses'
-import { confirmDialog } from '../../lib/confirm'
 import { formatDate } from '../../lib/date'
 import { resolveContractContent, buildContractHtml, downloadContractPdf } from '../../lib/contractDocument'
+import { useAuthStore } from '../../stores/auth'
 import { useContractStore } from '../../stores/recruitment'
 import type { Contract } from '../../stores/recruitment'
 
@@ -62,26 +64,20 @@ function documentInput(item: Contract) {
     : ''
   return {
     candidateName: item.candidateName, jobTitle: item.jobTitle, entityName: item.entityName,
-    templateName: item.templateName, resolvedContent,
+    templateName: item.templateName ?? 'Proposition d\'embauche', resolvedContent,
   }
 }
 
 const documentHtml = computed(() => (current.value ? buildContractHtml(documentInput(current.value)) : ''))
 function downloadPdf() { if (current.value) downloadContractPdf(documentInput(current.value)) }
 
-/* ── Créer le profil employé (simulation) ────────────────────────────
-   Voir Contract.employeeProfileCreated et BACKLOG.md, "Conversion candidat
-   -> employe" : ne cree rien dans le vrai module Employes, faute de
-   backend sur ce module. Sert a visualiser/valider le point d'entree. */
-async function createEmployeeProfile() {
-  if (!current.value) return
-  if (await confirmDialog(
-    "Simuler la création du profil employé de " + current.value.candidateName + " ? " +
-    "Ceci ne crée aucun compte réel dans le module Employés (ce module n'a pas encore de backend).",
-  )) {
-    contractStore.markEmployeeProfileCreated(current.value.id)
-  }
-}
+/* ── Conversion candidat -> employe (backlog "Inclusion d'un Potentiel") ──
+   Cree un vrai compte dans le module Employes via
+   contractStore.convertToEmployee (voir ConvertToEmployeeModal). Reserve aux
+   comptes disposant de EMPLOYE_CREER, verifie aussi cote serveur. */
+const auth = useAuthStore()
+const canCreateEmployee = computed(() => auth.hasPermission('EMPLOYE_CREER'))
+const showConvert = ref(false)
 
 const pageTitle = computed(() => current.value?.candidateName ?? '')
 const readBox = 'text-[13px] text-foreground bg-background border border-border rounded-md px-2.5 h-[38px] flex items-center'
@@ -131,7 +127,11 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Modèle</label>
-              <div :class="readBox">{{ current.templateName }}</div>
+              <div :class="readBox">{{ current.templateName || 'Aucun modèle' }}</div>
+            </div>
+            <div :class="cls.field">
+              <label :class="cls.fieldLabel">Référence</label>
+              <div :class="readBox" class="font-mono text-xs">{{ current.referenceCode }}</div>
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Date de début</label>
@@ -149,20 +149,42 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
           <div v-if="current.rejectionReason" :class="cls.fieldErrorBlock" class="mt-3">{{ current.rejectionReason }}</div>
         </FormSection>
 
-        <!-- Section Conversion en employé (simulation, voir BACKLOG.md) -->
-        <FormSection v-if="current.status === 'AcceptedByCandidate'" title="Conversion en employé">
-          <div v-if="current.employeeProfileCreated" class="flex items-center gap-2 text-success text-[13px] font-medium">
-            <CheckCircle2 class="w-4 h-4" /> Profil employé créé (simulation)
+        <!-- Section Conversion en employé (backlog "Inclusion d'un Potentiel") -->
+        <FormSection v-if="current.status === 'Accepted'" title="Conversion en employé">
+          <div v-if="current.createdEmployeeId" class="flex items-center gap-2 text-success text-[13px] font-medium">
+            <CheckCircle2 class="w-4 h-4" /> Profil employé créé
+            <RouterLink :to="{ name: 'hr-employee-edit', params: { id: current.createdEmployeeId } }" class="text-primary hover:underline ml-1">
+              Ouvrir la fiche employé
+            </RouterLink>
           </div>
-          <template v-else>
-            <button type="button" :class="cls.btnPrimary" @click="createEmployeeProfile">
+          <template v-else-if="canCreateEmployee">
+            <button type="button" :class="cls.btnPrimary" @click="showConvert = true">
               <UserPlus class="w-4 h-4" /> Créer le profil employé
             </button>
             <p class="text-[11px] text-muted-foreground mt-1.5">
-              Simulation uniquement : ce module n'a pas encore de backend, ce bouton ne crée aucun compte réel dans le module Employés.
+              Crée un vrai compte dans le module Employés à partir de cette proposition d'embauche.
               À déclencher une fois le contrat signé physiquement et reçu par les RH.
             </p>
           </template>
+          <p v-else class="text-[11px] text-muted-foreground italic">
+            La création d'un profil employé requiert la permission de créer un employé.
+          </p>
+        </FormSection>
+
+        <!-- Section Négociation -->
+        <FormSection v-if="current.negotiationRounds.length > 0" title="Négociation" :recaps="[`${current.negotiationRounds.length} tour(s)`]">
+          <div class="flex flex-col gap-2">
+            <div v-for="r in current.negotiationRounds" :key="r.roundNo" class="text-[13px] bg-background rounded-md px-3 py-2 flex flex-col gap-0.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-medium text-foreground text-xs">
+                  Tour {{ r.roundNo }} · {{ r.fromParty === 'HR' ? 'RH' : 'Candidat' }}
+                  <span v-if="r.amount != null" class="text-primary">· {{ formatSalary(r.amount) }}</span>
+                </span>
+                <span class="text-[11px] text-muted-foreground shrink-0">{{ formatDate(r.date) }}</span>
+              </div>
+              <p class="text-foreground whitespace-pre-line">{{ r.comment }}</p>
+            </div>
+          </div>
         </FormSection>
 
         <!-- Section Document du contrat -->
@@ -174,10 +196,19 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
             <Download class="w-4 h-4" /> Télécharger le PDF
           </button>
           <p class="text-[11px] text-muted-foreground mt-1.5">
-            Ouvre le document dans un nouvel onglet et lance l'impression — choisissez "Enregistrer au format PDF" comme destination pour le télécharger.
+            Ouvre le document dans un nouvel onglet et lance l'impression : choisissez "Enregistrer au format PDF" comme destination pour le télécharger.
           </p>
         </FormSection>
       </div>
     </template>
   </CardModalShell>
+
+  <ConvertToEmployeeModal
+    v-if="current"
+    :open="showConvert"
+    :contract="current"
+    mode="contract"
+    @close="showConvert = false"
+    @done="showConvert = false"
+  />
 </template>

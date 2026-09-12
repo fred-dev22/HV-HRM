@@ -4,6 +4,7 @@
     :subtitle="`${filtered.length} candidature(s) liée(s) à une offre`"
     :columns="columns"
     :items="pageItems"
+    :loading="applicationStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} candidature(s)`"
     search-placeholder="Rechercher un candidat, un email…"
@@ -53,14 +54,14 @@
         <span v-if="item.source === 'Internal'" class="text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap bg-info-bg text-info shrink-0" title="Employé existant, candidature interne">Interne</span>
       </span>
     </template>
-    <template #cell-candidateEmail="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.candidateEmail || '—' }}</span></template>
-    <template #cell-candidatePhone="{ item }"><span class="text-muted-foreground text-xs whitespace-nowrap">{{ item.candidatePhone || '—' }}</span></template>
+    <template #cell-candidateEmail="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.candidateEmail || '-' }}</span></template>
+    <template #cell-candidatePhone="{ item }"><span class="text-muted-foreground text-xs whitespace-nowrap">{{ item.candidatePhone || '-' }}</span></template>
     <template #cell-jobOfferTitle="{ item }"><span class="text-foreground text-xs truncate">{{ item.jobOfferTitle || 'Candidature spontanée' }}</span></template>
     <template #cell-cvFileName="{ item }">
       <span v-if="item.cvFileName" class="inline-flex items-center gap-1 text-xs text-muted-foreground min-w-0">
         <FileText class="w-3.5 h-3.5 shrink-0" /> <span class="truncate">{{ item.cvFileName }}</span>
       </span>
-      <span v-else class="text-xs text-muted-foreground">—</span>
+      <span v-else class="text-xs text-muted-foreground">-</span>
     </template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
     <template #cell-appliedAt="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.appliedAt) }}</span></template>
@@ -105,7 +106,7 @@
  * src/stores/recruitment). Calquée sur EmployeeListView.vue et
  * HiringRequestsView.vue.
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { Users, UserPlus, UserCheck, Clock, FileText } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -117,6 +118,7 @@ import { useApplicationStore } from '../../stores/recruitment'
 import type { Application } from '../../stores/recruitment'
 
 const applicationStore = useApplicationStore()
+onMounted(() => applicationStore.fetchAll())
 
 /* ── Fiche plein écran ──────────────────────────────────────── */
 const openCardId = ref<string | null>(null)

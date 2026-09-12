@@ -4,6 +4,7 @@
     :subtitle="`${jobOfferStore.items.length} offre(s)`"
     :columns="columns"
     :items="pageItems"
+    :loading="jobOfferStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} offre(s)`"
     search-placeholder="Rechercher un titre, une entité, un lieu…"
@@ -38,7 +39,7 @@
         </div>
         <div :class="kpiItem">
           <div :class="kpiIcon" class="bg-warning-bg"><Clock class="w-[18px] h-[18px] text-warning" /></div>
-          <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">En attente de validation</div></div>
+          <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">Brouillons</div></div>
         </div>
         <div :class="kpiItem">
           <div :class="kpiIcon" class="bg-info-bg"><Users class="w-[18px] h-[18px] text-info" /></div>
@@ -109,8 +110,9 @@
       v-if="showCreate"
       title="Nouvelle offre d'emploi"
       banner-label="Nouvelle offre d'emploi"
-      create-label="Soumettre"
+      create-label="Publier"
       draft-label="Enregistrer le brouillon"
+      :is-saving="submitting"
       :save-error="error"
       @close="showCreate = false"
       @create="create"
@@ -164,6 +166,36 @@
               </div>
             </FormSection>
 
+            <FormSection title="Grille d'évaluation d'entretien">
+              <div :class="cls.field">
+                <label :class="cls.fieldLabel">Grille rattachée <span :class="cls.fieldOptional">(optionnel)</span></label>
+                <select v-model="form.evaluationTemplateId" :class="cls.fieldSelect">
+                  <option value="">Aucune</option>
+                  <option v-for="t in evalTemplateStore.items" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+                <p class="text-[11px] text-muted-foreground mt-1">Proposée par défaut lors de l'évaluation des entretiens de cette offre. Gérez les grilles dans « Grilles d'évaluation ».</p>
+              </div>
+            </FormSection>
+
+            <FormSection title="Diffusion">
+              <div :class="cls.field">
+                <label :class="cls.fieldLabel">Rémunération affichée <span :class="cls.fieldOptional">(optionnel)</span></label>
+                <input v-model="form.salaryText" :class="cls.fieldInput" placeholder="ex : Selon profil, à partir de 1 500 000 MGA / mois…" />
+                <p class="text-[11px] text-muted-foreground mt-1">Texte libre repris tel quel sur le portail public et dans les contenus à partager. Laisser vide pour ne rien afficher.</p>
+              </div>
+              <!-- Case "exclure des flux publics / webhooks" masquee (decision du
+                   11/09) : aucun canal de diffusion configure chez le client et
+                   portail carriere pas encore expose publiquement, donc inutile
+                   pour l'instant. form.excludeFromFeed / buildPayload() restent
+                   inchanges (valeur par defaut false) : reafficher ce bloc suffit
+                   a reactiver la fonctionnalite le jour ou elle sert.
+              <label class="flex items-center gap-2 text-[13px] text-foreground mt-3">
+                <input v-model="form.excludeFromFeed" type="checkbox" />
+                Ne pas inclure dans les flux publics (feed.json / feed.xml) ni les webhooks
+              </label>
+              -->
+            </FormSection>
+
           </div>
         </div>
       </template>
@@ -183,7 +215,7 @@
  * Retourner (JobOfferStatus n'a pas d'état Returned) ni Annuler (pas
  * d'action cancel exposée par useJobOfferStore).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, Briefcase, Clock, Globe, Users } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -192,14 +224,24 @@ import JobOfferWorkflowActions from '../../components/recruitment/JobOfferWorkfl
 import JobOfferCard from '../../components/recruitment/JobOfferCard.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
-import { useJobOfferStore, useHiringRequestStore } from '../../stores/recruitment'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
+import { useJobOfferStore, useHiringRequestStore, useEvalTemplateStore } from '../../stores/recruitment'
 import type { JobOffer } from '../../stores/recruitment'
 import { useEntityStore } from '../../stores/entities'
 
 const jobOfferStore = useJobOfferStore()
 const hiringRequestStore = useHiringRequestStore()
+const evalTemplateStore = useEvalTemplateStore()
 const entityStore = useEntityStore()
 if (entityStore.entities.length === 0) entityStore.fetchAll()
+
+onMounted(() => {
+  jobOfferStore.fetchAll()
+  hiringRequestStore.fetchAll()
+  evalTemplateStore.fetchAll()
+})
 
 const CONTRACT_TYPES = [
   { value: 'CDI', label: 'CDI' },
@@ -227,7 +269,7 @@ const columns: ListColumn[] = [
 
 /* ── KPIs ───────────────────────────────────────────────────── */
 const publishedCount = computed(() => jobOfferStore.items.filter(o => o.status === 'Published').length)
-const pendingCount = computed(() => jobOfferStore.items.filter(o => o.status === 'PendingApproval').length)
+const pendingCount = computed(() => jobOfferStore.items.filter(o => o.status === 'Draft').length)
 const totalApplications = computed(() => jobOfferStore.items.reduce((s, o) => s + jobOfferStore.applicationsCount(o.id), 0))
 
 /* ── Scope / recherche / tri / pagination ──────────────────────
@@ -236,11 +278,8 @@ const totalApplications = computed(() => jobOfferStore.items.reduce((s, o) => s 
 const scopeOptions = [
   { value: '', label: 'Toutes' },
   { value: 'Draft', label: 'Brouillon' },
-  { value: 'PendingApproval', label: 'En attente' },
-  { value: 'Approved', label: 'Approuvée' },
   { value: 'Published', label: 'Publiée' },
   { value: 'Closed', label: 'Clôturée' },
-  { value: 'Rejected', label: 'Refusée' },
 ]
 const activeScope = ref('')
 const fEntity = ref('')
@@ -290,16 +329,21 @@ const pageItems = computed(() => {
 })
 
 /* ── Création ───────────────────────────────────────────────── */
-const approvedHiringRequests = computed(() => hiringRequestStore.items.filter(r => r.status === 'Approved'))
+// Expressions de besoin exprimées (non encore clôturées) — rattachables.
+const approvedHiringRequests = computed(() => hiringRequestStore.items.filter(r => r.status === 'Open'))
 
 const showCreate = ref(false)
 const error = ref<string | null>(null)
 const form = reactive({
-  title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '',
+  title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '', evaluationTemplateId: '',
+  salaryText: '', excludeFromFeed: false,
 })
 
 function resetForm() {
-  Object.assign(form, { title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '' })
+  Object.assign(form, {
+    title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '', evaluationTemplateId: '',
+    salaryText: '', excludeFromFeed: false,
+  })
   error.value = null
 }
 
@@ -336,23 +380,37 @@ function buildPayload() {
     location: form.location.trim(),
     description: form.description.trim(),
     hiringRequestId: form.hiringRequestId || undefined,
+    evaluationTemplateId: form.evaluationTemplateId || undefined,
+    salaryText: form.salaryText.trim() || undefined,
+    excludeFromFeed: form.excludeFromFeed || undefined,
   }
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+// Pas de circuit de validation : "Publier" crée puis publie en une fois.
+async function create() {
   if (!validate()) return
-  jobOfferStore.create(buildPayload())
-  const created = jobOfferStore.items[0]
-  if (created) jobOfferStore.submit(created.id)
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Publication...', async () => {
+      const created = await jobOfferStore.create(buildPayload())
+      await jobOfferStore.publish(created.id)
+    }, () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 
-function saveDraft() {
+async function saveDraft() {
   if (!validate()) return
-  jobOfferStore.create(buildPayload())
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Enregistrement...', () => jobOfferStore.create(buildPayload()), () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 
 /* ── Fiche complète (double-clic sur une ligne ou bouton "Ouvrir la

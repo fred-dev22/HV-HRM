@@ -1,30 +1,36 @@
 /**
- * Types du module Recrutement — écrans construits sur données fictives
- * (voir mockSeed.ts), en attendant le backend. Les statuts suivent le même
- * vocabulaire que les autres domaines (LeaveRequest, MissionOrder…) pour que
- * StatusPill les affiche sans configuration supplémentaire là où c'est
- * pertinent (Draft/PendingApproval/Approved/Rejected/Returned/Cancelled).
+ * Types du module Recrutement — brancHés sur le vrai backend
+ * (productive247-hrm-backend, src/modules/recruitment). Les statuts sont
+ * volontairement courts : aucun circuit de validation (décision client du
+ * 05/09), une offre passe de Draft à Published (une seule fois) puis Closed,
+ * "c'est le RH et c'est entre eux".
+ *
+ * Les libellés d'entité (`entityName`, `positionTitle`) restent du texte
+ * libre : le module vise aussi des postes/candidats externes et les écrans
+ * n'affichent qu'un intitulé.
  */
 
-export type WorkflowStatus =
-  | 'Draft' | 'PendingApproval' | 'Approved' | 'Rejected' | 'Returned' | 'Cancelled'
+// ── Expression de besoin ───────────────────────────────────────
+export type HiringRequestStatus = 'Draft' | 'Open' | 'Closed' | 'Cancelled'
 
 export interface HiringRequest {
   id: string
+  referenceCode: string
   positionTitle: string
   entityName: string
   headcount: number
   profile: string
   requestedByName: string
   requestedAt: string
-  status: WorkflowStatus
-  rejectionReason?: string
+  status: HiringRequestStatus
 }
 
-export type JobOfferStatus = WorkflowStatus | 'Published' | 'Closed'
+// ── Offre d'emploi ─────────────────────────────────────────────
+export type JobOfferStatus = 'Draft' | 'Published' | 'Closed'
 
 export interface JobOffer {
   id: string
+  referenceCode: string
   hiringRequestId?: string
   title: string
   entityName: string
@@ -34,20 +40,31 @@ export interface JobOffer {
   status: JobOfferStatus
   publishedAt?: string
   views: number
-  rejectionReason?: string
-  // Renseigne a la cloture de l'offre (voir JobOfferWorkflowActions.vue) :
-  // cout total de la campagne (annonces, cabinet de recrutement, etc.), en
-  // MGA. Sert au calcul du "cout par recrutement" sur PipelineView.vue.
+  applicationsCount: number
+  // Jeton opaque du lien partageable du portail carrière.
+  publicToken: string
+  // Grille d'évaluation d'entretien rattachée (US15).
+  evaluationTemplateId?: string
+  evaluationTemplateName?: string
+  // Renseigné à la clôture — coût total de la campagne (MGA).
   recruitmentCost?: number
+  // Diffusion multi-plateformes (backlog) : retirer des flux publics + salaire affiché.
+  excludeFromFeed?: boolean
+  salaryText?: string
 }
 
-// Un stage est une offre d'emploi comme une autre (JobOffer.contractType =
-// 'Stage') : pas de source "Internship" separee, une candidature a une offre
-// de stage est une candidature "Offer" normale (decision du 25/08).
-// 'Internal' : mobilite interne, voir liste-besoins.md / doc2 ligne 742
-// ("Ajouter a la candidature" depuis la fiche d'un salarie) — un employe deja
-// dans le systeme postule a une offre, contrairement a 'Offer'/'Spontaneous'
-// qui restent des candidats externes.
+// Piece jointe reelle (CV, PDF d'annonce...) stockee sur SharePoint.
+export interface RecruitmentDocument {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileSize: number
+  mimeType: string
+  createdAt: string
+  isPrimaryCv?: boolean
+}
+
+// ── Candidatures ───────────────────────────────────────────────
 export type ApplicationSource = 'Offer' | 'Spontaneous' | 'Internal'
 export type ApplicationStatus = 'New' | 'InReview' | 'InterviewScheduled' | 'Retained' | 'Rejected'
 
@@ -59,37 +76,33 @@ export interface ApplicationNote {
 
 export interface Application {
   id: string
+  referenceCode: string
   jobOfferId?: string
   jobOfferTitle?: string
   candidateName: string
   candidateEmail: string
   candidatePhone: string
   source: ApplicationSource
-  // Absent pour une candidature interne (source 'Internal') : le dossier de
-  // l'employe existe deja, pas besoin de redeposer un CV.
   cvFileName?: string
-  // Renseigne uniquement pour une candidature interne (source 'Internal') —
-  // id du vrai compte employe, choisi via l'annuaire (voir JobOfferCard.vue),
-  // meme limite que InterviewParticipant.employeeId (pas d'email disponible
-  // depuis l'annuaire leger).
+  // Renseigné pour une candidature interne (source 'Internal') — vrai compte employé.
   employeeId?: string
   status: ApplicationStatus
   appliedAt: string
   notes: ApplicationNote[]
+  // Présent si un contrat / une proposition d'embauche a déjà été généré.
+  hasContract?: boolean
 }
 
+// ── Entretiens ─────────────────────────────────────────────────
 export type InterviewStatus = 'Scheduled' | 'Done' | 'Cancelled'
 export type InterviewMode = 'InPerson' | 'VideoCall'
 
-// Grilles d'evaluation standardisees (cartographie client, section
-// "Entretiens" : "Grilles d'evaluation standardisees") — un jeu fixe de
-// criteres note chacun /5, plutot qu'une seule note globale. Reste
-// optionnel : "Aucune (note libre)" reste possible sur le formulaire
-// d'evaluation (voir InterviewWorkflowActions.vue).
 export interface InterviewEvaluationTemplate {
   id: string
   name: string
   criteria: string[]
+  // Nombre d'offres qui utilisent cette grille (empêche la suppression).
+  jobOffersCount?: number
 }
 
 export interface InterviewCriterionScore {
@@ -98,8 +111,6 @@ export interface InterviewCriterionScore {
 }
 
 export interface InterviewEvaluation {
-  // Note globale : moyenne des criteres si une grille a ete utilisee, saisie
-  // directement sinon.
   score: number
   comment: string
   interviewerName: string
@@ -107,48 +118,43 @@ export interface InterviewEvaluation {
   criteriaScores?: InterviewCriterionScore[]
 }
 
+// Reponse a une invitation calendrier (backlog "Suivi des reponses").
+export type RsvpResponse = 'Pending' | 'Accepted' | 'Declined' | 'Tentative'
+
 export interface InterviewParticipant {
-  // Id du vrai compte employe (choisi via l'annuaire /employees/directory
-  // dans InterviewsView.vue) — evite les doublons et les fautes de frappe
-  // qu'un champ texte libre permettait.
+  // Id de la ligne participant — necessaire pour la correction manuelle RH.
+  participantId?: string
   employeeId?: string
   name: string
-  // L'annuaire leger (/employees/directory) n'expose pas l'email — champ
-  // volontairement minimal, accessible sans permission elevee (voir
-  // employees.ts). Ce champ reste donc vide tant qu'on le remplit depuis ce
-  // picker ; conserve pour que "Ajouter a mon calendrier" (calendarLinks.ts)
-  // invite ce participant des que l'email sera disponible (endpoint enrichi,
-  // ou vrai backend Recrutement).
   email?: string
+  rsvp?: RsvpResponse
+  rsvpAt?: string
+  rsvpSource?: 'Link' | 'Manual' | 'IcsReply'
 }
 
 export interface Interview {
   id: string
+  referenceCode: string
   applicationId: string
   candidateName: string
-  // Toujours connu (recopie d'Application.candidateEmail a la creation) :
-  // le candidat est systematiquement invite au calendrier de son entretien.
   candidateEmail: string
   jobOfferTitle: string
   scheduledAt: string
   mode: InterviewMode
-  // L'un ou l'autre selon mode, jamais les deux (voir InterviewsView.vue) :
-  // location pour un entretien en presentiel, meetingLink pour une visio.
   location?: string
   meetingLink?: string
   participants: InterviewParticipant[]
   status: InterviewStatus
   evaluation?: InterviewEvaluation
+  // Reponse du candidat a l'invitation calendrier.
+  candidateRsvp?: RsvpResponse
+  candidateRsvpAt?: string
+  candidateRsvpSource?: 'Link' | 'Manual' | 'IcsReply'
 }
 
-// Vue par defaut du client : "Potentiels ouverts" (doc2, section "Objet
-// Potentiel") — sous-entend un statut. Ouvert = toujours disponible/a
-// recontacter ; Ferme = plus d'actualite (recrute ailleurs, ne repond plus…).
+// ── Vivier de talents ──────────────────────────────────────────
 export type TalentPoolStatus = 'Open' | 'Closed'
 
-// Le client modelise "Evaluations Potentiel" comme une entite a part, pas un
-// champ texte (doc2, section "Objet Potentiel") — historique horodate,
-// meme forme que TrialEvaluation.
 export interface TalentPoolEvaluation {
   score: number
   comment: string
@@ -158,6 +164,7 @@ export interface TalentPoolEvaluation {
 
 export interface TalentPoolEntry {
   id: string
+  referenceCode: string
   candidateName: string
   candidateEmail: string
   candidatePhone: string
@@ -169,6 +176,7 @@ export interface TalentPoolEntry {
   evaluations: TalentPoolEvaluation[]
 }
 
+// ── Modèles + propositions d'embauche ──────────────────────────
 export interface ContractTemplate {
   id: string
   name: string
@@ -176,33 +184,43 @@ export interface ContractTemplate {
   content: string
 }
 
+// Proposition d'embauche post-entretien (workflow RH : proposition ->
+// négociation -> confirmation). Aucun circuit de validation interne.
 export type ContractStatus =
-  | 'Draft' | 'PendingApproval' | 'Approved' | 'Rejected' | 'Returned'
-  | 'SentToCandidate' | 'AcceptedByCandidate' | 'RefusedByCandidate' | 'Cancelled'
+  | 'Draft' | 'Sent' | 'Negotiating' | 'Accepted' | 'Refused' | 'Cancelled'
+
+export interface ContractNegotiationRound {
+  roundNo: number
+  fromParty: 'HR' | 'Candidate'
+  amount?: number
+  comment: string
+  date: string
+}
 
 export interface Contract {
   id: string
+  referenceCode: string
   applicationId: string
   candidateName: string
-  templateId: string
-  templateName: string
+  candidateEmail?: string
+  candidatePhone?: string
+  templateId?: string
+  templateName?: string
   jobTitle: string
   entityName: string
   startDate: string
-  // Absent pour un CDI (duree indeterminee, pas de terme) ; requis pour tout
-  // autre type (CDD, Stage, Freelance, Apprenti, Alternant, Essai), voir
-  // validate() dans ContractsView.vue.
   endDate?: string
   salary: number
   status: ContractStatus
   rejectionReason?: string
-  // Simulation uniquement : ce module n'a pas de backend, ce champ ne cree
-  // aucun vrai compte dans le module Employes (voir BACKLOG.md, "Conversion
-  // candidat -> employe"). Sert juste a visualiser/valider le point d'entree
-  // avec le client avant de le brancher pour de vrai.
+  negotiationRounds: ContractNegotiationRound[]
+  // Vrai compte Employe cree a partir de ce contrat (backlog "Conversion
+  // candidat -> employe") — non null une fois la conversion faite.
   employeeProfileCreated?: boolean
+  createdEmployeeId?: string
 }
 
+// ── Périodes d'essai ───────────────────────────────────────────
 export type TrialStatus = 'OnTrial' | 'Extended' | 'Converted' | 'Cancelled'
 
 export interface TrialEvaluation {
@@ -214,6 +232,7 @@ export interface TrialEvaluation {
 
 export interface TrialEmployee {
   id: string
+  referenceCode: string
   contractId: string
   employeeName: string
   jobTitle: string
@@ -222,4 +241,57 @@ export interface TrialEmployee {
   trialEndDate: string
   status: TrialStatus
   evaluation?: TrialEvaluation
+  // Vrai compte Employe rattache (backlog "Conversion candidat -> employe").
+  createdEmployeeId?: string
+}
+
+// ── Portail carrière public ────────────────────────────────────
+export interface PublicJobOffer {
+  token: string
+  title: string
+  entityName: string
+  contractType: string
+  location: string
+  description: string
+  salaryText?: string
+  publishedAt?: string
+  views: number
+}
+
+// ── Diffusion multi-plateformes des offres (backlog) ───────────
+export type DistributionChannelKind = 'Webhook' | 'RssOnly' | 'Manual' | 'Email'
+export type JobOfferDistributionStatus = 'Pending' | 'Sent' | 'Failed' | 'Posted' | 'Skipped'
+
+export interface DistributionChannel {
+  id: string
+  name: string
+  kind: DistributionChannelKind
+  targetUrl?: string
+  targetEmail?: string
+  hasSecret: boolean
+  isActive: boolean
+}
+
+export interface JobOfferDistribution {
+  id: string
+  jobOfferId: string
+  channelId: string
+  channelName: string
+  channelKind: DistributionChannelKind
+  status: JobOfferDistributionStatus
+  trigger: 'Publish' | 'Close' | 'Manual'
+  externalUrl?: string
+  attempts: number
+  httpStatus?: number
+  responseSnippet?: string
+  lastAttemptAt?: string
+  postedAt?: string
+}
+
+export interface ShareContent {
+  plainText: string
+  markdown: string
+  linkedinPost: string
+  twitterShort: string
+  publicUrl: string
 }

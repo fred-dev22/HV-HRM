@@ -4,6 +4,7 @@
     :subtitle="`${hiringRequestStore.items.length} demande(s)`"
     :columns="columns"
     :items="pageItems"
+    :loading="hiringRequestStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} demande(s)`"
     search-placeholder="Rechercher un poste, une entité, un demandeur…"
@@ -20,7 +21,7 @@
     @open-card="openCard"
   >
     <template #header-actions>
-      <button :class="L.btnPrimary" @click="showCreate = true">
+      <button v-if="canExpress" :class="L.btnPrimary" @click="showCreate = true">
         <Plus class="w-4 h-4" /> Nouvelle demande
       </button>
     </template>
@@ -34,11 +35,11 @@
         </div>
         <div :class="kpiItem">
           <div :class="kpiIcon" class="bg-warning-bg"><Clock class="w-[18px] h-[18px] text-warning" /></div>
-          <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">En attente de validation</div></div>
+          <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">Brouillons</div></div>
         </div>
         <div :class="kpiItem">
           <div :class="kpiIcon" class="bg-success-bg"><CheckCircle2 class="w-[18px] h-[18px] text-success" /></div>
-          <div><div :class="kpiVal">{{ approvedCount }}</div><div :class="kpiLbl">Approuvées</div></div>
+          <div><div :class="kpiVal">{{ approvedCount }}</div><div :class="kpiLbl">Exprimées</div></div>
         </div>
       </div>
     </template>
@@ -76,7 +77,6 @@
           <div class="text-[11px] text-muted-foreground truncate">{{ item.entityName }}</div>
         </div>
         <div><StatusPill :status="item.status" /></div>
-        <div v-if="item.rejectionReason" :class="cls.fieldErrorBlock">{{ item.rejectionReason }}</div>
         <div class="grid grid-cols-2 gap-2 text-[12px]">
           <div><div class="text-muted-foreground text-[11px]">Effectif</div>{{ item.headcount }}</div>
           <div><div class="text-muted-foreground text-[11px]">Date</div>{{ formatDate(item.requestedAt) }}</div>
@@ -98,6 +98,7 @@
       banner-label="Nouvelle demande de recrutement"
       create-label="Soumettre"
       draft-label="Enregistrer le brouillon"
+      :is-saving="submitting"
       :save-error="error"
       @close="showCreate = false"
       @create="create"
@@ -109,9 +110,17 @@
 
             <FormSection title="Poste">
               <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
-                <div :class="cls.field" class="col-span-2">
-                  <label :class="cls.fieldLabel">Poste <span class="text-danger">*</span></label>
+                <div :class="cls.field">
+                  <label :class="cls.fieldLabel">Intitulé du poste <span class="text-danger">*</span></label>
                   <input v-model="form.positionTitle" :class="cls.fieldInput" placeholder="ex : Comptable, Chauffeur poids lourd…" />
+                </div>
+                <div :class="cls.field">
+                  <label :class="cls.fieldLabel">Poste existant <span :class="cls.fieldOptional">(optionnel)</span></label>
+                  <select v-model="pickedPositionId" :class="cls.fieldSelect" @change="onPositionPicked">
+                    <option value="">Sélectionner dans le référentiel des postes…</option>
+                    <option v-for="p in positionStore.positions" :key="p.id" :value="p.id">{{ p.code }} · {{ p.title }}</option>
+                  </select>
+                  <p class="text-[11px] text-muted-foreground mt-1">Pré-remplit l'intitulé ci-dessus et l'entité ci-dessous, modifiables ensuite.</p>
                 </div>
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Entité <span class="text-danger">*</span></label>
@@ -159,7 +168,7 @@
  * fiche plein écran (HiringRequestCard) + actions de workflow réutilisables
  * (HiringRequestWorkflowActions), même pattern que le module Missions.
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, Briefcase, Clock, CheckCircle2 } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -169,15 +178,26 @@ import HiringRequestWorkflowActions from '../../components/recruitment/HiringReq
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { useHiringRequestStore } from '../../stores/recruitment'
 import type { HiringRequest } from '../../stores/recruitment'
 import { useEntityStore } from '../../stores/entities'
+import { usePositionStore } from '../../stores/positions'
 import { useAuthStore } from '../../stores/auth'
 
 const hiringRequestStore = useHiringRequestStore()
 const entityStore = useEntityStore()
+const positionStore = usePositionStore()
 const auth = useAuthStore()
 if (entityStore.entities.length === 0) entityStore.fetchAll()
+if (positionStore.positions.length === 0) positionStore.fetchAll()
+
+// Exprimer un besoin : permission dédiée (espace Administration) ou accès module.
+const canExpress = computed(() => auth.hasAnyPermission(['RECRUTEMENT_BESOIN_EXPRIMER', 'RECRUTEMENT_ACCES']))
+
+onMounted(() => hiringRequestStore.fetchAll())
 
 /* ── Styles KPI ─────────────────────────────────────────────── */
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
@@ -200,8 +220,8 @@ const columns: ListColumn[] = [
 ]
 
 /* ── KPIs ───────────────────────────────────────────────────── */
-const pendingCount = computed(() => hiringRequestStore.items.filter(r => r.status === 'PendingApproval').length)
-const approvedCount = computed(() => hiringRequestStore.items.filter(r => r.status === 'Approved').length)
+const pendingCount = computed(() => hiringRequestStore.items.filter(r => r.status === 'Draft').length)
+const approvedCount = computed(() => hiringRequestStore.items.filter(r => r.status === 'Open').length)
 
 /* ── Scope / recherche / tri / pagination ──────────────────────
    Même pattern que EmployeeListView.vue : la vue calcule elle-même
@@ -209,10 +229,8 @@ const approvedCount = computed(() => hiringRequestStore.items.filter(r => r.stat
 const scopeOptions = [
   { value: '', label: 'Toutes' },
   { value: 'Draft', label: 'Brouillon' },
-  { value: 'PendingApproval', label: 'En attente' },
-  { value: 'Approved', label: 'Approuvée' },
-  { value: 'Rejected', label: 'Refusée' },
-  { value: 'Returned', label: 'Retournée' },
+  { value: 'Open', label: 'Exprimée' },
+  { value: 'Closed', label: 'Clôturée' },
   { value: 'Cancelled', label: 'Annulée' },
 ]
 const activeScope = ref('')
@@ -269,8 +287,24 @@ const form = reactive({
   requestedByName: auth.user?.name ?? '',
 })
 
+// Selecteur "Poste existant" (referentiel Classification) : ne fait pas
+// partie du payload envoye au backend (HiringRequest.positionTitle reste du
+// texte libre, voir types.ts) — sert juste a pre-remplir l'intitule et
+// l'entite depuis un poste deja defini, modifiable ensuite a la main.
+const pickedPositionId = ref('')
+function onPositionPicked() {
+  const position = positionStore.positions.find(p => p.id === pickedPositionId.value)
+  if (!position) return
+  form.positionTitle = position.title
+  if (position.organizationUnitId) {
+    const entity = entityStore.getEntityById(position.organizationUnitId)
+    if (entity) form.entityId = entity.id
+  }
+}
+
 function resetForm() {
   Object.assign(form, { positionTitle: '', entityId: '', headcount: 1, profile: '', requestedByName: auth.user?.name ?? '' })
+  pickedPositionId.value = ''
   error.value = null
 }
 
@@ -290,23 +324,32 @@ function buildPayload() {
     entityName: entity?.name ?? '',
     headcount: form.headcount,
     profile: form.profile.trim(),
-    requestedByName: form.requestedByName,
   }
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+async function create() {
   if (!validate()) return
-  hiringRequestStore.create(buildPayload())
-  const created = hiringRequestStore.items[0]
-  if (created) hiringRequestStore.submit(created.id)
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Soumission...', async () => {
+      const created = await hiringRequestStore.create(buildPayload())
+      await hiringRequestStore.submit(created.id)
+    }, () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, "Enregistrement impossible")
+  }
 }
 
-function saveDraft() {
+async function saveDraft() {
   if (!validate()) return
-  hiringRequestStore.create(buildPayload())
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Enregistrement...', () => hiringRequestStore.create(buildPayload()), () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, "Enregistrement impossible")
+  }
 }
 </script>

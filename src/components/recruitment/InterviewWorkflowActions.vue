@@ -1,15 +1,18 @@
 <script setup lang="ts">
 /**
- * Boutons d'action métier d'un entretien (Marquer comme effectué / Évaluer /
- * Annuler) + modale d'évaluation (note, commentaire, évaluateur). Réutilisé
- * dans le volet d'aperçu de la liste ET dans la barre d'actions de la fiche
- * (InterviewCard). Calqué sur MissionWorkflowActions.vue / JobOfferWorkflowActions.vue.
+ * Actions d'un entretien : Marquer comme effectué / Évaluer / Annuler.
+ * L'évaluation peut s'appuyer sur une grille standardisée (US15) : la note
+ * globale devient alors la moyenne des critères, sinon on garde la note
+ * libre /5. Annuler envoie une annulation calendrier (.ics) aux participants
+ * (côté backend).
  */
-import { reactive, computed } from 'vue'
+import { reactive, computed, onMounted } from 'vue'
 import { CheckCircle2, Star, Ban } from 'lucide-vue-next'
 import ModalShell from '../ui/ModalShell.vue'
 import * as cls from '../../lib/formClasses'
 import { confirmDialog } from '../../lib/confirm'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { useInterviewStore } from '../../stores/recruitment'
 import type { Interview } from '../../stores/recruitment'
 import { useAuthStore } from '../../stores/auth'
@@ -18,28 +21,36 @@ const props = defineProps<{ item: Interview }>()
 const interviewStore = useInterviewStore()
 const auth = useAuthStore()
 
-const btn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1 transition-colors'
+onMounted(() => {
+  if (interviewStore.evaluationTemplates.length === 0) interviewStore.fetchTemplates()
+})
+
+const btn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 const doneCls     = btn + ' bg-success-bg text-success hover:brightness-95'
 const evaluateCls = btn + ' bg-info-bg text-info hover:brightness-95'
 const cancelCls   = btn + ' bg-neutral-bg text-neutral hover:brightness-95'
 
-function markDoneItem() { interviewStore.markDone(props.item.id) }
-
-async function cancelItem() {
-  if (await confirmDialog('Annuler cet entretien ?')) interviewStore.cancel(props.item.id)
+const { submitting: markingDone, guard: guardMarkDone } = useSubmitGuard()
+async function markDoneItem() {
+  await guardMarkDone(() => withToast('Mise à jour…', () => interviewStore.markDone(props.item.id), () => 'Action impossible'))
 }
 
-/* ── Modale Évaluer ─────────────────────────────────────────────────
-   Grille d'évaluation standardisée optionnelle (voir cartographie client,
-   "Entretiens" → "Grilles d'évaluation standardisées") : la note globale
-   devient la moyenne des critères choisis, sinon on garde la note libre
-   /5 d'avant. */
+async function cancelItem() {
+  if (await confirmDialog('Annuler cet entretien ? Une annulation sera envoyée aux participants.', { danger: false })) {
+    await withToast('Annulation…', () => interviewStore.cancel(props.item.id), () => 'Annulation impossible')
+  }
+}
+
+/* ── Modale Évaluer ─────────────────────────────────────────── */
 const evaluateModal = reactive({
   open: false, templateId: '', score: 5, comment: '', interviewerName: '',
   criteriaScores: [] as { label: string; score: number }[], error: '',
 })
 function openEvaluate() {
-  Object.assign(evaluateModal, { open: true, templateId: '', score: 5, comment: '', interviewerName: auth.user?.name ?? '', criteriaScores: [], error: '' })
+  Object.assign(evaluateModal, {
+    open: true, templateId: '', score: 5, comment: '',
+    interviewerName: auth.user?.name ?? '', criteriaScores: [], error: '',
+  })
 }
 function onTemplateChange() {
   const tpl = interviewStore.evaluationTemplates.find(t => t.id === evaluateModal.templateId)
@@ -50,17 +61,22 @@ const averageScore = computed(() => {
   const sum = evaluateModal.criteriaScores.reduce((s, c) => s + c.score, 0)
   return Math.round((sum / evaluateModal.criteriaScores.length) * 10) / 10
 })
-function confirmEvaluate() {
+const { submitting: submittingEvaluate, guard: guardEvaluate } = useSubmitGuard()
+async function confirmEvaluate() {
   if (evaluateModal.comment.trim().length === 0) { evaluateModal.error = 'Le commentaire est requis'; return }
   if (!evaluateModal.interviewerName.trim()) { evaluateModal.error = "Le nom de l'évaluateur est requis"; return }
-  const tpl = interviewStore.evaluationTemplates.find(t => t.id === evaluateModal.templateId)
-  interviewStore.evaluate(props.item.id, {
-    score: tpl ? averageScore.value : evaluateModal.score,
-    comment: evaluateModal.comment.trim(),
-    interviewerName: evaluateModal.interviewerName.trim(),
-    templateName: tpl?.name,
-    criteriaScores: tpl ? evaluateModal.criteriaScores : undefined,
-  })
+  const usesTemplate = evaluateModal.criteriaScores.length > 0
+  await guardEvaluate(() => withToast(
+    'Enregistrement…',
+    () => interviewStore.evaluate(props.item.id, {
+      score: usesTemplate ? undefined : evaluateModal.score,
+      comment: evaluateModal.comment.trim(),
+      interviewerName: evaluateModal.interviewerName.trim(),
+      templateId: evaluateModal.templateId || undefined,
+      criteriaScores: usesTemplate ? evaluateModal.criteriaScores : undefined,
+    }),
+    () => "Enregistrement de l'évaluation impossible",
+  ))
   evaluateModal.open = false
 }
 </script>
@@ -68,10 +84,13 @@ function confirmEvaluate() {
 <template>
   <div class="flex items-center gap-1.5 flex-wrap">
     <template v-if="item.status === 'Scheduled'">
-      <button :class="doneCls" @click="markDoneItem"><CheckCircle2 class="w-3.5 h-3.5" /> Marquer comme effectué</button>
+      <button :class="doneCls" :disabled="markingDone" @click="markDoneItem"><CheckCircle2 class="w-3.5 h-3.5" /> Marquer comme effectué</button>
       <button :class="evaluateCls" @click="openEvaluate"><Star class="w-3.5 h-3.5" /> Évaluer</button>
       <button :class="cancelCls" @click="cancelItem"><Ban class="w-3.5 h-3.5" /> Annuler</button>
     </template>
+    <button v-else-if="item.status === 'Done' && !item.evaluation" :class="evaluateCls" @click="openEvaluate">
+      <Star class="w-3.5 h-3.5" /> Évaluer
+    </button>
     <span v-else class="text-xs text-muted-foreground italic">Aucune action disponible</span>
   </div>
 
@@ -111,8 +130,8 @@ function confirmEvaluate() {
     </div>
     <div v-if="evaluateModal.error" :class="cls.fieldError">{{ evaluateModal.error }}</div>
     <template #footer>
-      <button :class="cls.btnPrimary" @click="confirmEvaluate"><Star class="w-4 h-4" /> Enregistrer l'évaluation</button>
-      <button :class="cls.btnOutline" @click="evaluateModal.open = false">Annuler</button>
+      <button :class="cls.btnPrimary" :disabled="submittingEvaluate" @click="confirmEvaluate"><Star class="w-4 h-4" /> Enregistrer l'évaluation</button>
+      <button :class="cls.btnOutline" :disabled="submittingEvaluate" @click="evaluateModal.open = false">Annuler</button>
     </template>
   </ModalShell>
 </template>

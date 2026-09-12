@@ -44,6 +44,9 @@
           </div>
         </div>
 
+        <!-- Échéances à venir (backlog "Rappels d'échéances") -->
+        <UpcomingDeadlinesCard v-if="auth.hasPermission('EMPLOYE_VOIR_TOUT')" class="mb-3" />
+
         <!-- Structure organisationnelle -->
         <SkeletonLoader v-if="entityStore.loading" type="list" :lines="1" class="mb-3" />
         <router-link
@@ -231,6 +234,7 @@ import {
   CalendarClock, BarChart3, GripVertical, Calendar, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-vue-next'
 import AbsenceWorkflowActions from '../components/absences/AbsenceWorkflowActions.vue'
+import UpcomingDeadlinesCard from '../components/rh/UpcomingDeadlinesCard.vue'
 import ProductTour from '../components/ui/ProductTour.vue'
 import type { TourStep } from '../components/ui/ProductTour.vue'
 import { SkeletonLoader, StatusPill } from '../components'

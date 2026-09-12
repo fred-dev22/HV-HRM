@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { TrendingUp } from 'lucide-vue-next'
 import { StatusPill } from '../../components'
 import * as L from '../../lib/listClasses'
@@ -68,6 +68,12 @@ import type { ApplicationStatus, ApplicationSource } from '../../stores/recruitm
 const applicationStore = useApplicationStore()
 const jobOfferStore = useJobOfferStore()
 const contractStore = useContractStore()
+
+onMounted(() => {
+  applicationStore.fetchAll()
+  jobOfferStore.fetchAll()
+  contractStore.fetchAll()
+})
 
 const COLUMNS: { status: ApplicationStatus }[] = [
   { status: 'New' },
@@ -106,7 +112,7 @@ const conversionRate = computed(() => {
 // existent telles quelles dans le système, reliées via applicationId.
 const timeToHireSamples = computed(() => {
   return contractStore.items
-    .filter(c => c.status === 'AcceptedByCandidate')
+    .filter(c => c.status === 'Accepted')
     .map(c => {
       const app = applicationStore.items.find(a => a.id === c.applicationId)
       if (!app) return null

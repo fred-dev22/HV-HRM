@@ -1,14 +1,13 @@
 <script setup lang="ts">
 /**
- * Actions de workflow d'une candidature : changement de statut et ajout au
- * vivier de talents. Ce n'est pas un circuit d'approbation classique (pas de
- * validateur, pas de commentaire de retour), mais le composant est réutilisé
- * de la même façon dans les actions contextuelles de la liste, l'aperçu
- * rapide ET la fiche complète (ApplicationCard). Calqué sur
- * MissionWorkflowActions / HiringRequestWorkflowActions.
+ * Actions d'une candidature : changement de statut libre (piloté à la main
+ * par le RH, pas de circuit) et ajout au vivier de talents. Réutilisé dans
+ * les actions contextuelles de la liste, l'aperçu rapide et la fiche
+ * complète (ApplicationCard).
  */
 import { Star } from 'lucide-vue-next'
 import { confirmDialog } from '../../lib/confirm'
+import { withToast } from '../../lib/withToast'
 import { useApplicationStore } from '../../stores/recruitment'
 import type { Application, ApplicationStatus } from '../../stores/recruitment'
 
@@ -20,14 +19,18 @@ const selectCls =
 const btn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1 transition-colors'
 const poolCls = btn + ' bg-warning-bg text-warning hover:brightness-95'
 
-function onStatusChange(e: Event) {
+async function onStatusChange(e: Event) {
   const value = (e.target as HTMLSelectElement).value as ApplicationStatus
-  applicationStore.setStatus(props.item.id, value)
+  await withToast('Mise à jour…', () => applicationStore.setStatus(props.item.id, value), () => 'Changement de statut impossible')
 }
 
 async function addToPool() {
-  if (await confirmDialog(`Ajouter ${props.item.candidateName} au vivier de talents ?`)) {
-    applicationStore.addToTalentPool(props.item.id)
+  if (await confirmDialog(`Ajouter ${props.item.candidateName} au vivier de talents ?`, { danger: false })) {
+    await withToast(
+      'Ajout au vivier…',
+      () => applicationStore.addToTalentPool(props.item.id),
+      () => 'Ajout au vivier impossible',
+    )
   }
 }
 </script>

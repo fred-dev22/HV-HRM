@@ -4,6 +4,7 @@
     :subtitle="`${filtered.length} candidature(s) spontanée(s)`"
     :columns="columns"
     :items="pageItems"
+    :loading="applicationStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} candidature(s)`"
     search-placeholder="Rechercher un candidat, un email…"
@@ -93,6 +94,7 @@
       title="Nouvelle candidature spontanée"
       banner-label="Candidature spontanée"
       create-label="Enregistrer"
+      :is-saving="submitting"
       :save-error="error"
       @close="showCreate = false"
       @create="create"
@@ -125,13 +127,13 @@
                 @dragleave.prevent="dragOver = false"
                 @drop.prevent="onDrop"
               >
-                <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="form.cvFileName ? 'bg-success-bg' : 'bg-primary/10'">
-                  <FileCheck2 v-if="form.cvFileName" class="w-4.5 h-4.5 text-success" />
+                <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvName ? 'bg-success-bg' : 'bg-primary/10'">
+                  <FileCheck2 v-if="cvName" class="w-4.5 h-4.5 text-success" />
                   <UploadCloud v-else class="w-4.5 h-4.5 text-primary" />
                 </div>
-                <span v-if="form.cvFileName" class="text-[13px] font-medium text-foreground">{{ form.cvFileName }}</span>
+                <span v-if="cvName" class="text-[13px] font-medium text-foreground">{{ cvName }}</span>
                 <span v-else class="text-[13px] font-medium text-foreground">Glissez le CV ici, ou cliquez pour parcourir</span>
-                <span class="text-[11px] text-muted-foreground">{{ form.cvFileName ? 'Cliquez pour remplacer le fichier' : 'PDF ou Word' }}</span>
+                <span class="text-[11px] text-muted-foreground">{{ cvName ? 'Cliquez pour remplacer' : 'PDF ou Word, 5 Mo max' }}</span>
                 <input type="file" accept=".pdf,.doc,.docx" class="hidden" @change="onFileInput" />
               </label>
             </FormSection>
@@ -152,7 +154,7 @@
  * src/stores/recruitment). Calquée sur ApplicationsView.vue, sans colonne
  * "offre liée" (toujours vide par définition pour cette source).
  */
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { Users, UserPlus, Clock, FileText, Plus, UploadCloud, FileCheck2 } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -162,10 +164,14 @@ import ApplicationWorkflowActions from '../../components/recruitment/Application
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { useApplicationStore } from '../../stores/recruitment'
 import type { Application } from '../../stores/recruitment'
 
 const applicationStore = useApplicationStore()
+onMounted(() => applicationStore.fetchAll())
 
 /* ── Fiche plein écran ──────────────────────────────────────── */
 const openCardId = ref<string | null>(null)
@@ -248,16 +254,25 @@ const pageItems = computed(() => {
 const showCreate = ref(false)
 const error = ref<string | null>(null)
 const dragOver = ref(false)
-const form = reactive({ candidateName: '', candidateEmail: '', candidatePhone: '', cvFileName: '' })
+const form = reactive({ candidateName: '', candidateEmail: '', candidatePhone: '' })
+const cvFile = ref<File | null>(null)
+const cvName = computed(() => cvFile.value?.name ?? '')
+
+const CV_EXT = ['.pdf', '.doc', '.docx']
 
 function resetForm() {
-  Object.assign(form, { candidateName: '', candidateEmail: '', candidatePhone: '', cvFileName: '' })
+  Object.assign(form, { candidateName: '', candidateEmail: '', candidatePhone: '' })
+  cvFile.value = null
   error.value = null
 }
 
 function setFile(file: File | undefined) {
   if (!file) return
-  form.cvFileName = file.name
+  const n = file.name.toLowerCase()
+  if (!CV_EXT.some((e) => n.endsWith(e))) { error.value = 'Formats autorisés : PDF, DOC, DOCX.'; return }
+  if (file.size > 5 * 1024 * 1024) { error.value = 'Le fichier dépasse 5 Mo.'; return }
+  error.value = null
+  cvFile.value = file
 }
 function onFileInput(e: Event) { setFile((e.target as HTMLInputElement).files?.[0]) }
 function onDrop(e: DragEvent) { dragOver.value = false; setFile(e.dataTransfer?.files?.[0]) }
@@ -266,18 +281,25 @@ function validate(): boolean {
   if (!form.candidateName.trim()) { error.value = 'Le nom complet est requis'; return false }
   if (!form.candidateEmail.trim()) { error.value = "L'email est requis"; return false }
   if (!form.candidatePhone.trim()) { error.value = 'Le téléphone est requis'; return false }
-  if (!form.cvFileName) { error.value = 'Le CV est requis'; return false }
+  if (!cvFile.value) { error.value = 'Le CV est requis'; return false }
   error.value = null
   return true
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+async function create() {
   if (!validate()) return
-  applicationStore.applySpontaneous({
-    candidateName: form.candidateName.trim(), candidateEmail: form.candidateEmail.trim(),
-    candidatePhone: form.candidatePhone.trim(), cvFileName: form.cvFileName,
-  })
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Enregistrement...', () => applicationStore.create({
+      source: 'Spontaneous',
+      candidateName: form.candidateName.trim(),
+      candidateEmail: form.candidateEmail.trim(),
+      candidatePhone: form.candidatePhone.trim(),
+    }, cvFile.value ?? undefined), () => 'Enregistrement impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 </script>

@@ -19,6 +19,7 @@
       :subtitle="`${contractStore.items.length} contrat(s)`"
       :columns="columns"
       :items="pageItems"
+      :loading="contractStore.loading"
       :total="totalCount"
       :total-text="`${totalCount} contrat(s)`"
       search-placeholder="Rechercher un candidat, un poste, une entité…"
@@ -49,11 +50,11 @@
           </div>
           <div :class="kpiItem">
             <div :class="kpiIcon" class="bg-warning-bg"><Clock class="w-[18px] h-[18px] text-warning" /></div>
-            <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">En attente de validation</div></div>
+            <div><div :class="kpiVal">{{ pendingCount }}</div><div :class="kpiLbl">Brouillons</div></div>
           </div>
           <div :class="kpiItem">
             <div :class="kpiIcon" class="bg-info-bg"><Mail class="w-[18px] h-[18px] text-info" /></div>
-            <div><div :class="kpiVal">{{ sentCount }}</div><div :class="kpiLbl">Envoyés au candidat</div></div>
+            <div><div :class="kpiVal">{{ sentCount }}</div><div :class="kpiLbl">Envoyés / en négociation</div></div>
           </div>
           <div :class="kpiItem">
             <div :class="kpiIcon" class="bg-success-bg"><CheckCircle2 class="w-[18px] h-[18px] text-success" /></div>
@@ -92,7 +93,7 @@
       <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName }}</span></template>
       <template #cell-templateName="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ item.templateName }}</span></template>
       <template #cell-startDate="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.startDate) }}</span></template>
-      <template #cell-endDate="{ item }"><span class="text-muted-foreground text-xs">{{ item.endDate ? formatDate(item.endDate) : '—' }}</span></template>
+      <template #cell-endDate="{ item }"><span class="text-muted-foreground text-xs">{{ item.endDate ? formatDate(item.endDate) : '-' }}</span></template>
       <template #cell-salary="{ item }"><span class="text-xs font-semibold tabular-nums">{{ formatSalary(item.salary) }}</span></template>
       <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
 
@@ -131,6 +132,7 @@
         title="Générer un contrat"
         banner-label="Nouveau contrat"
         create-label="Générer"
+        :is-saving="submitting"
         :save-error="error"
         @close="showCreate = false"
         @create="create"
@@ -229,6 +231,7 @@
         title="Nouveau modèle de contrat"
         banner-label="Nouveau modèle de contrat"
         create-label="Enregistrer"
+        :is-saving="submittingTemplate"
         :save-error="templateModal.error"
         @close="templateModal.open = false"
         @create="confirmTemplate"
@@ -265,7 +268,7 @@
                   <iframe :srcdoc="templatePreviewHtml" class="w-full h-full border-0" title="Aperçu du modèle" />
                 </div>
                 <p class="text-[11px] text-muted-foreground mt-1.5">
-                  Rendu avec des données d'exemple (candidat, poste, dates fictifs) — juste pour voir le document final, sans l'imprimer.
+                  Rendu avec des données d'exemple (candidat, poste, dates fictifs) : juste pour voir le document final, sans l'imprimer.
                 </p>
               </FormSection>
 
@@ -291,7 +294,7 @@
  * (ContractWorkflowActions) + fiche complète en plein écran (ContractCard),
  * même pattern que le module Missions.
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import {
   Plus, Mail, CheckCircle2, FileSignature, FileText, Clock, Pencil,
 } from 'lucide-vue-next'
@@ -304,6 +307,9 @@ import ContractTemplateCard from '../../components/recruitment/ContractTemplateC
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { resolveContractContent, buildContractHtml } from '../../lib/contractDocument'
 import { useContractStore, useApplicationStore } from '../../stores/recruitment'
 import type { Contract } from '../../stores/recruitment'
@@ -313,6 +319,13 @@ const contractStore = useContractStore()
 const applicationStore = useApplicationStore()
 const entityStore = useEntityStore()
 if (entityStore.entities.length === 0) entityStore.fetchAll()
+
+onMounted(() => {
+  contractStore.fetchAll()
+  contractStore.fetchTemplates()
+  contractStore.fetchEligibleApplications()
+  if (applicationStore.items.length === 0) applicationStore.fetchAll()
+})
 
 // Construit en JS (pas en template) : deux "}}" litteraux dans un meme
 // mustache Vue font echouer le compilateur (il cherche la premiere sequence
@@ -364,9 +377,9 @@ const columns: ListColumn[] = [
 ]
 
 /* ── KPIs ───────────────────────────────────────────────────── */
-const pendingCount = computed(() => contractStore.items.filter(c => c.status === 'PendingApproval').length)
-const sentCount = computed(() => contractStore.items.filter(c => c.status === 'SentToCandidate').length)
-const acceptedCount = computed(() => contractStore.items.filter(c => c.status === 'AcceptedByCandidate').length)
+const pendingCount = computed(() => contractStore.items.filter(c => c.status === 'Draft').length)
+const sentCount = computed(() => contractStore.items.filter(c => c.status === 'Sent' || c.status === 'Negotiating').length)
+const acceptedCount = computed(() => contractStore.items.filter(c => c.status === 'Accepted').length)
 
 /* ── Scope / recherche / tri / pagination ──────────────────────
    Même pattern que EmployeeListView.vue : la vue calcule elle-même
@@ -374,14 +387,11 @@ const acceptedCount = computed(() => contractStore.items.filter(c => c.status ==
 const scopeOptions = [
   { value: '', label: 'Tous' },
   { value: 'Draft', label: 'Brouillon' },
-  { value: 'PendingApproval', label: 'En attente' },
-  { value: 'Approved', label: 'Approuvé' },
-  { value: 'SentToCandidate', label: 'Envoyé au candidat' },
-  { value: 'AcceptedByCandidate', label: 'Accepté' },
-  { value: 'RefusedByCandidate', label: 'Refusé par candidat' },
-  { value: 'Rejected', label: 'Refusé' },
-  { value: 'Returned', label: 'Retourné' },
-  { value: 'Cancelled', label: 'Annulé' },
+  { value: 'Sent', label: 'Envoyée au candidat' },
+  { value: 'Negotiating', label: 'En négociation' },
+  { value: 'Accepted', label: 'Acceptée' },
+  { value: 'Refused', label: 'Refusée' },
+  { value: 'Cancelled', label: 'Annulée' },
 ]
 const activeScope = ref('')
 const fEntity = ref('')
@@ -435,10 +445,9 @@ const openCardId = ref<string | null>(null)
 function openCard(item: Contract) { openCardId.value = item.id }
 
 /* ── Génération d'un contrat ────────────────────────────────── */
-// Candidatures retenues n'ayant pas déjà de contrat généré.
-const eligibleApplications = computed(() =>
-  applicationStore.items.filter(a => a.status === 'Retained' && !contractStore.items.some(c => c.applicationId === a.id)),
-)
+// Candidatures retenues n'ayant pas déjà de contrat généré (fourni par le
+// backend, voir contractStore.fetchEligibleApplications).
+const eligibleApplications = computed(() => contractStore.eligibleApplications)
 
 const showCreate = ref(false)
 const error = ref<string | null>(null)
@@ -457,7 +466,7 @@ function resetForm() {
 
 // Pré-remplit le poste depuis l'offre liée à la candidature, si disponible.
 function onApplicationChange() {
-  const app = applicationStore.items.find(a => a.id === form.applicationId)
+  const app = contractStore.eligibleApplications.find(a => a.id === form.applicationId)
   if (app?.jobOfferTitle) form.jobTitle = app.jobOfferTitle
 }
 
@@ -477,14 +486,10 @@ function validate(): boolean {
 }
 
 function buildPayload() {
-  const app = applicationStore.items.find(a => a.id === form.applicationId)
-  const tpl = contractStore.templates.find(t => t.id === form.templateId)
   const entity = entityStore.approvedEntities.find(e => e.id === form.entityId)
   return {
     applicationId: form.applicationId,
-    candidateName: app?.candidateName ?? '',
-    templateId: form.templateId,
-    templateName: tpl?.name ?? '',
+    templateId: form.templateId || undefined,
     jobTitle: form.jobTitle.trim(),
     entityName: entity?.name ?? '',
     startDate: form.startDate,
@@ -493,11 +498,19 @@ function buildPayload() {
   }
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+async function create() {
   if (!validate()) return
-  contractStore.generate(buildPayload())
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Génération...', async () => {
+      await contractStore.generate(buildPayload())
+      await contractStore.fetchEligibleApplications()
+    }, () => 'Génération impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Génération impossible')
+  }
 }
 
 /* ── Modèles de contrat ─────────────────────────────────────── */
@@ -509,11 +522,20 @@ const templateModal = reactive({ open: false, name: '', contractType: 'CDI', con
 function openNewTemplate() {
   Object.assign(templateModal, { open: true, name: '', contractType: 'CDI', content: '', error: '' })
 }
-function confirmTemplate() {
+const { submitting: submittingTemplate, guard: guardTemplate } = useSubmitGuard()
+async function confirmTemplate() {
   if (!templateModal.name.trim()) { templateModal.error = 'Le nom est requis'; return }
   if (!templateModal.content.trim()) { templateModal.error = 'Le contenu est requis'; return }
-  contractStore.createTemplate(templateModal.name.trim(), templateModal.contractType, templateModal.content.trim())
-  templateModal.open = false
+  try {
+    await guardTemplate(() => withToast(
+      'Enregistrement...',
+      () => contractStore.createTemplate(templateModal.name.trim(), templateModal.contractType, templateModal.content.trim()),
+      () => 'Enregistrement impossible',
+    ))
+    templateModal.open = false
+  } catch (e) {
+    templateModal.error = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 
 /* ── Fiche d'un modèle existant (voir ContractTemplateCard.vue) ────── */

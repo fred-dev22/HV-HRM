@@ -4,6 +4,7 @@
     :subtitle="`${interviewStore.items.length} entretien(s)`"
     :columns="columns"
     :items="pageItems"
+    :loading="interviewStore.loading"
     :total="totalCount"
     :total-text="`${totalCount} entretien(s)`"
     search-placeholder="Rechercher un candidat, une offre, un lieu…"
@@ -55,7 +56,7 @@
     <!-- Cellules -->
     <template #cell-candidateName="{ item }"><span class="font-medium text-foreground text-xs truncate">{{ item.candidateName }}</span></template>
     <template #cell-jobOfferTitle="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.jobOfferTitle }}</span></template>
-    <template #cell-scheduledAt="{ item }"><span class="text-muted-foreground text-xs whitespace-nowrap">{{ formatDateTime(item.scheduledAt) }}</span></template>
+    <template #cell-scheduledAt="{ item }"><span class="text-muted-foreground text-xs whitespace-nowrap">{{ formatInterviewDateTime(item.scheduledAt) }}</span></template>
     <template #cell-location="{ item }">
       <a v-if="item.mode === 'VideoCall'" :href="item.meetingLink" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary text-xs truncate hover:underline" @click.stop>
         <Video class="w-3.5 h-3.5 shrink-0" /> Visioconférence
@@ -65,6 +66,16 @@
       </span>
     </template>
     <template #cell-participants="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.participants.map(p => p.name).join(', ') }}</span></template>
+    <template #cell-rsvp="{ item }">
+      <div class="flex items-center gap-1 flex-wrap">
+        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap" :class="rsvpPillClass(item.candidateRsvp)" :title="`Candidat : ${rsvpLabel(item.candidateRsvp)}`">
+          C · {{ rsvpShort(item.candidateRsvp) }}
+        </span>
+        <span v-if="item.participants.length" class="text-[10px] text-muted-foreground whitespace-nowrap" :title="'Participants ayant accepté'">
+          {{ participantsAccepted(item) }}/{{ item.participants.length }}
+        </span>
+      </div>
+    </template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
 
     <!-- Aperçu rapide -->
@@ -76,7 +87,7 @@
         </div>
         <div><StatusPill :status="item.status" /></div>
         <div class="grid grid-cols-2 gap-2 text-[12px]">
-          <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Date et heure</div>{{ formatDateTime(item.scheduledAt) }}</div>
+          <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Date et heure</div>{{ formatInterviewDateTime(item.scheduledAt) }}</div>
           <div class="col-span-2">
             <div class="text-muted-foreground text-[11px]">{{ item.mode === 'VideoCall' ? 'Visioconférence' : 'Lieu' }}</div>
             <a v-if="item.mode === 'VideoCall'" :href="item.meetingLink" target="_blank" rel="noopener" class="text-primary hover:underline break-all">{{ item.meetingLink }}</a>
@@ -101,6 +112,7 @@
       title="Planifier un entretien"
       banner-label="Nouvel entretien"
       create-label="Planifier"
+      :is-saving="submitting"
       :save-error="error"
       @close="showCreate = false"
       @create="create"
@@ -191,7 +203,7 @@
  * ListPageLayout + boutons de workflow dans InterviewWorkflowActions.vue,
  * fiche complète dans InterviewCard.vue.
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, CalendarClock, Clock, CheckCircle2, CalendarDays, MapPin, Video, X } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -202,9 +214,12 @@ import InterviewWorkflowActions from '../../components/recruitment/InterviewWork
 import InterviewCard from '../../components/recruitment/InterviewCard.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
-import { todayIso } from '../../lib/date'
+import { todayIso, formatInterviewDateTime } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
+import { withToast } from '../../lib/withToast'
+import { useSubmitGuard } from '../../lib/submitGuard'
 import { useInterviewStore, useApplicationStore } from '../../stores/recruitment'
-import type { Interview, InterviewMode, InterviewParticipant } from '../../stores/recruitment'
+import type { Interview, InterviewMode, InterviewParticipant, RsvpResponse } from '../../stores/recruitment'
 import { useEmployeeStore } from '../../stores/employees'
 
 const interviewStore = useInterviewStore()
@@ -212,8 +227,14 @@ const applicationStore = useApplicationStore()
 const employeeStore = useEmployeeStore()
 // Annuaire léger, deja utilise pour ce genre de picker ailleurs dans l'appli
 // (MissionCreate.vue, AbsenceCreate.vue…) : accessible sans permission
-// elevee, mais n'expose pas l'email (voir InterviewParticipant.email).
+// elevee, l'email est complété côté backend depuis le compte employé.
 if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+
+onMounted(() => {
+  interviewStore.fetchAll()
+  interviewStore.fetchTemplates()
+  applicationStore.fetchAll()
+})
 
 /* ── Styles (KPI) ───────────────────────────────────────────── */
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
@@ -224,13 +245,6 @@ const kpiLbl = 'text-xs text-muted-foreground mt-0.5'
 const modeBtn = 'flex-1 h-[38px] px-2.5 rounded-md border border-border bg-background text-muted-foreground text-[13px] font-medium cursor-pointer inline-flex items-center justify-center gap-1.5 transition-colors hover:text-foreground'
 const modeBtnActive = '!bg-primary/10 !text-primary !border-primary/30'
 
-/* ── Formatage date et heure (ex : "25/08/2026 10:00") ─────────── */
-function formatDateTime(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso)
-  if (!m) return iso
-  const [, y, mo, d, h, mi] = m
-  return `${d}/${mo}/${y} ${h}:${mi}`
-}
 
 /* ── Colonnes ───────────────────────────────────────────────── */
 const columns: ListColumn[] = [
@@ -238,9 +252,27 @@ const columns: ListColumn[] = [
   { key: 'jobOfferTitle', label: 'Offre', sortable: true, width: 180 },
   { key: 'scheduledAt', label: 'Date et heure', sortable: true, width: 150 },
   { key: 'location', label: 'Lieu / Visio', width: 170 },
-  { key: 'participants', label: 'Participants', width: 220 },
+  { key: 'participants', label: 'Participants', width: 200 },
+  { key: 'rsvp', label: 'Réponses', width: 110 },
   { key: 'status', label: 'Statut', width: 130 },
 ]
+
+/* ── Reponses aux invitations (RSVP, backlog "Suivi des reponses") ──── */
+function rsvpLabel(r?: RsvpResponse): string {
+  return r === 'Accepted' ? 'accepté' : r === 'Declined' ? 'refusé' : r === 'Tentative' ? 'peut-être' : 'en attente'
+}
+function rsvpShort(r?: RsvpResponse): string {
+  return r === 'Accepted' ? 'Oui' : r === 'Declined' ? 'Non' : r === 'Tentative' ? '?' : '-'
+}
+function rsvpPillClass(r?: RsvpResponse): string {
+  if (r === 'Accepted') return 'bg-success-bg text-success'
+  if (r === 'Declined') return 'bg-danger-bg text-danger'
+  if (r === 'Tentative') return 'bg-warning-bg text-warning'
+  return 'bg-neutral-bg text-neutral'
+}
+function participantsAccepted(i: Interview): number {
+  return i.participants.filter(p => p.rsvp === 'Accepted').length
+}
 
 /* ── KPIs ───────────────────────────────────────────────────── */
 const scheduledCount = computed(() => interviewStore.items.filter(i => i.status === 'Scheduled').length)
@@ -363,12 +395,8 @@ function validate(): boolean {
 }
 
 function buildPayload() {
-  const app = applicationStore.items.find(a => a.id === form.applicationId)
   return {
     applicationId: form.applicationId,
-    candidateName: app?.candidateName ?? '',
-    candidateEmail: app?.candidateEmail ?? '',
-    jobOfferTitle: app?.jobOfferTitle ?? 'Candidature spontanée',
     scheduledAt: form.scheduledAt,
     mode: form.mode,
     location: form.mode === 'InPerson' ? form.location.trim() : undefined,
@@ -377,11 +405,16 @@ function buildPayload() {
   }
 }
 
-function create() {
+const { submitting, guard } = useSubmitGuard()
+async function create() {
   if (!validate()) return
-  interviewStore.schedule(buildPayload())
-  showCreate.value = false
-  resetForm()
+  try {
+    await guard(() => withToast('Planification...', () => interviewStore.schedule(buildPayload()), () => 'Planification impossible'))
+    showCreate.value = false
+    resetForm()
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Planification impossible')
+  }
 }
 
 /* ── Fiche complète (double-clic sur une ligne ou bouton "Ouvrir la
