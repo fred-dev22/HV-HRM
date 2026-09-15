@@ -25,7 +25,7 @@
               />
               <div class="org-node__info">
                 <div class="org-node__name">{{ item.name }}</div>
-                <div class="org-node__responsible">{{ item.responsibleName ?? '—' }}</div>
+                <div class="org-node__responsible">{{ item.responsibleName ?? '-' }}</div>
               </div>
             </div>
 

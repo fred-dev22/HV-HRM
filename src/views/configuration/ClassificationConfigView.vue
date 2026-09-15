@@ -551,11 +551,11 @@ const posColumns = [
 ]
 
 function jobTitle(jobId: string): string {
-  return jobStore.jobs.find(j => j.id === jobId)?.title ?? '—'
+  return jobStore.jobs.find(j => j.id === jobId)?.title ?? '-'
 }
 function entityName(entityId?: string): string {
-  if (!entityId) return '—'
-  return entityStore.getEntityById(entityId)?.name ?? '—'
+  if (!entityId) return '-'
+  return entityStore.getEntityById(entityId)?.name ?? '-'
 }
 
 const entityColumns = [{ key: 'code', label: 'Code', width: '90px' }, { key: 'name', label: 'Nom' }]

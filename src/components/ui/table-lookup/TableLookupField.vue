@@ -162,6 +162,16 @@ function itemDisabled(item: AnyItem): boolean {
 function itemDisabledReason(item: AnyItem): string {
   return props.itemDisabledReason ? props.itemDisabledReason(item) : ''
 }
+// Suffixe visible inline sur la ligne (colonne nom), pas seulement au survol
+// (:title) — retour du 09/09 : un motif générique "(désactivé)" ne dit rien
+// quand plusieurs raisons distinctes sont possibles (ex: pas de compte vs
+// permission manquante, voir EmployeeCard.vue validatorDisabledReason). Si
+// l'appelant ne fournit pas itemDisabledReason, on retombe sur l'ancien
+// suffixe générique pour ne rien changer aux usages existants.
+function inlineDisabledSuffix(item: AnyItem): string {
+  if (!itemDisabled(item)) return ''
+  return ` (${itemDisabledReason(item) || 'désactivé'})`
+}
 
 function selectItem(item: AnyItem) {
   if (itemDisabled(item)) return
@@ -329,7 +339,7 @@ onUnmounted(() => {
                     <Check v-if="String(item[valueKey]) === code" class="w-4 h-4 text-primary inline-block" />
                   </td>
                   <td v-for="col in columns" :key="col.key" class="px-3 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis" :class="col.key === valueKey ? 'font-medium text-primary' : ''">
-                    {{ item[col.key] ?? '' }}{{ col.key === nameKey && itemDisabled(item) ? ' (désactivé)' : '' }}
+                    {{ item[col.key] ?? '' }}{{ col.key === nameKey ? inlineDisabledSuffix(item) : '' }}
                   </td>
                 </tr>
                 <tr v-if="listItems.length === 0">
@@ -372,7 +382,7 @@ onUnmounted(() => {
               @click="selectFromModalIfEnabled(item)"
             >
               <td v-for="col in columns" :key="col.key" class="px-3 py-2 whitespace-nowrap" :class="col.key === valueKey ? 'font-medium text-primary' : 'text-foreground'">
-                {{ item[col.key] ?? '' }}{{ col.key === nameKey && itemDisabled(item) ? ' (désactivé)' : '' }}
+                {{ item[col.key] ?? '' }}{{ col.key === nameKey ? inlineDisabledSuffix(item) : '' }}
               </td>
             </tr>
             <tr v-if="!modalLoading && modalItems.length === 0"><td :colspan="columns.length" class="px-3 py-8 text-center text-muted-foreground">Aucun élément</td></tr>

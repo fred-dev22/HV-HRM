@@ -65,7 +65,15 @@ const parentEntity = computed(() => current.value?.parentId ? store.getEntityByI
 const children = computed(() => current.value ? store.getChildren(current.value.id) : [])
 // L'entité racine (sans parent) n'a jamais de parent ni de type modifiables —
 // ce sont des invariants structurels, pas des attributs métier éditables.
-const isRoot = computed(() => current.value?.parentId == null)
+// Bug client du 09/09 : se fier uniquement à parentId == null bloquait
+// définitivement l'édition (parent + type + actions) de toute entité dont le
+// parentId se retrouvait vide par erreur (import fait dans le mauvais ordre,
+// parent supprimé...) — plus aucun moyen de la rattacher ensuite, puisque le
+// champ parent disparaissait avec elle. Même logique que
+// stores/entities.ts::directionGenerale (déjà correcte) : la racine n'est
+// jamais "une entité orpheline quelconque", seulement LA Direction Générale
+// identifiée par id, jamais par la simple absence de parent.
+const isRoot = computed(() => !!current.value && current.value.id === store.directionGenerale?.id)
 const unitEmployees = computed(() => current.value ? empStore.getByEntityId(current.value.id) : [])
 
 function goPrev() { if (hasPrev.value) { currentId.value = props.entities[currentIndex.value - 1]!.id; isEditMode.value = false } }
@@ -209,17 +217,17 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Entité parente</label>
             <TableLookupField v-if="isEditMode && !isRoot" :code="parentCode" :name="form.parentName" value-key="code" name-key="name" :columns="entityColumns" :fetch-fn="fetchParents" :is-item-disabled="isEntityDisabled" :item-disabled-reason="() => 'entité désactivée'" modal-title="Sélectionner l'entité parente" placeholder="Code entité" @update:code="parentCode = $event" @update:name="form.parentName = $event" @select="onParentSelect" />
-            <div v-else :class="readBox">{{ isRoot ? 'Racine' : (parentEntity?.name ?? 'Racine') }}</div>
+            <div v-else :class="readBox">{{ isRoot ? 'Racine' : (parentEntity?.name ?? 'Aucune (à corriger)') }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Identifiant légal</label>
             <input v-if="isEditMode" v-model="form.legalIdentifier" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.legalIdentifier || '—' }}</div>
+            <div v-else :class="readBox">{{ current.legalIdentifier || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Adresse</label>
             <textarea v-if="isEditMode" v-model="form.address" :class="cls.fieldTextarea" rows="2"></textarea>
-            <div v-else :class="[readBox, 'h-auto min-h-[38px] py-2']">{{ current.address || '—' }}</div>
+            <div v-else :class="[readBox, 'h-auto min-h-[38px] py-2']">{{ current.address || '-' }}</div>
           </div>
         </div>
 
@@ -231,7 +239,7 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Responsable</label>
             <TableLookupField v-if="isEditMode" :code="managerCode" :name="form.responsibleName" value-key="code" name-key="name" :columns="employeeColumns" :fetch-fn="fetchManagers" :is-item-disabled="isEmployeeDisabled" :item-disabled-reason="() => 'compte désactivé'" modal-title="Sélectionner le responsable" placeholder="Matricule" @update:code="managerCode = $event" @update:name="form.responsibleName = $event" @select="onManagerSelect" />
-            <div v-else :class="readBox">{{ current.responsibleName || '—' }}</div>
+            <div v-else :class="readBox">{{ current.responsibleName || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Effectif rattaché</label>
@@ -240,12 +248,12 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Téléphone</label>
             <input v-if="isEditMode" type="tel" v-model="form.phone" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.phone || '—' }}</div>
+            <div v-else :class="readBox">{{ current.phone || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Email</label>
             <input v-if="isEditMode" type="email" v-model="form.email" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.email || '—' }}</div>
+            <div v-else :class="readBox">{{ current.email || '-' }}</div>
           </div>
         </div>
         </FormSection>

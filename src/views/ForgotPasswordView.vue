@@ -9,7 +9,7 @@
       <template v-if="!sent">
         <h1 class="text-[22px] font-bold text-foreground text-center mb-2">Mot de passe oublié</h1>
         <p class="text-[13px] text-muted-foreground text-center mb-6">
-          Indiquez votre email professionnel — si un compte existe, un lien de réinitialisation vous sera envoyé.
+          Indiquez votre email professionnel : si un compte existe, un lien de réinitialisation vous sera envoyé.
         </p>
 
         <div class="mb-4">

@@ -86,15 +86,26 @@ function isFullyAbsentDay(
 // week-end avale n'est en revanche jamais compte (retour client du 08/09) —
 // seuls les jours non-travailles par le calendrier hebdomadaire le sont,
 // meme si le curseur doit quand meme le traverser pour atteindre la reprise.
+// countCalendarDays (LeaveType.countCalendarDays, retour client du 08/09) :
+// bascule sur un decompte calendaire pur, tous les jours comptent (weekends
+// et feries inclus), la regle du week-end avale ne s'applique alors plus
+// (un weekend est deja compte normalement, voir plus bas).
 // Miroir exact de computeWorkingDays cote backend (source de verite pour ce
 // qui est reellement debite) — ceci n'est qu'un apercu avant soumission.
 function chargedWorkingDays(
   startDate: Date, endDate: Date,
   startPeriod: 'full' | 'am' | 'pm', endPeriod: 'full' | 'am' | 'pm',
-  calendar: CompanyCalendar, isExpatriate: boolean,
+  calendar: CompanyCalendar, isExpatriate: boolean, countCalendarDays = false,
 ): number {
   let count = 0
   const cur = new Date(startDate)
+  if (countCalendarDays) {
+    while (cur <= endDate) {
+      count += isFullyAbsentDay(cur, startDate, startPeriod, endDate, endPeriod) ? 1 : 0.5
+      cur.setDate(cur.getDate() + 1)
+    }
+    return count
+  }
   while (cur <= endDate) {
     if (isWorkingDay(cur, calendar)) {
       const fullyAbsent = isFullyAbsentDay(cur, startDate, startPeriod, endDate, endPeriod)
@@ -119,6 +130,7 @@ export function calculateEndDate(
   calendar:     CompanyCalendar,
   startPeriod:  'full' | 'am' | 'pm' = 'full',
   isExpatriate = false,
+  countCalendarDays = false,
 ): {
   endDate:           string
   endPeriod:         'full' | 'am' | 'pm'
@@ -126,12 +138,17 @@ export function calculateEndDate(
   actualWorkingDays: number
   chargedDays:       number
 } {
+  // Decompte calendaire (LeaveType.countCalendarDays) : tout jour compte,
+  // isWorkingDay n'est jamais consulte — seule la notion de demi-journee de
+  // bord (startPeriod) subsiste.
+  const countsDay = (d: Date) => countCalendarDays || isWorkingDay(d, calendar)
+
   let count          = startPeriod === 'full' ? 0 : 0.5
   const increment    = startPeriod === 'full' ? 1 : 0.5
   let current        = parseLocal(startDate)
   let lastWorkingDay = parseLocal(startDate)
 
-  if (isWorkingDay(current, calendar)) {
+  if (countsDay(current)) {
     count += increment
     lastWorkingDay = new Date(current)
   }
@@ -139,7 +156,7 @@ export function calculateEndDate(
   while (count < workingDays) {
     current = new Date(current)
     current.setDate(current.getDate() + 1)
-    if (isWorkingDay(current, calendar)) {
+    if (countsDay(current)) {
       const remaining = workingDays - count
       if (remaining <= 0.5) {
         count += 0.5
@@ -152,7 +169,7 @@ export function calculateEndDate(
   }
 
   const endPeriod = count % 1 === 0.5 ? 'am' : 'full'
-  const chargedDays = chargedWorkingDays(parseLocal(startDate), lastWorkingDay, startPeriod, endPeriod, calendar, isExpatriate)
+  const chargedDays = chargedWorkingDays(parseLocal(startDate), lastWorkingDay, startPeriod, endPeriod, calendar, isExpatriate, countCalendarDays)
 
   return {
     endDate:           fmt(lastWorkingDay),
@@ -165,13 +182,17 @@ export function calculateEndDate(
 
 // Nombre de jours ouvres demandes entre deux dates (demi-journees de bord
 // prises en compte, jamais le week-end "avale" — voir chargedWorkingDays
-// pour le total reellement decompte du solde).
+// pour le total reellement decompte du solde). En decompte calendaire
+// (countCalendarDays), tous les jours comptent : ce total et celui de
+// getChargedDaysBetween deviennent alors identiques (pas de notion de
+// week-end avale a part).
 export function getWorkingDaysBetween(
   startDate:   string,
   endDate:     string,
   calendar:    CompanyCalendar,
   startPeriod: 'full' | 'am' | 'pm' = 'full',
   endPeriod:   'full' | 'am' | 'pm' = 'full',
+  countCalendarDays = false,
 ): number {
   let count = 0
   const current = parseLocal(startDate)
@@ -179,7 +200,7 @@ export function getWorkingDaysBetween(
   const sd      = parseLocal(startDate)
   const ed      = parseLocal(endDate)
   while (current <= end) {
-    if (isWorkingDay(current, calendar)) {
+    if (countCalendarDays || isWorkingDay(current, calendar)) {
       count += isFullyAbsentDay(current, sd, startPeriod, ed, endPeriod) ? 1 : 0.5
     }
     current.setDate(current.getDate() + 1)
@@ -198,8 +219,9 @@ export function getChargedDaysBetween(
   startPeriod: 'full' | 'am' | 'pm' = 'full',
   endPeriod:   'full' | 'am' | 'pm' = 'full',
   isExpatriate = false,
+  countCalendarDays = false,
 ): number {
-  return chargedWorkingDays(parseLocal(startDate), parseLocal(endDate), startPeriod, endPeriod, calendar, isExpatriate)
+  return chargedWorkingDays(parseLocal(startDate), parseLocal(endDate), startPeriod, endPeriod, calendar, isExpatriate, countCalendarDays)
 }
 
 export function generateWeekPlanning(

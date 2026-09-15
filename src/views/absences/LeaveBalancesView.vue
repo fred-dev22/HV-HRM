@@ -71,7 +71,7 @@
         <div class="h-1 bg-border rounded-sm overflow-hidden mb-[3px]"><div class="h-full rounded-sm" :style="barStyle(cellFor(item, c.leaveTypeId)!)"></div></div>
         <div class="text-[10px] text-muted-foreground">{{ cellFor(item, c.leaveTypeId)!.balance }}j / {{ cellFor(item, c.leaveTypeId)!.daysPerYear }}j</div>
       </template>
-      <span v-else class="text-[13px] text-muted-foreground">—</span>
+      <span v-else class="text-[13px] text-muted-foreground">-</span>
     </template>
 
     <!-- Aperçu rapide -->

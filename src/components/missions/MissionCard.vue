@@ -48,7 +48,7 @@ const MISSION_CATEGORY_LABELS: Record<MissionCategory, string> = {
 
 function fmtNum(n: number) { return n.toLocaleString('fr-FR') }
 function fmtDate(iso: string) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
@@ -197,7 +197,7 @@ async function deletePermanently() {
     <template #form>
       <div class="px-6 py-5 max-w-4xl">
         <!-- Section Employé -->
-        <FormSection title="Employé" :recaps="[current.employeeName, categoryName || '—']">
+        <FormSection title="Employé" :recaps="[current.employeeName, categoryName || '-']">
         <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Nom</label>
@@ -208,7 +208,7 @@ async function deletePermanently() {
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Catégorie</label>
-            <div :class="readBox">{{ categoryName || '—' }}</div>
+            <div :class="readBox">{{ categoryName || '-' }}</div>
           </div>
           <div v-if="current.createdByName && current.createdByName !== current.employeeName" :class="cls.field">
             <label :class="cls.fieldLabel">Créée par</label>
@@ -294,7 +294,7 @@ async function deletePermanently() {
             <tr v-for="l in detail.allowance.lines" :key="l.expenseTypeId">
               <td :class="td">{{ l.expenseTypeName }}</td>
               <td :class="[td, 'text-right']">{{ fmtNum(l.rate) }} {{ l.currency }}{{ l.unit === 'PerDay' ? '/j' : '' }}</td>
-              <td :class="[td, 'text-right']">{{ l.unit === 'PerDay' ? l.days : '—' }}</td>
+              <td :class="[td, 'text-right']">{{ l.unit === 'PerDay' ? l.days : '-' }}</td>
               <td :class="[td, 'text-right']">{{ fmtNum(l.amount) }} {{ l.currency }}</td>
             </tr>
           </tbody>
@@ -348,7 +348,7 @@ async function deletePermanently() {
           <tbody>
             <tr v-for="l in detail.expenseLines" :key="l.id">
               <td :class="td">{{ l.expenseTypeName }}</td>
-              <td :class="td">{{ l.description || '—' }}</td>
+              <td :class="td">{{ l.description || '-' }}</td>
               <td :class="[td, 'text-right']">{{ fmtNum(l.amount) }} MGA</td>
             </tr>
           </tbody>

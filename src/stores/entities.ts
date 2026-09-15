@@ -22,6 +22,7 @@ interface BackendOrganizationUnit {
   Phone: string | null
   Email: string | null
   Status: EntityStatus
+  LeaveApprovalMode: 'Pool' | 'DirectValidator'
   CreatedBy: string
   CreatedAt: string
   ModifiedBy: string | null
@@ -52,6 +53,7 @@ function mapEntity(raw: BackendOrganizationUnit): Entity {
     responsibleName: manager?.name,
     headcount:       employees.length,
     children: raw.children ? raw.children.map(mapEntity) : undefined,
+    leaveApprovalMode: raw.LeaveApprovalMode,
   }
 }
 
@@ -243,6 +245,25 @@ export const useEntityStore = defineStore('entities', {
           throw err
         }
       }, () => this.error ?? 'Impossible de rejeter cette unité')
+    },
+
+    // Endpoint dedie (pas updateEntity/PATCH generique) — evite de repasser
+    // l'entite en PendingApproval pour un simple changement de regle de
+    // validation (voir OrganizationUnitService.update cote backend).
+    async setLeaveApprovalMode(id: string, mode: 'Pool' | 'DirectValidator') {
+      this.error = null
+      return withToast('Mise à jour en cours…', async () => {
+        try {
+          const { data } = await api.patch<BackendOrganizationUnit>(`/organization-units/${id}/leave-approval-mode`, { LeaveApprovalMode: mode })
+          const entity = mapEntity(data)
+          const idx = this.entities.findIndex(e => e.id === id)
+          if (idx !== -1) this.entities[idx] = entity
+          return entity
+        } catch (err) {
+          this.error = getApiErrorMessage(err, 'Impossible de changer le mode de validation des congés')
+          throw err
+        }
+      }, () => this.error ?? 'Impossible de changer le mode de validation des congés')
     },
 
     async deactivateEntity(id: string) {

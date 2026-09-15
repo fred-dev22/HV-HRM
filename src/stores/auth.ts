@@ -43,6 +43,7 @@ interface BackendEmployee {
   // l'utilisateur connecte — voir lib/eligibility.ts et DashboardEmployee.vue.
   Gender: string
   IsExpatriate: boolean
+  IsSystem: boolean
 }
 
 interface BackendOrganizationUnit {
@@ -103,6 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
       entityName,
       gender:       employee.Gender === 'F' ? 'F' : 'M',
       isExpatriate: employee.IsExpatriate,
+      isSystem:     employee.IsSystem,
     }
   }
 

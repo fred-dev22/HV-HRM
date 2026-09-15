@@ -1,6 +1,11 @@
 <template>
   <div class="flex flex-col gap-2.5">
-    <div class="flex gap-1.5">
+    <!-- hideSelfOption : compte systeme (Employee.IsSystem, ex. "Admin
+         HV") — pas un vrai membre du personnel, "Pour moi-même" n'a
+         aucun sens (aucun solde/existence RH reelle a lui). On saute
+         directement au picker ci-dessous, pas de bascule a afficher pour un
+         choix qui n'en est plus un. -->
+    <div v-if="!hideSelfOption" class="flex gap-1.5">
       <button
         :class="[modeBtn, modelValue.mode === 'self' && modeActive]"
         @click="setMode('self')"
@@ -63,6 +68,11 @@ const props = defineProps<{
   modelValue: BeneficiaryValue
   availableEmployees: EmployeeItem[]
   errorEmployee?: string
+  // Voir commentaire dans le template — masque la bascule "Pour moi-même" /
+  // "Pour un employé" pour ne garder que le picker. L'appelant reste
+  // responsable d'initialiser modelValue.mode à 'for-employee' dans ce cas
+  // (ce composant ne le force pas lui-même).
+  hideSelfOption?: boolean
 }>()
 
 const emit = defineEmits<{

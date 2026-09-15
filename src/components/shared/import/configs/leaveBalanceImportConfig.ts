@@ -57,7 +57,7 @@ export function buildLeaveBalanceImportConfig(): ImportConfig {
       if (!leaveType || leaveType.daysPerYear <= 0) return undefined
       const amount = Number(row.values.Amount)
       if (Number.isFinite(amount) && amount > leaveType.daysPerYear) {
-        return `Solde (${amount} j) supérieur aux ${leaveType.daysPerYear} j/an alloués pour ${leaveType.name} — vérifiez la valeur avant de continuer.`
+        return `Solde (${amount} j) supérieur aux ${leaveType.daysPerYear} j/an alloués pour ${leaveType.name}, vérifiez la valeur avant de continuer.`
       }
       return undefined
     },

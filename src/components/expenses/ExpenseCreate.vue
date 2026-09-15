@@ -43,7 +43,11 @@ if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
 
 function fmt(n: number) { return n.toLocaleString('fr-FR') }
 
-const forWhom = ref<BeneficiaryValue>({ mode: props.mode, employeeId: '' })
+// Un compte système (Employee.IsSystem, ex. "Admin HV") n'a pas
+// d'existence RH réelle — jamais "pour lui-même", toujours "pour un employé"
+// dès le départ (voir ForWhomSelector.vue hideSelfOption, retour du 09/09),
+// quel que soit props.mode.
+const forWhom = ref<BeneficiaryValue>({ mode: auth.user?.isSystem ? 'for-employee' : props.mode, employeeId: '' })
 // On exclut soi-même : "Pour moi-même" est déjà l'option dédiée à ce cas,
 // pas besoin de se retrouver aussi dans la liste "Pour un employé".
 const employeeItems = computed(() =>
@@ -183,7 +187,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
         <div class="max-w-3xl mx-auto">
           <!-- Bénéficiaire -->
           <FormSection title="Général">
-          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" />
+          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" />
           <div v-if="selectedEmployee" class="flex items-center gap-2.5 mt-3 px-3.5 py-2.5 bg-background border border-border rounded-lg">
             <UserAvatar :name="selectedEmployee.name" size="sm" />
             <div>
@@ -253,7 +257,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
           <div v-if="overCeilingLines.length > 0" :class="cls.fieldErrorBlock">
             <CircleAlert class="w-3.5 h-3.5 shrink-0" />
             <span>
-              Plafond dépassé pour la catégorie du bénéficiaire —
+              Plafond dépassé pour la catégorie du bénéficiaire :
               <template v-for="(l, i) in overCeilingLines" :key="i">{{ i > 0 ? ', ' : '' }}{{ missionConfigStore.expenseTypes.find(t => t.id === l.expenseTypeId)?.name }} ({{ fmt(l.amount) }} MGA, plafond {{ fmt(lineCeiling(l)?.maxAmount ?? 0) }} MGA)</template>.
               La soumission reste possible, le validateur en sera informé.
             </span>

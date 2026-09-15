@@ -229,7 +229,7 @@ onMounted(async () => {
   applyDeepLink()
 })
 
-function shortDate(iso: string): string { return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—' }
+function shortDate(iso: string): string { return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-' }
 function fmtNum(n: number) { return n.toLocaleString('fr-FR') }
 
 const absenceColumns: ListColumn[] = [

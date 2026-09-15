@@ -461,7 +461,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                 <Upload v-else class="w-6 h-6 text-muted-foreground" />
                 <span v-if="parsingFile" class="text-[13px] text-foreground font-medium">Analyse du fichier en cours, patientez…</span>
                 <span v-else class="text-[13px] text-foreground font-medium">Glissez un fichier CSV ici, ou cliquez pour parcourir</span>
-                <span v-if="fileReady" class="text-[11px] text-success flex items-center gap-1"><CheckCircle2 class="w-3.5 h-3.5" /> {{ fileName }} — {{ rows.length }} ligne(s), prêt</span>
+                <span v-if="fileReady" class="text-[11px] text-success flex items-center gap-1"><CheckCircle2 class="w-3.5 h-3.5" /> {{ fileName }} : {{ rows.length }} ligne(s), prêt</span>
                 <span v-else-if="fileName && !parsingFile" class="text-[11px] text-primary">{{ fileName }}</span>
                 <input type="file" accept=".csv" class="hidden" :disabled="parsingFile" @change="onFileInput" />
               </label>
@@ -511,7 +511,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                         class="h-7 px-1.5 border border-border rounded text-[12px] bg-background outline-none w-full min-w-[130px]"
                         :class="{ '!border-danger': col.required && !row.values[col.key] }"
                       >
-                        <option value="">{{ row.raw[col.key] ? `« ${row.raw[col.key]} » introuvable` : '—' }}</option>
+                        <option value="">{{ row.raw[col.key] ? `« ${row.raw[col.key]} » introuvable` : '-' }}</option>
                         <option v-for="opt in col.options!()" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                       </select>
                       <input
@@ -585,7 +585,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
               <div v-if="warnedResults.length > 0" class="border border-warning/30 rounded-lg overflow-hidden">
                 <div class="bg-warning-bg px-3 py-2 text-[11px] font-semibold text-warning flex items-center gap-1.5">
-                  <AlertTriangle class="w-3.5 h-3.5" /> Créé(s) avec un avertissement — à corriger manuellement
+                  <AlertTriangle class="w-3.5 h-3.5" /> Créé(s) avec un avertissement : à corriger manuellement
                 </div>
                 <div class="max-h-56 overflow-y-auto">
                   <div v-for="r in warnedResults" :key="r.index" class="px-3 py-2 text-[12px] border-t border-border flex items-start gap-2">

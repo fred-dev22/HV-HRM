@@ -223,8 +223,8 @@ watch(employee, (e) => {
 
 const categoryName = computed(() => {
   const id = employee.value?.employeeCategoryId
-  if (!id) return '—'
-  return categoryStore.categories.find(c => c.id === id)?.name ?? '—'
+  if (!id) return '-'
+  return categoryStore.categories.find(c => c.id === id)?.name ?? '-'
 })
 
 const myBalances = computed(() => {

@@ -74,8 +74,8 @@
     <template #cell-type="{ item }">
       <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="typeBadge(item.type)">{{ typeLabel(item.type) }}</span>
     </template>
-    <template #cell-parent="{ item }"><span class="text-muted-foreground text-xs">{{ parentName(item.parentId) }}</span></template>
-    <template #cell-responsible="{ item }"><span class="text-muted-foreground text-xs">{{ item.responsibleName || '—' }}</span></template>
+    <template #cell-parent="{ item }"><span class="text-muted-foreground text-xs">{{ parentName(item.id, item.parentId) }}</span></template>
+    <template #cell-responsible="{ item }"><span class="text-muted-foreground text-xs">{{ item.responsibleName || '-' }}</span></template>
     <template #cell-headcount="{ item }">
       <span class="text-[11px] text-muted-foreground inline-flex items-center gap-[3px]"><Users class="w-3 h-3" /> {{ item.headcount }}</span>
     </template>
@@ -93,9 +93,9 @@
           <StatusPill :status="item.status" />
         </div>
         <div class="grid grid-cols-2 gap-2 text-[12px]">
-          <div><div class="text-muted-foreground text-[11px]">Entité parente</div>{{ parentName(item.parentId) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Entité parente</div>{{ parentName(item.id, item.parentId) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Effectif</div>{{ item.headcount }}</div>
-          <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Responsable</div>{{ item.responsibleName || '—' }}</div>
+          <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Responsable</div>{{ item.responsibleName || '-' }}</div>
         </div>
         <button :class="L.btnPrimary" class="w-full justify-center" @click="openCard(item.id)">Ouvrir la fiche</button>
         <EntityWorkflowActions :entity="item" />
@@ -232,9 +232,13 @@ function typeBadge(type: string): string {
   const m: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-primary/10 text-primary' }
   return m[type] ?? 'bg-neutral-bg text-neutral'
 }
-function parentName(parentId: string | null): string {
-  if (!parentId) return 'Racine'
-  return store.getEntityById(parentId)?.name ?? '—'
+// La vraie racine est LA Direction Générale (voir store::directionGenerale),
+// jamais une entité orpheline quelconque (bug client du 09/09, voir même
+// correction dans EntityTabsContent.vue/EntityCard.vue).
+function parentName(entityId: string, parentId: string | null): string {
+  if (entityId === store.directionGenerale?.id) return 'Racine'
+  if (!parentId) return 'Aucune (à corriger)'
+  return store.getEntityById(parentId)?.name ?? '-'
 }
 
 /* ── Données ────────────────────────────────────────────────── */

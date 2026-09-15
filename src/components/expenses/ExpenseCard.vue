@@ -301,7 +301,7 @@ async function deletePermanently() {
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Soumis le</label>
-            <div :class="readBox">{{ current.submittedAt ? formatDate(current.submittedAt) : '—' }}</div>
+            <div :class="readBox">{{ current.submittedAt ? formatDate(current.submittedAt) : '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Titre</label>
@@ -314,7 +314,7 @@ async function deletePermanently() {
               <option value="">Aucune</option>
               <option v-for="m in approvedMissions" :key="m.id" :value="m.id">{{ m.referenceCode }} · {{ m.destination }}</option>
             </select>
-            <div v-else :class="readBox">{{ linkedMissionLabel || '—' }}</div>
+            <div v-else :class="readBox">{{ linkedMissionLabel || '-' }}</div>
           </div>
           <div v-if="current.createdByName && current.createdByName !== current.employeeName" :class="cls.field">
             <label :class="cls.fieldLabel">Créée par</label>
@@ -420,7 +420,7 @@ async function deletePermanently() {
         <div v-if="(isEditMode ? editOverCeilingLines : readOverCeilingLines).length > 0" :class="cls.fieldErrorBlock" class="mt-3">
           <CircleAlert class="w-3.5 h-3.5 shrink-0" />
           <span>
-            Plafond dépassé pour la catégorie du bénéficiaire —
+            Plafond dépassé pour la catégorie du bénéficiaire :
             <template v-for="(l, i) in (isEditMode ? editOverCeilingLines : readOverCeilingLines)" :key="i">{{ i > 0 ? ', ' : '' }}{{ expenseTypeName(l.expenseTypeId) }} ({{ fmt(l.amount) }} MGA, plafond {{ fmt(lineCeiling(l)?.maxAmount ?? 0) }} MGA)</template>.
           </span>
         </div>

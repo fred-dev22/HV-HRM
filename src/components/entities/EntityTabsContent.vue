@@ -110,8 +110,8 @@
               <td :class="L.td">
                 <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="typeBadge(e.type)">{{ typeLabel(e.type) }}</span>
               </td>
-              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ parentName(e.parentId) }}</td>
-              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.responsibleName || '—' }}</td>
+              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ parentName(e.id, e.parentId) }}</td>
+              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.responsibleName || '-' }}</td>
               <td :class="[L.td, 'text-center']">
                 <span class="text-[11px] text-muted-foreground inline-flex items-center gap-[3px]"><Users class="w-3 h-3" /> {{ e.headcount }}</span>
               </td>
@@ -169,8 +169,8 @@
               <td :class="L.td">
                 <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="typeBadge(e.type)">{{ typeLabel(e.type) }}</span>
               </td>
-              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.responsibleName || '—' }}</td>
-              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.createdAt || '—' }}</td>
+              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.responsibleName || '-' }}</td>
+              <td :class="[L.td, 'text-muted-foreground text-xs']">{{ e.createdAt || '-' }}</td>
               <td :class="L.td">
                 <div class="flex gap-1 flex-wrap">
                   <button :class="L.actView" @click="openCard(e.id)">Voir →</button>
@@ -318,8 +318,13 @@ function typeLabel(t: EntityType | string): string {
   return map[t] ?? t
 }
 
-function parentName(parentId: string | null): string {
-  if (!parentId) return 'Racine'
-  return store.getEntityById(parentId)?.name ?? '—'
+// La vraie racine est LA Direction Générale (voir store::directionGenerale),
+// jamais une entité orpheline quelconque — sans quoi une entité mal
+// rattachée (parentId vide par erreur) s'affichait aussi comme "Racine",
+// masquant le problème au lieu de le signaler (bug client du 09/09).
+function parentName(entityId: string, parentId: string | null): string {
+  if (entityId === store.directionGenerale?.id) return 'Racine'
+  if (!parentId) return 'Aucune (à corriger)'
+  return store.getEntityById(parentId)?.name ?? '-'
 }
 </script>

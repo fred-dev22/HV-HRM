@@ -52,7 +52,7 @@
       <template v-else-if="summary">
         <h1 class="text-[18px] font-bold text-foreground text-center mb-1">Demande à valider</h1>
         <p class="text-[13px] text-muted-foreground text-center mb-5">
-          {{ summary.beneficiaryName }} — {{ summary.summary }}
+          {{ summary.beneficiaryName }} : {{ summary.summary }}
         </p>
 
         <div class="bg-background border border-border rounded-lg px-4 py-3 mb-5">

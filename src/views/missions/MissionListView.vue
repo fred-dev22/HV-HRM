@@ -141,7 +141,7 @@ async function reload() {
 onMounted(async () => { await reload(); applyDeepLink() })
 
 function shortDate(iso: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 function fmtNum(n: number) { return n.toLocaleString('fr-FR') }

@@ -70,6 +70,10 @@ function buildPayload(): Parameters<typeof store.createEntity>[0] {
     managerId: form.managerId || null,
     address: form.address || undefined,
     phone: form.phone || undefined, email: form.email || undefined,
+    // Toujours Pool à la création manuelle (seul l'import CSV permet de
+    // choisir DirectValidator dès la création, voir entityImportConfig.ts) —
+    // basculer se fait ensuite depuis la fiche entité (ApprovalPoolConfig.vue).
+    leaveApprovalMode: 'Pool',
   }
 }
 

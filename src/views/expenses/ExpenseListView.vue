@@ -52,7 +52,7 @@
       <span class="font-semibold whitespace-nowrap tabular-nums">{{ fmtNum(item.totalAmount) }} {{ item.currency }}</span>
     </template>
     <template #cell-submittedAt="{ item }">
-      <span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ item.submittedAt ? formatDate(item.submittedAt) : '—' }}</span>
+      <span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ item.submittedAt ? formatDate(item.submittedAt) : '-' }}</span>
     </template>
     <template #cell-status="{ item }">
       <StatusPill :status="item.status" />

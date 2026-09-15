@@ -4,7 +4,7 @@
  * frontdesk. Sélection de l'entité via TableLookupField (vraie entité).
  */
 import { ref, computed, watch } from 'vue'
-import { ShieldCheck, KeyRound, UserX, RotateCcw, Trash2 } from 'lucide-vue-next'
+import { ShieldCheck, KeyRound, UserX, RotateCcw, Trash2, UserRoundCog, Info } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
@@ -37,14 +37,18 @@ const categoryStore = useEmployeeCategoryStore()
 if (positionStore.positions.length === 0) positionStore.fetchAll()
 if (permissionStore.permissions.length === 0) permissionStore.fetchAll()
 if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+// Liste complete (pas le prop `employees`, potentiellement filtre par la
+// recherche/le scope actif de la liste) — necessaire au selecteur de
+// validateur direct ci-dessous, voir aussi hasAccount.
+if (store.employees.length === 0) store.fetchAll()
 
 const STATUS_LABELS: Record<string, string> = { active: 'Actif', trial: 'Période d\'essai', onleave: 'En congé', inactive: 'Désactivé' }
 const GENDER_LABELS: Record<Gender, string> = { M: 'Homme', F: 'Femme' }
 const MARITAL_LABELS: Record<MaritalStatus, string> = { Single: 'Célibataire', Married: 'Marié(e)', Divorced: 'Divorcé(e)', Widowed: 'Veuf / Veuve' }
 const ID_TYPE_LABELS: Record<IdDocumentType, string> = { NationalId: "Carte d'identité nationale", Passport: 'Passeport', ResidencePermit: 'Carte de séjour' }
 function categoryName(id?: string): string {
-  if (!id) return '—'
-  return categoryStore.categories.find(c => c.id === id)?.name ?? '—'
+  if (!id) return '-'
+  return categoryStore.categories.find(c => c.id === id)?.name ?? '-'
 }
 
 const entityColumns = [{ key: 'code', label: 'Code', width: '90px' }, { key: 'name', label: 'Nom' }]
@@ -109,7 +113,60 @@ const form = ref({
   hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false,
   gender: 'M' as Gender, birthDate: '', birthPlace: '',
   maritalStatus: 'Single' as MaritalStatus, idType: 'NationalId' as IdDocumentType, idNumber: '',
+  directValidatorId: '' as string,
 })
+// Séparé de `form` (plutôt que form.directValidatorName) : `save()` envoie
+// `{ ...form.value, ... }` au backend, un champ d'affichage local mélangé
+// dedans devrait être retiré avant l'envoi — plus simple de ne jamais
+// l'y mettre.
+const directValidatorDisplayName = ref('')
+
+// Le mode de validation des congés (pool vs validateur direct) est un choix
+// d'ENTITÉ, pas d'employé (retour du 09/09, voir ApprovalPoolConfig.vue) —
+// cette rubrique ne s'affiche donc que si l'entité de l'employé (celle
+// choisie dans le formulaire en cours d'édition, pas seulement celle déjà
+// enregistrée — voir onEntitySelect) est en mode validateur direct ; sinon
+// elle est masquée, le pool de l'entité s'applique automatiquement.
+const relevantEntityId = computed(() => (isEditMode.value ? form.value.entityId : current.value?.entityId) ?? null)
+const relevantEntityLeaveMode = computed(() => relevantEntityId.value ? entityStore.getEntityById(relevantEntityId.value)?.leaveApprovalMode : undefined)
+const showDirectValidatorSection = computed(() => relevantEntityLeaveMode.value === 'DirectValidator')
+
+// Un employé n'est éligible comme validateur direct que si son compte est
+// actif ET porte RÉELLEMENT la permission CONGE_VALIDER (validatorPermissions,
+// calculé côté backend depuis les UserPermission effectives — voir findAll()).
+// Avant on regardait le gabarit de sa catégorie : un droit ajouté
+// individuellement à quelqu'un dont la catégorie ne l'a pas n'apparaissait
+// jamais ici, alors que le backend l'aurait accepté (retour du 10/09).
+function canValidateLeave(e: { validatorPermissions?: string[] }): boolean {
+  return !!e.validatorPermissions?.includes('CONGE_VALIDER')
+}
+const validatorColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'label', label: 'Nom' }]
+function fetchValidatorCandidates({ searchQuery }: LookupFetchParams) {
+  let items = store.employees.map(e => ({
+    id: e.id, label: e.name, code: e.code, sublabel: e.entityName,
+    status: e.status, hasAccount: e.hasAccount, validatorPermissions: e.validatorPermissions,
+  }))
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase()
+    items = items.filter(e => e.label.toLowerCase().includes(q) || e.code.toLowerCase().includes(q))
+  }
+  return { items, total: items.length }
+}
+function isValidatorDisabled(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): boolean {
+  return item.status !== 'active' || !item.hasAccount || !canValidateLeave(item)
+}
+function validatorDisabledReason(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): string {
+  if (item.status !== 'active') return 'compte désactivé'
+  if (!item.hasAccount) return "n'a pas de compte utilisateur"
+  if (!canValidateLeave(item)) return 'permission de validation des congés manquante'
+  return ''
+}
+const validatorCode = ref('')
+function onValidatorSelect(item: Record<string, unknown>) {
+  form.value.directValidatorId = String(item.id)
+  directValidatorDisplayName.value = String(item.label)
+  validatorCode.value = String(item.code)
+}
 
 function enterEdit() {
   if (!current.value) return
@@ -121,7 +178,10 @@ function enterEdit() {
     hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate,
     gender: e.gender, birthDate: e.birthDate, birthPlace: e.birthPlace ?? '',
     maritalStatus: e.maritalStatus, idType: e.idType, idNumber: e.idNumber ?? '',
+    directValidatorId: e.directValidatorId ?? '',
   }
+  directValidatorDisplayName.value = e.directValidatorId ? (store.getById(e.directValidatorId)?.name ?? '') : ''
+  validatorCode.value = e.directValidatorId ? (store.getById(e.directValidatorId)?.code ?? '') : ''
   const ent = e.entityId ? entityStore.getEntityById(e.entityId) : undefined
   entityCode.value = ent?.code ?? ''
   positionCode.value = ''
@@ -137,6 +197,13 @@ function onPositionSelect(item: Record<string, unknown>) {
 }
 async function save() {
   if (!current.value) return
+  // Le validateur direct n'est volontairement PAS bloquant a l'enregistrement
+  // de la fiche (retour du 10/09) : on doit pouvoir modifier les autres
+  // champs — permissions, contrat, statut — sans etre force d'assigner un
+  // validateur au passage. L'absence de validateur est un etat connu et
+  // signale (bandeau ci-dessous en lecture, texte d'aide en edition) ; le
+  // vrai blocage se fait a la soumission d'une demande de conge cote backend
+  // (routeToApproval), la ou le message a du sens.
   try {
     await store.updateEmployee(current.value.id, { ...form.value, jobTitle: form.value.positionTitle, positionId: form.value.positionId || undefined })
     isEditMode.value = false
@@ -144,6 +211,14 @@ async function save() {
     saveError.value = store.error ?? "L'enregistrement a échoué. Veuillez réessayer."
   }
 }
+
+// Nom du validateur direct actuel (mode lecture) — recherché dans la liste
+// complète, pas dans props.employees qui peut être filtré (voir plus haut).
+const currentValidatorName = computed(() => {
+  const id = current.value?.directValidatorId
+  if (!id) return null
+  return store.employees.find(e => e.id === id)?.name ?? store.getById(id)?.name ?? null
+})
 
 const pageTitle = computed(() => (current.value ? `${current.value.code} · ${current.value.name}` : ''))
 const readBox = 'text-[13px] text-foreground bg-background border border-border rounded-md px-2.5 h-[38px] flex items-center'
@@ -201,6 +276,10 @@ async function toggleUserPermission(permissionId: string, checked: boolean) {
       ? await userStore.grantUserPermission(current.value.userId, permissionId)
       : await userStore.revokeUserPermission(current.value.userId, permissionId)
     userPermissions.value = data.individualGrants
+    // Recale validatorPermissions dans le store employé pour que le sélecteur
+    // de validateur direct reflète le changement immédiatement, sans recharger
+    // la page (retour du 10/09).
+    if (current.value) store.applyEffectivePermissions(current.value.id, data.permissions)
   } catch {
     // userStore.error porte le message pour l'UI (toast)
   }
@@ -314,17 +393,17 @@ async function deletePermanently() {
               modal-title="Sélectionner un poste" placeholder="Code poste"
               @update:code="positionCode = $event" @update:name="form.positionTitle = $event" @select="onPositionSelect"
             />
-            <div v-else :class="readBox">{{ current.jobTitle || '—' }}</div>
+            <div v-else :class="readBox">{{ current.jobTitle || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Email</label>
             <input v-if="isEditMode" type="email" v-model="form.email" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.email || '—' }}</div>
+            <div v-else :class="readBox">{{ current.email || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Téléphone</label>
             <input v-if="isEditMode" type="tel" v-model="form.phone" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.phone || '—' }}</div>
+            <div v-else :class="readBox">{{ current.phone || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Genre</label>
@@ -341,7 +420,7 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Lieu de naissance</label>
             <input v-if="isEditMode" v-model="form.birthPlace" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.birthPlace || '—' }}</div>
+            <div v-else :class="readBox">{{ current.birthPlace || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Situation familiale</label>
@@ -360,7 +439,7 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Numéro de pièce</label>
             <input v-if="isEditMode" v-model="form.idNumber" :class="cls.fieldInput" />
-            <div v-else :class="readBox">{{ current.idNumber || '—' }}</div>
+            <div v-else :class="readBox">{{ current.idNumber || '-' }}</div>
           </div>
         </div>
         </FormSection>
@@ -379,7 +458,7 @@ async function deletePermanently() {
               modal-title="Sélectionner une entité" placeholder="Code entité"
               @update:code="entityCode = $event" @update:name="form.entityName = $event" @select="onEntitySelect"
             />
-            <div v-else :class="readBox">{{ current.entityName || '—' }}</div>
+            <div v-else :class="readBox">{{ current.entityName || '-' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Catégorie</label>
@@ -418,6 +497,37 @@ async function deletePermanently() {
         </div>
         </FormSection>
 
+        <!-- Validation des congés — n'existe que si l'entité de l'employé
+             est en mode "validateur direct" (voir ApprovalPoolConfig.vue) ;
+             sinon le pool de l'entité s'applique automatiquement, rien à
+             configurer ici (retour du 09/09 : les deux mécanismes ne
+             s'affichent jamais en même temps). -->
+        <FormSection v-if="showDirectValidatorSection" title="Validation des congés" :recaps="[currentValidatorName ?? 'Non assigné']">
+          <p class="text-[11px] text-muted-foreground -mt-1 mb-2">
+            Cette entité utilise un validateur direct par employé. Sans validateur assigné ici, les demandes de congé de {{ current.name }} seront bloquées à la soumission.
+          </p>
+          <template v-if="isEditMode">
+            <div :class="cls.field">
+              <label :class="cls.fieldLabel">Validateur</label>
+              <TableLookupField
+                :code="validatorCode" :name="directValidatorDisplayName"
+                value-key="id" name-key="label"
+                :columns="validatorColumns" :fetch-fn="fetchValidatorCandidates"
+                :is-item-disabled="isValidatorDisabled" :item-disabled-reason="validatorDisabledReason"
+                modal-title="Sélectionner un validateur" placeholder="Code employé"
+                @update:code="validatorCode = $event" @update:name="directValidatorDisplayName = $event" @select="onValidatorSelect"
+              />
+              <span v-if="form.directValidatorId && form.directValidatorId === current.id" class="flex items-center gap-1 text-[11px] text-warning mt-1">
+                <Info class="w-3 h-3" /> Cet employé est son propre validateur : ses demandes seront auto-approuvées, sans validation humaine.
+              </span>
+            </div>
+          </template>
+          <div v-else :class="readBox">
+            <UserRoundCog class="w-3.5 h-3.5 mr-2 text-muted-foreground shrink-0" />
+            {{ currentValidatorName ? `Validateur direct : ${currentValidatorName}` : 'Aucun validateur assigné : demandes bloquées' }}
+          </div>
+        </FormSection>
+
         <!-- Accès système -->
         <FormSection title="Accès système">
         <div class="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-4 py-3">
@@ -434,7 +544,7 @@ async function deletePermanently() {
                   !current.hasAccount
                     ? 'Cet employé n\'a pas encore accès à l\'application'
                     : current.status === 'inactive'
-                      ? 'Employé désactivé — il ne peut plus se connecter à l\'application'
+                      ? 'Employé désactivé : il ne peut plus se connecter à l\'application'
                       : 'Cet employé peut se connecter à l\'application'
                 }}
               </div>

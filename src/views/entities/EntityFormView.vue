@@ -150,8 +150,12 @@ const entityId   = computed(() => route.params.id as string | undefined)
 const isEditMode = computed(() => !!entityId.value)
 const editEntity = computed(() => entityId.value ? store.getEntityById(entityId.value) : undefined)
 // L'entité racine n'a jamais de parent ni de type modifiables — invariants
-// structurels, pas des attributs métier.
-const isRootEntity = computed(() => isEditMode.value && editEntity.value?.parentId == null)
+// structurels, pas des attributs métier. La racine est LA Direction
+// Générale (voir store::directionGenerale), jamais une entité orpheline
+// quelconque — sinon une entité mal rattachée (parentId vide par erreur)
+// perdait pour toujours la possibilité de corriger son parent (bug client
+// du 09/09, même correction que EntityCard.vue/EntityDetailView.vue).
+const isRootEntity = computed(() => isEditMode.value && editEntity.value?.id === store.directionGenerale?.id)
 
 // ── Formulaire ────────────────────────────────────────────────
 const form = reactive({
@@ -242,7 +246,13 @@ async function handleDraft() {
     if (isEditMode.value && entityId.value) {
       await store.updateEntity(entityId.value, buildPayload())
     } else {
-      await store.createEntity(buildPayload())
+      // leaveApprovalMode: toujours Pool à la création manuelle (seul
+      // l'import CSV permet de choisir DirectValidator dès la création, voir
+      // entityImportConfig.ts) — n'a pas sa place dans buildPayload() ci-
+      // dessus, partagé avec updateEntity() qui ne doit jamais y toucher
+      // (sinon un simple edit de contenu repasserait silencieusement une
+      // entité DirectValidator en Pool, effet fantôme).
+      await store.createEntity({ ...buildPayload(), leaveApprovalMode: 'Pool' })
     }
     router.push({ name: 'hr-entities' })
   } catch {
@@ -258,7 +268,7 @@ async function handleSubmit() {
       await store.updateEntity(entityId.value, buildPayload())
       await store.submitEntity(entityId.value)
     } else {
-      const created = await store.createEntity(buildPayload())
+      const created = await store.createEntity({ ...buildPayload(), leaveApprovalMode: 'Pool' })
       await store.submitEntity(created.id)
     }
     router.push({ name: 'hr-entities' })

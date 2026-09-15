@@ -223,8 +223,11 @@ const entityId = computed(() => route.params.id as string)
 const entity   = computed(() => store.getEntityById(entityId.value))
 // Entité racine (Direction Générale, créée au seed, sans parent) — ne doit
 // jamais pouvoir être désactivée ni supprimée (voir aussi
-// EntityWorkflowActions.vue, même règle).
-const isRoot   = computed(() => entity.value?.parentId == null)
+// EntityWorkflowActions.vue, même règle). La racine est LA Direction
+// Générale identifiée par id (store::directionGenerale), jamais une entité
+// orpheline quelconque — sinon une entité mal rattachée (parentId vide par
+// erreur) se retrouvait aussi protégée par erreur (bug client du 09/09).
+const isRoot   = computed(() => !!entity.value && entity.value.id === store.directionGenerale?.id)
 const parent   = computed(() => entity.value?.parentId)
 const parentEntity = computed(() => parent.value ? store.getEntityById(parent.value) : undefined)
 const children     = computed(() => store.getChildren(entityId.value))

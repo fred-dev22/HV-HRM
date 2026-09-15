@@ -31,6 +31,9 @@ onMounted(() => {
   // perimee (nombre de places restantes faux dans le picker).
   positionStore.fetchAll()
   if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+  // Liste complete (pas directory, qui n'expose jamais hasAccount) —
+  // necessaire au selecteur de validateur direct ci-dessous.
+  if (store.employees.length === 0) store.fetchAll()
 })
 
 const STATUS_LABELS: Record<string, string> = { active: 'Actif', trial: 'Période d\'essai', onleave: 'En congé', inactive: 'Désactivé' }
@@ -81,8 +84,50 @@ const form = reactive({
   gender: '' as Gender | '', birthDate: '', birthPlace: '',
   maritalStatus: '' as MaritalStatus | '', idType: '' as IdDocumentType | '', idNumber: '',
   isExpatriate: false,
+  directValidatorId: '' as string, directValidatorName: '',
 })
 const error = ref('')
+
+// Le mode de validation des congés (pool vs validateur direct) est un choix
+// d'ENTITÉ, pas d'employé (retour du 09/09, voir ApprovalPoolConfig.vue) —
+// la section ne s'affiche que si l'entité choisie ci-dessus est en mode
+// validateur direct ; sinon le pool de l'entité s'applique automatiquement.
+const showDirectValidatorSection = computed(() => !!form.entityId && entityStore.getEntityById(form.entityId)?.leaveApprovalMode === 'DirectValidator')
+
+// Éligibilité validateur = compte actif ET permission CONGE_VALIDER
+// RÉELLEMENT accordée (validatorPermissions, calculé backend depuis les
+// UserPermission effectives, pas le gabarit de la catégorie — retour du
+// 10/09, voir EmployeeCard.vue).
+function canValidateLeave(e: { validatorPermissions?: string[] }): boolean {
+  return !!e.validatorPermissions?.includes('CONGE_VALIDER')
+}
+const validatorColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'label', label: 'Nom' }]
+function fetchValidatorCandidates({ searchQuery }: LookupFetchParams) {
+  let items = store.employees.map(e => ({
+    id: e.id, label: e.name, code: e.code, sublabel: e.entityName,
+    status: e.status, hasAccount: e.hasAccount, validatorPermissions: e.validatorPermissions,
+  }))
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase()
+    items = items.filter(e => e.label.toLowerCase().includes(q) || e.code.toLowerCase().includes(q))
+  }
+  return { items, total: items.length }
+}
+function isValidatorDisabled(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): boolean {
+  return item.status !== 'active' || !item.hasAccount || !canValidateLeave(item)
+}
+function validatorDisabledReason(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): string {
+  if (item.status !== 'active') return 'compte désactivé'
+  if (!item.hasAccount) return "n'a pas de compte utilisateur"
+  if (!canValidateLeave(item)) return 'permission de validation des congés manquante'
+  return ''
+}
+const validatorCode = ref('')
+function onValidatorSelect(item: Record<string, unknown>) {
+  form.directValidatorId = String(item.id)
+  form.directValidatorName = String(item.label)
+  validatorCode.value = String(item.code)
+}
 
 store.fetchNextNumber().then(n => { form.employeeNumber = n }).catch(() => {})
 
@@ -124,6 +169,10 @@ function validate(): boolean {
   if (!form.idType) { error.value = "Type de pièce d'identité requis"; return false }
   if (!form.email.trim()) { error.value = 'Email requis'; return false }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { error.value = 'Format email invalide'; return false }
+  // Validateur direct volontairement non bloquant a la creation (retour du
+  // 10/09, voir EmployeeCard.vue save()) : on peut creer l'employe puis lui
+  // assigner un validateur ensuite. Le blocage se fait a la soumission d'une
+  // demande de conge cote backend, la ou le message a du sens.
   error.value = ''
   return true
 }
@@ -145,6 +194,7 @@ async function create() {
       idNumber: form.idNumber || undefined,
       employeeCategoryId: form.employeeCategoryId,
       isExpatriate: form.isExpatriate,
+      directValidatorId: form.directValidatorId,
       // Un employé fraîchement créé n'a jamais de compte — hasAccount ne
       // devient vrai que via l'action "Créer un compte utilisateur" (voir
       // CreateUserAccountDialog.vue), jamais choisi à la création.
@@ -310,6 +360,27 @@ async function create() {
               </span>
             </div>
           </div>
+          </FormSection>
+
+          <!-- Validation des congés — n'existe que si l'entité choisie
+               ci-dessus est en mode "validateur direct" (voir
+               ApprovalPoolConfig.vue) ; sinon le pool de l'entité s'applique
+               automatiquement, rien à configurer ici. -->
+          <FormSection v-if="showDirectValidatorSection" title="Validation des congés">
+            <p class="text-[11px] text-muted-foreground -mt-0.5 mb-3">
+              Cette entité utilise un validateur direct par employé. Sans validateur assigné ici, les demandes de congé de cet employé seront bloquées à la soumission.
+            </p>
+            <div :class="cls.field">
+              <label :class="cls.fieldLabel">Validateur</label>
+              <TableLookupField
+                :code="validatorCode" :name="form.directValidatorName"
+                value-key="id" name-key="label"
+                :columns="validatorColumns" :fetch-fn="fetchValidatorCandidates"
+                :is-item-disabled="isValidatorDisabled" :item-disabled-reason="validatorDisabledReason"
+                modal-title="Sélectionner un validateur" placeholder="Code employé"
+                @update:code="validatorCode = $event" @update:name="form.directValidatorName = $event" @select="onValidatorSelect"
+              />
+            </div>
           </FormSection>
         </div>
       </div>

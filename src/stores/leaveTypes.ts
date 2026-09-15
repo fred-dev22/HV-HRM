@@ -29,6 +29,10 @@ export interface LeaveTypeConfig {
   appliesToGender?:     'M' | 'F' | null
   appliesToExpatriate?: boolean | null
   organizationUnitId?:  string | null
+  // Decompte calendaire (retour client, 08/09) : false (par defaut) = jours
+  // ouvres, le comportement actuel. true = tous les jours du calendrier
+  // comptent (weekends et feries inclus). Voir utils/calendar.ts.
+  countCalendarDays?:   boolean
 }
 
 interface BackendLeaveType {
@@ -50,6 +54,7 @@ interface BackendLeaveType {
   AppliesToGender: string | null
   AppliesToExpatriate: boolean | null
   OrganizationUnitId: string | null
+  CountCalendarDays: boolean
 }
 
 const ICON_BY_CODE: Record<string, string> = {
@@ -84,6 +89,7 @@ function mapLeaveType(raw: BackendLeaveType): LeaveTypeConfig {
     appliesToGender: (raw.AppliesToGender as 'M' | 'F' | null) ?? undefined,
     appliesToExpatriate: raw.AppliesToExpatriate ?? undefined,
     organizationUnitId: raw.OrganizationUnitId ?? undefined,
+    countCalendarDays: raw.CountCalendarDays,
   }
 }
 
@@ -106,6 +112,7 @@ function toBackendPayload(payload: Partial<LeaveTypeConfig>) {
   if (payload.appliesToGender !== undefined) body.AppliesToGender = payload.appliesToGender
   if (payload.appliesToExpatriate !== undefined) body.AppliesToExpatriate = payload.appliesToExpatriate
   if (payload.organizationUnitId !== undefined) body.OrganizationUnitId = payload.organizationUnitId
+  if (payload.countCalendarDays !== undefined) body.CountCalendarDays = payload.countCalendarDays
   return body
 }
 

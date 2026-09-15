@@ -8,7 +8,7 @@
 
       <template v-if="!token">
         <p class="text-[13px] text-danger bg-danger-bg px-3 py-2 rounded-md text-center">
-          Lien invalide — aucun jeton de réinitialisation trouvé. Redemandez un lien depuis la page de connexion.
+          Lien invalide : aucun jeton de réinitialisation trouvé. Redemandez un lien depuis la page de connexion.
         </p>
       </template>
 

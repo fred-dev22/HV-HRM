@@ -21,13 +21,18 @@
     @open-card="openCard"
   >
     <template #header-actions>
-      <div v-if="auth.hasPermission('EMPLOYE_CREER')" class="flex items-center gap-2">
-        <button :class="L.btnOutline" @click="showImport = true">
-          <Upload class="w-4 h-4" /> Importer
+      <div class="flex items-center gap-2">
+        <button v-if="auth.hasPermission('EMPLOYE_MODIFIER')" :class="L.btnOutline" @click="showValidatorImport = true">
+          <UserRoundCog class="w-4 h-4" /> Assigner des validateurs
         </button>
-        <button :class="L.btnPrimary" @click="showCreate = true">
-          <UserPlus class="w-4 h-4" /> {{ t('employee.new') }}
-        </button>
+        <template v-if="auth.hasPermission('EMPLOYE_CREER')">
+          <button :class="L.btnOutline" @click="showImport = true">
+            <Upload class="w-4 h-4" /> Importer
+          </button>
+          <button :class="L.btnPrimary" @click="showCreate = true">
+            <UserPlus class="w-4 h-4" /> {{ t('employee.new') }}
+          </button>
+        </template>
       </div>
     </template>
 
@@ -83,8 +88,8 @@
       </div>
     </template>
     <template #cell-code="{ item }"><span class="font-mono text-xs font-semibold text-primary">{{ item.code }}</span></template>
-    <template #cell-jobTitle="{ item }"><span class="text-foreground text-xs truncate">{{ item.jobTitle || '—' }}</span></template>
-    <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName || '—' }}</span></template>
+    <template #cell-jobTitle="{ item }"><span class="text-foreground text-xs truncate">{{ item.jobTitle || '-' }}</span></template>
+    <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName || '-' }}</span></template>
     <template #cell-category="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ categoryName(item.employeeCategoryId) }}</span></template>
     <template #cell-contractType="{ item }"><span class="text-muted-foreground text-xs">{{ item.contractType }}</span></template>
     <template #cell-hireDate="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.hireDate) }}</span></template>
@@ -104,7 +109,7 @@
         <div class="grid grid-cols-2 gap-2 text-[12px]">
           <div><div class="text-muted-foreground text-[11px]">Matricule</div>{{ item.code }}</div>
           <div><div class="text-muted-foreground text-[11px]">Catégorie</div>{{ categoryName(item.employeeCategoryId) }}</div>
-          <div><div class="text-muted-foreground text-[11px]">Entité</div>{{ item.entityName || '—' }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Entité</div>{{ item.entityName || '-' }}</div>
           <div><div class="text-muted-foreground text-[11px]">Contrat</div>{{ item.contractType }}</div>
           <div><div class="text-muted-foreground text-[11px]">Embauche</div>{{ formatDate(item.hireDate) }}</div>
         </div>
@@ -121,19 +126,21 @@
     <EmployeeCard v-if="openCardId !== null" :employees="filtered" :employee-id="openCardId" @close="openCardId = null" />
     <EmployeeCreate v-if="showCreate" @close="showCreate = false" />
     <ImportWizardModal v-if="showImport" :open="showImport" :config="employeeImportConfig" @close="showImport = false" @imported="store.fetchAll()" />
+    <ImportWizardModal v-if="showValidatorImport" :open="showValidatorImport" :config="directValidatorImportConfig" @close="showValidatorImport = false" @imported="store.fetchAll()" />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { UserPlus, Upload, Users, UserCheck, Clock, ShieldCheck } from 'lucide-vue-next'
+import { UserPlus, Upload, Users, UserCheck, Clock, ShieldCheck, UserRoundCog } from 'lucide-vue-next'
 import { StatusPill, ListPageLayout } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import EmployeeCard from '../../components/employees/EmployeeCard.vue'
 import EmployeeCreate from '../../components/employees/EmployeeCreate.vue'
 import ImportWizardModal from '../../components/shared/import/ImportWizardModal.vue'
 import { buildEmployeeImportConfig } from '../../components/shared/import/configs/employeeImportConfig'
+import { buildDirectValidatorImportConfig } from '../../components/shared/import/configs/directValidatorImportConfig'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
 import { useEmployeeStore } from '../../stores/employees'
@@ -175,12 +182,14 @@ const kpiLbl = 'text-xs text-muted-foreground mt-0.5'
 const showCreate = ref(false)
 const showImport = ref(false)
 const employeeImportConfig = computed(() => buildEmployeeImportConfig())
+const showValidatorImport = ref(false)
+const directValidatorImportConfig = computed(() => buildDirectValidatorImportConfig())
 const openCardId = ref<string | null>(null)
 function openCard(item: Employee) { openCardId.value = item.id }
 
 function categoryName(id?: string): string {
-  if (!id) return '—'
-  return categoryStore.categories.find(c => c.id === id)?.name ?? '—'
+  if (!id) return '-'
+  return categoryStore.categories.find(c => c.id === id)?.name ?? '-'
 }
 
 const columns = computed<ListColumn[]>(() => [

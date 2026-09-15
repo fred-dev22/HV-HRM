@@ -406,7 +406,7 @@ async function deletePermanently() {
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Motif</label>
             <textarea v-if="isEditMode" v-model="form.reason" :class="cls.fieldTextarea" rows="3" placeholder="Motif de la demande…"></textarea>
-            <div v-else :class="[readBox, 'min-h-[38px] h-auto py-2']">{{ current.reason || '—' }}</div>
+            <div v-else :class="[readBox, 'min-h-[38px] h-auto py-2']">{{ current.reason || '-' }}</div>
           </div>
 
           <!-- Préavis insuffisant : avertissement non bloquant. En édition,
