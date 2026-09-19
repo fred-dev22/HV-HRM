@@ -9,6 +9,8 @@
 import { reactive, ref, computed } from 'vue'
 import { ClipboardCheck, UserCheck, CalendarClock, Ban } from 'lucide-vue-next'
 import ModalShell from '../ui/ModalShell.vue'
+import CreateModalShell from '../shared/CreateModalShell.vue'
+import FormSection from '../ui/form-field/FormSection.vue'
 import ConvertToEmployeeModal from './ConvertToEmployeeModal.vue'
 import * as cls from '../../lib/formClasses'
 import { confirmDialog } from '../../lib/confirm'
@@ -101,24 +103,39 @@ async function confirmExtend() {
     <span v-else class="text-xs text-muted-foreground italic">Aucune action disponible</span>
   </div>
 
-  <!-- Modale Évaluer -->
-  <ModalShell :open="evaluateModal.open" title="Évaluer la période d'essai" max-width="max-w-[420px]" @close="evaluateModal.open = false">
-    <div :class="cls.field">
-      <label :class="cls.fieldLabel">Note *</label>
-      <select v-model.number="evaluateModal.score" :class="cls.fieldSelect">
-        <option v-for="n in 5" :key="n" :value="n">{{ n }} / 5</option>
-      </select>
-    </div>
-    <div :class="cls.field">
-      <label :class="cls.fieldLabel">Commentaire *</label>
-      <textarea v-model="evaluateModal.comment" :class="cls.fieldTextarea" placeholder="Impressions, points forts, réserves…" rows="4"></textarea>
-    </div>
-    <div v-if="evaluateModal.error" :class="cls.fieldError">{{ evaluateModal.error }}</div>
-    <template #footer>
-      <button :class="cls.btnPrimary" :disabled="submittingEvaluate" @click="confirmEvaluate"><ClipboardCheck class="w-4 h-4" /> Enregistrer l'évaluation</button>
-      <button :class="cls.btnOutline" :disabled="submittingEvaluate" @click="evaluateModal.open = false">Annuler</button>
+  <!-- Modale Évaluer : saisie a plusieurs champs, meme coque que les autres
+       fiches de saisie de l'appli (bandeau, titre, boutons en haut). -->
+  <CreateModalShell
+    v-if="evaluateModal.open"
+    title="Évaluer la période d'essai"
+    banner-label="Évaluation de la période d'essai"
+    create-label="Enregistrer l'évaluation"
+    :is-saving="submittingEvaluate"
+    :save-error="evaluateModal.error"
+    @close="evaluateModal.open = false"
+    @create="confirmEvaluate"
+  >
+    <template #form>
+      <div class="flex-1 overflow-auto px-6 py-5">
+        <div class="max-w-md mx-auto">
+          <FormSection title="Évaluation">
+            <div class="flex flex-col gap-3.5">
+              <div :class="cls.field">
+                <label :class="cls.fieldLabel">Note <span class="text-danger">*</span></label>
+                <select v-model.number="evaluateModal.score" :class="cls.fieldSelect">
+                  <option v-for="n in 5" :key="n" :value="n">{{ n }} / 5</option>
+                </select>
+              </div>
+              <div :class="cls.field">
+                <label :class="cls.fieldLabel">Commentaire <span class="text-danger">*</span></label>
+                <textarea v-model="evaluateModal.comment" :class="cls.fieldTextarea" placeholder="Impressions, points forts, réserves…" rows="4"></textarea>
+              </div>
+            </div>
+          </FormSection>
+        </div>
+      </div>
     </template>
-  </ModalShell>
+  </CreateModalShell>
 
   <!-- Modale Prolonger -->
   <ModalShell :open="extendModal.open" title="Prolonger la période d'essai" max-width="max-w-[420px]" @close="extendModal.open = false">

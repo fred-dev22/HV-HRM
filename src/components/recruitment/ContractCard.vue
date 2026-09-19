@@ -149,25 +149,25 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
           <div v-if="current.rejectionReason" :class="cls.fieldErrorBlock" class="mt-3">{{ current.rejectionReason }}</div>
         </FormSection>
 
-        <!-- Section Conversion en employé (backlog "Inclusion d'un Potentiel") -->
-        <FormSection v-if="current.status === 'Accepted'" title="Conversion en employé">
+        <!-- Section Passage en employé (backlog "Inclusion d'un Potentiel") -->
+        <FormSection v-if="current.status === 'Accepted'" title="Passage en employé">
           <div v-if="current.createdEmployeeId" class="flex items-center gap-2 text-success text-[13px] font-medium">
-            <CheckCircle2 class="w-4 h-4" /> Profil employé créé
-            <RouterLink :to="{ name: 'hr-employee-edit', params: { id: current.createdEmployeeId } }" class="text-primary hover:underline ml-1">
-              Ouvrir la fiche employé
+            <CheckCircle2 class="w-4 h-4" /> Candidature passée en employé
+            <RouterLink :to="{ name: 'hr-employees', query: { open: current.createdEmployeeId } }" class="text-primary hover:underline ml-1">
+              Ouvrir la fiche employé (Administration)
             </RouterLink>
           </div>
           <template v-else-if="canCreateEmployee">
             <button type="button" :class="cls.btnPrimary" @click="showConvert = true">
-              <UserPlus class="w-4 h-4" /> Créer le profil employé
+              <UserPlus class="w-4 h-4" /> Passer la candidature en employé
             </button>
             <p class="text-[11px] text-muted-foreground mt-1.5">
-              Crée un vrai compte dans le module Employés à partir de cette proposition d'embauche.
+              Ajoute le candidat à la liste des employés (Administration). Le compte de connexion se crée ensuite depuis sa fiche employé, pas ici.
               À déclencher une fois le contrat signé physiquement et reçu par les RH.
             </p>
           </template>
           <p v-else class="text-[11px] text-muted-foreground italic">
-            La création d'un profil employé requiert la permission de créer un employé.
+            Passer une candidature en employé requiert la permission de créer un employé.
           </p>
         </FormSection>
 

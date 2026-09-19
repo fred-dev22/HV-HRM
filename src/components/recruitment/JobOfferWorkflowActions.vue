@@ -39,7 +39,8 @@ const closeModal = reactive({ open: false, cost: '' as string })
 function openClose() { Object.assign(closeModal, { open: true, cost: '' }) }
 const { submitting: submittingClose, guard: guardClose } = useSubmitGuard()
 async function confirmClose() {
-  const trimmed = closeModal.cost.trim()
+  // Un <input type="number"> donne un nombre (pas une chaine) a v-model.
+  const trimmed = String(closeModal.cost ?? '').trim()
   const cost = trimmed ? Number(trimmed) : undefined
   await guardClose(() => withToast(
     'Clôture…',
