@@ -143,6 +143,7 @@ import { buildEmployeeImportConfig } from '../../components/shared/import/config
 import { buildDirectValidatorImportConfig } from '../../components/shared/import/configs/directValidatorImportConfig'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { useDeepLinkOpen } from '../../composables/useDeepLinkOpen'
 import { useEmployeeStore } from '../../stores/employees'
 import { useEntityStore } from '../../stores/entities'
 import { useAuthStore } from '../../stores/auth'
@@ -161,6 +162,9 @@ if (categoryStore.categories.length === 0) categoryStore.fetchAll()
 // déjà visité cet écran dans la session.
 const positionStore = usePositionStore()
 if (positionStore.positions.length === 0) positionStore.fetchAll()
+const openCardId = ref<string | null>(null)
+function openCard(item: Employee) { openCardId.value = item.id }
+const { applyDeepLink } = useDeepLinkOpen(openCardId)
 // Séquencé (pas en parallèle) : mapEmployee lit entityStore de façon
 // synchrone pour entityName — sans cet ordre, une première visite avec les
 // deux stores vides peut résoudre le nom d'entité en blanc. Le fetch employés
@@ -170,6 +174,9 @@ if (positionStore.positions.length === 0) positionStore.fetchAll()
 ;(async () => {
   if (entityStore.entities.length === 0) await entityStore.fetchAll()
   await store.fetchAll()
+  // Lien direct `?open=<id>` (fiche employe depuis le module Recrutement, les
+  // rappels d'echeance...) : a appliquer une fois la liste chargee.
+  applyDeepLink()
 })()
 
 const quickBtn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer bg-background text-muted-foreground hover:text-foreground'
@@ -184,8 +191,6 @@ const showImport = ref(false)
 const employeeImportConfig = computed(() => buildEmployeeImportConfig())
 const showValidatorImport = ref(false)
 const directValidatorImportConfig = computed(() => buildDirectValidatorImportConfig())
-const openCardId = ref<string | null>(null)
-function openCard(item: Employee) { openCardId.value = item.id }
 
 function categoryName(id?: string): string {
   if (!id) return '-'

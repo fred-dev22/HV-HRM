@@ -537,7 +537,7 @@ const posStore = usePositionStore()
 const entityStore = useEntityStore()
 // Toujours rafraichir (pas de garde sur .length) — l'occupation change a
 // chaque creation/suppression d'employe ailleurs dans l'app (meme raison
-// que EmployeeCreate.vue / EmployeeFormView.vue, voir decision du 30/07).
+// que EmployeeCreate.vue, voir decision du 30/07).
 posStore.fetchAll()
 if (entityStore.entities.length === 0) entityStore.fetchAll()
 

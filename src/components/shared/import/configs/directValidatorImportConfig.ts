@@ -4,7 +4,7 @@ import type { ImportConfig } from '../importTypes'
 // Assignation en masse des validateurs directs par employé (demande client,
 // retour du 08/09) : bascule le workflow de validation de congé de chaque
 // ligne sur UN seul validateur fixe, à la place du pool de validation par
-// entité (même bascule que le formulaire employé, voir EmployeeFormView.vue)
+// entité (même bascule que le formulaire employé, voir EmployeeCreate.vue)
 // — pensé pour les organisations sans hiérarchie à plusieurs niveaux.
 // Réimporter le même fichier remplace simplement l'ancien validateur par le
 // nouveau pour chaque ligne (endpoint idempotent, pas d'ajout cumulatif).

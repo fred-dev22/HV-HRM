@@ -68,8 +68,6 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'hr-recruitment-distribution': 'RECRUTEMENT_ACCES',
   'hr-needs':                    ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'],
   'hr-employees':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
-  'hr-employee-create':  'EMPLOYE_CREER',
-  'hr-employee-edit':    'EMPLOYE_MODIFIER',
   'hr-entities':         'ENTITE_VOIR',
   'hr-entity-create':    'ENTITE_CREER',
   'hr-entity-edit':      'ENTITE_MODIFIER',
@@ -152,15 +150,13 @@ const router = createRouter({
       component: () => import('../views/employees/EmployeeListView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
+    // Les pages "Nouvel employe" / "Modifier l'employe" n'existent plus : la
+    // creation et la fiche s'ouvrent en popup depuis l'onglet Employes. Seule
+    // reste cette redirection, pour les liens deja envoyes (emails et
+    // notifications de rappel d'echeance pointaient vers /edit).
     {
-      path: '/hr/employees/new', name: 'hr-employee-create',
-      component: () => import('../views/employees/EmployeeFormView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
-    },
-    {
-      path: '/hr/employees/:id/edit', name: 'hr-employee-edit',
-      component: () => import('../views/employees/EmployeeFormView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
+      path: '/hr/employees/:id/edit',
+      redirect: (to) => ({ path: '/hr/employees', query: { open: String(to.params.id) } }),
     },
     { path: '/hr/missions',           name: 'hr-missions',   component: () => import('../views/missions/MissionListView.vue'),  meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/hr/expenses',           name: 'hr-expenses',   component: () => import('../views/expenses/ExpenseListView.vue'),   meta: { requiresAuth: true, layout: 'dashboard' } },

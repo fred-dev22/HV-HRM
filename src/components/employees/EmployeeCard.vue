@@ -73,7 +73,7 @@ function fetchPositions({ searchQuery }: LookupFetchParams) {
   // Un poste dont tous les sieges sont occupes ne doit plus etre propose —
   // sauf celui deja affecte a cet employe (sinon on ne pourrait plus
   // voir/reselectionner le sien) (voir Position.Capacity / decision du 30/07,
-  // meme regle que EmployeeCreate.vue / EmployeeFormView.vue).
+  // meme regle que EmployeeCreate.vue).
   let items = positionStore.positions.filter(p => p.occupiedCount < p.capacity || p.id === form.value.positionId)
   if (searchQuery) {
     const q = searchQuery.toLowerCase()

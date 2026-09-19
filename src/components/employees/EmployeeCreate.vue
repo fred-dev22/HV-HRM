@@ -3,7 +3,7 @@
  * Fiche de création d'un employé — sur CreateModalShell (pattern frontdesk).
  * Sélection de l'entité et du poste via TableLookupField (vraies données).
  */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watchEffect } from 'vue'
 import { Info, Lock } from 'lucide-vue-next'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
@@ -123,10 +123,20 @@ function validatorDisabledReason(item: { status?: string; hasAccount?: boolean; 
   return ''
 }
 const validatorCode = ref('')
+// Vrai des que l'utilisateur choisit OU vide lui-meme le validateur : le
+// defaut (responsable de l'entite) ne doit jamais ecraser ce choix.
+const validatorTouched = ref(false)
 function onValidatorSelect(item: Record<string, unknown>) {
+  validatorTouched.value = true
   form.directValidatorId = String(item.id)
   form.directValidatorName = String(item.label)
   validatorCode.value = String(item.code)
+}
+// Le champ lookup vide seulement son libelle a la croix : sans ceci l'ancien
+// id resterait envoye a la creation alors que le champ parait vide.
+function onValidatorNameUpdate(name: string) {
+  form.directValidatorName = name
+  if (!name) { form.directValidatorId = ''; validatorTouched.value = true }
 }
 
 store.fetchNextNumber().then(n => { form.employeeNumber = n }).catch(() => {})
@@ -154,6 +164,26 @@ const directManager = computed(() => {
   const entity = entityStore.entities.find(e => e.id === form.entityId)
   if (!entity?.responsibleName) return null
   return { name: entity.responsibleName, managerId: entity.managerId ?? null }
+})
+
+// Validateur direct par defaut = responsable de l'entite choisie (retour du
+// 12/09). Uniquement s'il est reellement eligible (meme regle que le
+// selecteur ci-dessus : le backend refuse sinon la creation), tant que
+// l'utilisateur n'a pas choisi ou vide le champ lui-meme. Rejoue a chaque
+// changement d'entite, et une fois la liste des employes chargee.
+watchEffect(() => {
+  if (validatorTouched.value) return
+  const headId = showDirectValidatorSection.value ? directManager.value?.managerId : null
+  const head = headId ? store.employees.find(e => e.id === headId) : undefined
+  if (head && !isValidatorDisabled(head)) {
+    form.directValidatorId = head.id
+    form.directValidatorName = head.name
+    validatorCode.value = head.code
+  } else {
+    form.directValidatorId = ''
+    form.directValidatorName = ''
+    validatorCode.value = ''
+  }
 })
 
 function validate(): boolean {
@@ -378,7 +408,7 @@ async function create() {
                 :columns="validatorColumns" :fetch-fn="fetchValidatorCandidates"
                 :is-item-disabled="isValidatorDisabled" :item-disabled-reason="validatorDisabledReason"
                 modal-title="Sélectionner un validateur" placeholder="Code employé"
-                @update:code="validatorCode = $event" @update:name="form.directValidatorName = $event" @select="onValidatorSelect"
+                @update:code="validatorCode = $event" @update:name="onValidatorNameUpdate" @select="onValidatorSelect"
               />
             </div>
           </FormSection>
