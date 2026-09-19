@@ -127,8 +127,9 @@
                 <label :class="cls.fieldLabel">Rattacher à une demande approuvée <span :class="cls.fieldOptional">(optionnel)</span></label>
                 <select v-model="form.hiringRequestId" :class="cls.fieldSelect">
                   <option value="">Aucune</option>
-                  <option v-for="r in approvedHiringRequests" :key="r.id" :value="r.id">{{ r.positionTitle }} · {{ r.entityName }}</option>
+                  <option v-for="r in approvedHiringRequests" :key="r.id" :value="r.id">{{ r.positionTitle }} · {{ r.entityName }}{{ r.capacityWarning ? ' · ⚠ effectif > places' : '' }}</option>
                 </select>
+                <p v-if="selectedRequestWarning" :class="cls.fieldError">{{ selectedRequestWarning }}</p>
                 <p class="text-[11px] text-muted-foreground mt-1">En sélectionnant une demande, le titre, l'entité et la description ci-dessous se pré-remplissent.</p>
               </div>
             </FormSection>
@@ -225,6 +226,7 @@ import JobOfferCard from '../../components/recruitment/JobOfferCard.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { getApiErrorMessage } from '../../lib/api'
+import { capacityWarningText } from '../../lib/hiringCapacity'
 import { withToast } from '../../lib/withToast'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useJobOfferStore, useHiringRequestStore, useEvalTemplateStore } from '../../stores/recruitment'
@@ -331,6 +333,11 @@ const pageItems = computed(() => {
 /* ── Création ───────────────────────────────────────────────── */
 // Expressions de besoin exprimées (non encore clôturées) — rattachables.
 const approvedHiringRequests = computed(() => hiringRequestStore.items.filter(r => r.status === 'Open'))
+// Alerte non bloquante de la demande choisie (effectif > places du poste).
+const selectedRequestWarning = computed(() => {
+  const r = hiringRequestStore.items.find(x => x.id === form.hiringRequestId)
+  return r?.capacityWarning ? capacityWarningText(r.headcount, r.positionAvailable ?? 0, r.positionCapacity ?? 0) : ''
+})
 
 const showCreate = ref(false)
 const error = ref<string | null>(null)

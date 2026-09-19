@@ -23,6 +23,13 @@ export interface HiringRequest {
   requestedByName: string
   requestedAt: string
   status: HiringRequestStatus
+  /** Poste existant choisi dans le référentiel (absent = poste en texte libre). */
+  positionId?: string
+  /** Sièges du poste choisi, calculés par le backend à chaque lecture. */
+  positionCapacity?: number
+  positionAvailable?: number
+  /** Effectif demandé > places disponibles : alerte non bloquante, affichée partout. */
+  capacityWarning: boolean
 }
 
 // ── Offre d'emploi ─────────────────────────────────────────────

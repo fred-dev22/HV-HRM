@@ -64,7 +64,12 @@
     <!-- Cellules -->
     <template #cell-positionTitle="{ item }"><span class="font-medium text-foreground text-xs truncate">{{ item.positionTitle }}</span></template>
     <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName }}</span></template>
-    <template #cell-headcount="{ item }"><span class="text-xs font-semibold">{{ item.headcount }}</span></template>
+    <template #cell-headcount="{ item }">
+      <span class="text-xs font-semibold inline-flex items-center gap-1" :class="item.capacityWarning ? 'text-danger' : ''" :title="item.capacityWarning ? warningTextOf(item) : undefined">
+        {{ item.headcount }}
+        <TriangleAlert v-if="item.capacityWarning" class="w-3.5 h-3.5" />
+      </span>
+    </template>
     <template #cell-requestedByName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.requestedByName }}</span></template>
     <template #cell-requestedAt="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.requestedAt) }}</span></template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
@@ -81,6 +86,7 @@
           <div><div class="text-muted-foreground text-[11px]">Effectif</div>{{ item.headcount }}</div>
           <div><div class="text-muted-foreground text-[11px]">Date</div>{{ formatDate(item.requestedAt) }}</div>
         </div>
+        <div v-if="item.capacityWarning" :class="cls.fieldErrorBlock"><TriangleAlert class="w-3.5 h-3.5 shrink-0" /> {{ warningTextOf(item) }}</div>
         <button :class="L.btnPrimary" class="w-full justify-center" @click="openCard(item)">Ouvrir la fiche</button>
         <HiringRequestWorkflowActions :item="item" />
       </div>
@@ -131,7 +137,13 @@
                 </div>
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Effectif <span class="text-danger">*</span></label>
-                  <input type="number" min="1" v-model.number="form.headcount" :class="cls.fieldInput" placeholder="1" />
+                  <input type="number" min="1" v-model.number="form.headcount" :class="[cls.fieldInput, headcountExceeds && cls.inputError]" placeholder="1" />
+                  <!-- Non bloquant : la demande reste possible, l'alerte est
+                       reaffichee sur la liste, l'apercu et la fiche. -->
+                  <p v-if="headcountExceeds && pickedPosition" :class="cls.fieldError">
+                    <TriangleAlert class="w-3 h-3 shrink-0" /> {{ capacityWarningText(Number(form.headcount), pickedAvailable ?? 0, pickedPosition.capacity) }}
+                  </p>
+                  <p v-else-if="pickedPosition" class="text-[11px] text-muted-foreground">{{ availableSlotsHint(pickedAvailable ?? 0, pickedPosition.capacity) }}</p>
                 </div>
               </div>
             </FormSection>
@@ -169,7 +181,7 @@
  * (HiringRequestWorkflowActions), même pattern que le module Missions.
  */
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { Plus, Briefcase, Clock, CheckCircle2 } from 'lucide-vue-next'
+import { Plus, Briefcase, Clock, CheckCircle2, TriangleAlert } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import FormSection from '../../components/ui/form-field/FormSection.vue'
@@ -178,6 +190,7 @@ import HiringRequestWorkflowActions from '../../components/recruitment/HiringReq
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { availableSlotsHint, capacityWarningText } from '../../lib/hiringCapacity'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
 import { useSubmitGuard } from '../../lib/submitGuard'
@@ -192,12 +205,18 @@ const entityStore = useEntityStore()
 const positionStore = usePositionStore()
 const auth = useAuthStore()
 if (entityStore.entities.length === 0) entityStore.fetchAll()
-if (positionStore.positions.length === 0) positionStore.fetchAll()
 
 // Exprimer un besoin : permission dédiée (espace Administration) ou accès module.
 const canExpress = computed(() => auth.hasAnyPermission(['RECRUTEMENT_BESOIN_EXPRIMER', 'RECRUTEMENT_ACCES']))
 
-onMounted(() => hiringRequestStore.fetchAll())
+// Postes rafraichis a chaque ouverture de la vue et du formulaire (pas de
+// garde sur .length) : les places restantes d'un poste changent a chaque
+// creation/suppression d'employe, une liste deja chargee serait perimee et
+// l'alerte "effectif > places" ignorerait les titulaires recents.
+onMounted(() => {
+  hiringRequestStore.fetchAll()
+  positionStore.fetchAll()
+})
 
 /* ── Styles KPI ─────────────────────────────────────────────── */
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
@@ -281,6 +300,7 @@ const pageItems = computed(() => {
 
 /* ── Création ───────────────────────────────────────────────── */
 const showCreate = ref(false)
+watch(showCreate, (open) => { if (open) positionStore.fetchAll() })
 const error = ref<string | null>(null)
 const form = reactive({
   positionTitle: '', entityId: '', headcount: 1, profile: '',
@@ -292,6 +312,14 @@ const form = reactive({
 // texte libre, voir types.ts) — sert juste a pre-remplir l'intitule et
 // l'entite depuis un poste deja defini, modifiable ensuite a la main.
 const pickedPositionId = ref('')
+// Places restantes du poste choisi (sieges - occupes) : sert a signaler, sans
+// jamais bloquer, un effectif superieur (voir capacityWarning cote backend).
+const pickedPosition = computed(() => positionStore.positions.find(p => p.id === pickedPositionId.value))
+const pickedAvailable = computed(() => pickedPosition.value ? Math.max(0, pickedPosition.value.capacity - pickedPosition.value.occupiedCount) : null)
+const headcountExceeds = computed(() => pickedAvailable.value !== null && Number(form.headcount) > pickedAvailable.value)
+function warningTextOf(r: HiringRequest): string {
+  return capacityWarningText(r.headcount, r.positionAvailable ?? 0, r.positionCapacity ?? 0)
+}
 function onPositionPicked() {
   const position = positionStore.positions.find(p => p.id === pickedPositionId.value)
   if (!position) return
@@ -324,6 +352,7 @@ function buildPayload() {
     entityName: entity?.name ?? '',
     headcount: form.headcount,
     profile: form.profile.trim(),
+    positionId: pickedPositionId.value || undefined,
   }
 }
 

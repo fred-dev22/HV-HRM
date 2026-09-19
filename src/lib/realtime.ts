@@ -5,6 +5,7 @@ import { useLeaveRequestStore } from '../stores/leaveRequests'
 import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
 import { useEmployeeStore } from '../stores/employees'
+import { usePositionStore } from '../stores/positions'
 import { useLeaveTypesStore } from '../stores/leaveTypes'
 import {
   useHiringRequestStore, useJobOfferStore, useApplicationStore, useInterviewStore,
@@ -55,6 +56,14 @@ function refreshDomain(domain: DataDomain) {
     // mise a jour en direct, seul EMPLOYE_VOIR_TOUT etait couvert (Lot H #10).
     if (auth.hasPermission('EMPLOYE_VOIR_EQUIPE')) useEmployeeStore().fetchTeam()
     if (auth.hasPermission('EMPLOYE_VOIR_TOUT')) useEmployeeStore().fetchAll()
+    // Les places restantes d'un poste derivent des employes titulaires :
+    // sans ce rafraichissement, le formulaire et l'alerte "effectif > places"
+    // des expressions de besoin ignoraient un employe cree/desactive/supprime
+    // entre temps. Seulement si deja charges (pas de requete inutile).
+    const positions = usePositionStore()
+    if (positions.positions.length > 0) positions.fetchAll()
+    const hiringRequests = useHiringRequestStore()
+    if (hiringRequests.items.length > 0) hiringRequests.fetchAll()
   }
   // GET /leave-types n'est gardee par aucune permission (voir controller) —
   // pas de branchement par droit necessaire, contrairement aux domaines

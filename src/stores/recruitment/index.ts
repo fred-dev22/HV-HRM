@@ -40,6 +40,10 @@ function mapHiringRequest(r: Row): HiringRequest {
     requestedByName: r.createdByEmployee?.FullName ?? '',
     requestedAt: day(r.CreatedAt),
     status: r.Status,
+    positionId: r.PositionId ?? undefined,
+    positionCapacity: r.PositionCapacity ?? undefined,
+    positionAvailable: r.PositionAvailable ?? undefined,
+    capacityWarning: !!r.CapacityWarning,
   }
 }
 
@@ -294,22 +298,24 @@ export const useHiringRequestStore = defineStore('recruitment-hiring-requests', 
         this.loading = false
       }
     },
-    async create(payload: { positionTitle: string; entityName: string; headcount: number; profile: string }) {
+    async create(payload: { positionTitle: string; entityName: string; headcount: number; profile: string; positionId?: string }) {
       const { data } = await api.post<Row>('/recruitment/hiring-requests', {
         PositionTitle: payload.positionTitle,
         EntityName: payload.entityName,
         Headcount: payload.headcount,
         Profile: payload.profile,
+        PositionId: payload.positionId,
       })
       upsert(this.items, mapHiringRequest(data))
       return mapHiringRequest(data)
     },
-    async update(id: string, payload: Partial<{ positionTitle: string; entityName: string; headcount: number; profile: string }>) {
+    async update(id: string, payload: Partial<{ positionTitle: string; entityName: string; headcount: number; profile: string; positionId: string | null }>) {
       const { data } = await api.patch<Row>(`/recruitment/hiring-requests/${id}`, {
         PositionTitle: payload.positionTitle,
         EntityName: payload.entityName,
         Headcount: payload.headcount,
         Profile: payload.profile,
+        PositionId: payload.positionId,
       })
       upsert(this.items, mapHiringRequest(data))
     },
@@ -857,8 +863,8 @@ export const useContractStore = defineStore('recruitment-contracts', {
       })
       upsert(this.items, mapContract(data))
     },
-    async accept(id: string) {
-      const { data } = await api.post<Row>(`/recruitment/contracts/${id}/accept`)
+    async accept(id: string, opts: { withTrial?: boolean } = {}) {
+      const { data } = await api.post<Row>(`/recruitment/contracts/${id}/accept`, { WithTrial: !!opts.withTrial })
       upsert(this.items, mapContract(data))
     },
     async refuse(id: string, reason: string) {

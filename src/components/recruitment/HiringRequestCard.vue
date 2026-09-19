@@ -5,12 +5,14 @@
  * courante), barre d'actions métier (HiringRequestWorkflowActions).
  */
 import { ref, computed, watch } from 'vue'
+import { TriangleAlert } from 'lucide-vue-next'
 import FormSection from '../ui/form-field/FormSection.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import CardModalShell from '../shared/CardModalShell.vue'
 import HiringRequestWorkflowActions from './HiringRequestWorkflowActions.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
+import { capacityWarningText } from '../../lib/hiringCapacity'
 import type { HiringRequest } from '../../stores/recruitment'
 
 const props = defineProps<{
@@ -44,6 +46,9 @@ function selectSidebar(no: string) {
 }
 
 const pageTitle = computed(() => current.value?.positionTitle ?? '')
+const warningText = computed(() => current.value
+  ? capacityWarningText(current.value.headcount, current.value.positionAvailable ?? 0, current.value.positionCapacity ?? 0)
+  : '')
 </script>
 
 <template>
@@ -65,6 +70,9 @@ const pageTitle = computed(() => current.value?.positionTitle ?? '')
   >
     <template #title-badges>
       <StatusPill :status="current.status" />
+      <span v-if="current.capacityWarning" class="inline-flex items-center gap-1 text-[11px] font-medium text-danger bg-danger-bg rounded-full px-2 py-0.5" :title="warningText">
+        <TriangleAlert class="w-3 h-3" /> Effectif supérieur aux places
+      </span>
     </template>
 
     <!-- Barre d'actions métier -->
@@ -87,7 +95,10 @@ const pageTitle = computed(() => current.value?.positionTitle ?? '')
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Effectif</label>
-              <div :class="readBox">{{ current.headcount }}</div>
+              <div :class="[readBox, current.capacityWarning && '!border-danger']">{{ current.headcount }}</div>
+              <p v-if="current.capacityWarning" :class="cls.fieldError">
+                <TriangleAlert class="w-3 h-3 shrink-0" /> {{ warningText }}
+              </p>
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Demandé par</label>
