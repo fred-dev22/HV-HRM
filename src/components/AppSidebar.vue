@@ -69,7 +69,7 @@
           <SidebarItem :icon="ClipboardCheck" :label="t('sidebar.eval_grids')"            :to="{ name: 'hr-recruitment-eval-templates' }" />
           <SidebarItem :icon="FileText"       :label="t('sidebar.contracts_to_generate')" :to="{ name: 'hr-recruitment-contracts' }" />
           <SidebarItem :icon="Clock"          :label="t('sidebar.trial_periods')"         :to="{ name: 'hr-recruitment-trial' }" />
-          <SidebarItem :icon="Rss"            :label="t('sidebar.job_distribution')"      :to="{ name: 'hr-recruitment-distribution' }" />
+          <SidebarItem v-if="JOB_DISTRIBUTION_UI_ENABLED" :icon="Rss" :label="t('sidebar.job_distribution')" :to="{ name: 'hr-recruitment-distribution' }" />
         </SidebarSection>
       </template>
 
@@ -201,7 +201,7 @@ import { useLeaveRequestStore } from '../stores/leaveRequests'
 import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
 import SkeletonLoader from './ui/SkeletonLoader.vue'
-import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED } from '../config/features'
 
 const { t }        = useI18n()
 const auth         = useAuthStore()

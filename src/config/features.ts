@@ -18,3 +18,11 @@ export const PLACEHOLDER_MODULES_ENABLED: boolean = false
 // dev-recrutement-module, pour prévisualiser le module avant validation
 // client. Remettre à false avant toute fusion vers qa/main.
 export const RECRUITMENT_MODULE_ENABLED: boolean = true
+
+// Diffusion des offres (canaux, flux publics feed.json/feed.xml, "Contenu a
+// partager") : section "Diffusion" de la fiche d'une offre d'emploi ET entree
+// "Diffusion des offres" du menu Recrutement, masquees temporairement sur
+// demande (19/09/2026) : fonctionnalite pas encore prete a etre montree, il
+// reste des choses a faire dessus. Rien n'est supprime (route, code, donnees) :
+// remettre a true pour tout reafficher.
+export const JOB_DISTRIBUTION_UI_ENABLED: boolean = false

@@ -15,6 +15,7 @@ import JobOfferWorkflowActions from './JobOfferWorkflowActions.vue'
 import JobOfferDistributionPanel from './JobOfferDistributionPanel.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
+import { JOB_DISTRIBUTION_UI_ENABLED } from '../../config/features'
 import { useJobOfferStore } from '../../stores/recruitment'
 import type { JobOffer, ShareContent } from '../../stores/recruitment'
 
@@ -62,8 +63,9 @@ async function copyPublicUrl() {
   setTimeout(() => { copied.value = false }, 2000)
 }
 
-// Section Diffusion : visible des que l'offre n'est plus un brouillon.
-const showDistribution = computed(() => current.value?.status === 'Published' || current.value?.status === 'Closed')
+// Section Diffusion : visible des que l'offre n'est plus un brouillon, tant
+// que la fonctionnalite n'est pas masquee (voir config/features.ts).
+const showDistribution = computed(() => JOB_DISTRIBUTION_UI_ENABLED && (current.value?.status === 'Published' || current.value?.status === 'Closed'))
 
 // Contenu pret a coller (LinkedIn, X, intranet, e-mail cabinet).
 const shareModal = ref(false)
