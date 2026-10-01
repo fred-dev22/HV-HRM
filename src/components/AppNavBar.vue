@@ -109,11 +109,11 @@ const mobileItemClass =
   'flex items-center px-5 py-3 text-sm font-medium text-foreground/80 cursor-pointer border-b border-border last:border-0 no-underline hover:bg-background hover:text-primary'
 
 // 'administration' contient des fonctionnalités réelles couvertes par des
-// permissions — masqué si l'utilisateur n'en a aucune. 'recruitment' et
+// permissions, masqué si l'utilisateur n'en a aucune. 'recruitment' et
 // 'training' ont chacun leur propre flag (RECRUITMENT_MODULE_ENABLED /
 // FORMATION_MODULE_ENABLED, vrais écrans sur cette branche). 'payroll'/
 // 'reports' restent des modules placeholder (voir PLACEHOLDER_MODULES_ENABLED,
-// src/config/features.ts) — masqués tant qu'ils ne sont pas construits.
+// src/config/features.ts), masqués tant qu'ils ne sont pas construits.
 const hrNavItems = computed(() => [
   { key: 'administration', label: t('nav.admin'), visible: auth.hasAnyPermission([
     'EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE', 'ENTITE_VOIR',

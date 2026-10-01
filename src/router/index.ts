@@ -21,7 +21,7 @@ const MISSIONS_EXPENSES_ROUTES = new Set([
   'employee-missions', 'employee-expenses',
 ])
 
-// Préfixes des modules encore à l'état de placeholder (Paie, Rapports — voir
+// Préfixes des modules encore à l'état de placeholder (Paie, Rapports, voir
 // PLACEHOLDER_MODULES_ENABLED). Recrutement et Formation ont chacun leur
 // propre flag (RECRUITMENT_MODULE_ENABLED / FORMATION_MODULE_ENABLED, voir
 // plus bas) car ils ont de vrais écrans sur la branche dev-recrutement-module.
