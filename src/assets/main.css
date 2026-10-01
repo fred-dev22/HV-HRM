@@ -66,11 +66,12 @@
   --color-cue-orange: oklch(68% 0.23 55);
 
   /* Status colors (extension HRM — pills, badges, alertes)
-   * Succès reprend le rouge de marque (comme le thème precedent ou le vert
-   * de marque portait aussi le sens "succès") — danger reste la couleur
-   * distincte (bordeaux) pour ne pas se confondre avec succès/primaire. */
-  --color-success: #ef463b;
-  --color-success-bg: #fdeae8;
+   * Retour client du 19/09 : succès reprenait jusqu'ici le rouge de marque,
+   * confondu avec les erreurs (danger) dans les toasts. Vert standard
+   * (independant de la charte HV) pour que succès/erreur restent lisibles
+   * au premier coup d'oeil, quelle que soit la couleur de marque du client. */
+  --color-success: #1f7a4d;
+  --color-success-bg: #e5f3ea;
   --color-warning: #8a5a0a;
   --color-warning-bg: #fef5e1;
   --color-danger: #7a1f1f;

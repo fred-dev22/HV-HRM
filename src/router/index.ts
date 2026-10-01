@@ -9,7 +9,7 @@ import PublicApprovalView from '../views/PublicApprovalView.vue'
 import DashboardHR       from '../views/DashboardHR.vue'
 import DashboardEmployee from '../views/DashboardEmployee.vue'
 import CalendarView      from '../views/calendar/CalendarView.vue'
-import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED, FORMATION_MODULE_ENABLED } from '../config/features'
 
 const PH = () => import('../views/placeholders/PlaceholderView.vue')
 
@@ -21,14 +21,15 @@ const MISSIONS_EXPENSES_ROUTES = new Set([
   'employee-missions', 'employee-expenses',
 ])
 
-// Préfixes des modules encore à l'état de placeholder (Formation, Paie,
-// Rapports — voir PLACEHOLDER_MODULES_ENABLED). Recrutement a son propre
-// flag (RECRUITMENT_MODULE_ENABLED, voir plus bas) car il a de vrais écrans
-// sur la branche dev-recrutement-module. Bloque aussi toutes les sous-routes
-// (ex. /hr/training/catalog) même par accès direct à l'URL, en plus du
-// masquage dans AppNavBar.vue.
-const PLACEHOLDER_MODULE_PATH_PREFIXES = ['/hr/training', '/hr/payroll', '/hr/reports']
+// Préfixes des modules encore à l'état de placeholder (Paie, Rapports — voir
+// PLACEHOLDER_MODULES_ENABLED). Recrutement et Formation ont chacun leur
+// propre flag (RECRUITMENT_MODULE_ENABLED / FORMATION_MODULE_ENABLED, voir
+// plus bas) car ils ont de vrais écrans sur la branche dev-recrutement-module.
+// Bloque aussi toutes les sous-routes (ex. /hr/payroll/periods) même par
+// accès direct à l'URL, en plus du masquage dans AppNavBar.vue.
+const PLACEHOLDER_MODULE_PATH_PREFIXES = ['/hr/payroll', '/hr/reports']
 const RECRUITMENT_MODULE_PATH_PREFIX = '/hr/recruitment'
+const FORMATION_MODULE_PATH_PREFIX = '/hr/training'
 
 // Onglet actif (AppNavBar.vue) et sidebar (AppSidebar.vue) suivent tous les
 // deux navigationStore.activeModule, qui n'etait mis a jour qu'au clic sur un
@@ -255,15 +256,15 @@ const router = createRouter({
     { path: '/hr/needs',                    name: 'hr-needs',                    component: () => import('../views/recruitment/HiringRequestsView.vue'),         meta: { requiresAuth: true, layout: 'dashboard' } },
 
     // ── Module Formation ─────────────────────────────────────────
-    { path: '/hr/training',             name: 'hr-training',             component: PH, meta: { requiresAuth: true, title: 'Tableau de bord Formation' } },
-    { path: '/hr/training/catalog',     name: 'hr-training-catalog',     component: PH, meta: { requiresAuth: true, title: 'Catalogue formations' } },
-    { path: '/hr/training/sessions',    name: 'hr-training-sessions',    component: PH, meta: { requiresAuth: true, title: 'Sessions planifiées' } },
-    { path: '/hr/training/enrollments', name: 'hr-training-enrollments', component: PH, meta: { requiresAuth: true, title: 'Inscriptions' } },
-    { path: '/hr/training/hot-evals',   name: 'hr-training-hot-evals',   component: PH, meta: { requiresAuth: true, title: 'Évaluations à chaud' } },
-    { path: '/hr/training/cold-evals',  name: 'hr-training-cold-evals',  component: PH, meta: { requiresAuth: true, title: 'Évaluations à froid' } },
-    { path: '/hr/training/grades',      name: 'hr-training-grades',      component: PH, meta: { requiresAuth: true, title: 'Notes participants' } },
-    { path: '/hr/training/budget',      name: 'hr-training-budget',      component: PH, meta: { requiresAuth: true, title: 'Suivi budgétaire' } },
-    { path: '/hr/training/providers',   name: 'hr-training-providers',   component: PH, meta: { requiresAuth: true, title: 'Prestataires' } },
+    { path: '/hr/training',             name: 'hr-training',             component: () => import('../views/training/TrainingDashboardView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/catalog',     name: 'hr-training-catalog',     component: () => import('../views/training/CourseCatalogView.vue'),     meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/sessions',    name: 'hr-training-sessions',    component: () => import('../views/training/TrainingSessionsView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/enrollments', name: 'hr-training-enrollments', component: () => import('../views/training/EnrollmentsView.vue'),      meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/hot-evals',   name: 'hr-training-hot-evals',   component: () => import('../views/training/HotEvaluationsView.vue'),   meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/cold-evals',  name: 'hr-training-cold-evals',  component: () => import('../views/training/ColdEvaluationsView.vue'),  meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/grades',      name: 'hr-training-grades',      component: () => import('../views/training/GradesView.vue'),           meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/budget',      name: 'hr-training-budget',      component: () => import('../views/training/TrainingBudgetView.vue'),   meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr/training/providers',   name: 'hr-training-providers',   component: () => import('../views/training/ProvidersView.vue'),        meta: { requiresAuth: true, layout: 'dashboard' } },
 
     // ── Module Paie ──────────────────────────────────────────────
     { path: '/hr/payroll',              name: 'hr-payroll',              component: PH, meta: { requiresAuth: true, title: 'Tableau de bord Paie' } },
@@ -406,6 +407,10 @@ router.beforeEach(async (to) => {
     }
 
     if (!RECRUITMENT_MODULE_ENABLED && (to.path.startsWith(RECRUITMENT_MODULE_PATH_PREFIX) || to.name === 'employee-internal-applications')) {
+      return { path: auth.isHRSpace ? '/hr' : '/employee' }
+    }
+
+    if (!FORMATION_MODULE_ENABLED && to.path.startsWith(FORMATION_MODULE_PATH_PREFIX)) {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 

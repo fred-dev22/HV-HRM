@@ -19,6 +19,12 @@ export const PLACEHOLDER_MODULES_ENABLED: boolean = false
 // client. Remettre à false avant toute fusion vers qa/main.
 export const RECRUITMENT_MODULE_ENABLED: boolean = true
 
+// Module Formation : meme principe que RECRUITMENT_MODULE_ENABLED ci-dessus
+// (vrais ecrans, design + donnees fictives, voir src/views/training/), sorti
+// de PLACEHOLDER_MODULES_ENABLED des que construit. Paie/Rapports restent de
+// simples coquilles vides tant qu'ils ne sont pas a leur tour construits.
+export const FORMATION_MODULE_ENABLED: boolean = true
+
 // Diffusion des offres (canaux, flux publics feed.json/feed.xml, "Contenu a
 // partager") : section "Diffusion" de la fiche d'une offre d'emploi ET entree
 // "Diffusion des offres" du menu Recrutement, masquees temporairement sur
