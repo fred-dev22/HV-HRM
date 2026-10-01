@@ -70,7 +70,7 @@ const warningText = computed(() => current.value
   >
     <template #title-badges>
       <StatusPill :status="current.status" />
-      <span v-if="current.capacityWarning" class="inline-flex items-center gap-1 text-[11px] font-medium text-danger bg-danger-bg rounded-full px-2 py-0.5" :title="warningText">
+      <span v-if="current.capacityWarning" class="inline-flex items-center gap-1 text-[11px] font-medium text-warning bg-warning-bg rounded-full px-2 py-0.5" :title="warningText">
         <TriangleAlert class="w-3 h-3" /> Effectif supérieur aux places
       </span>
     </template>
@@ -95,14 +95,18 @@ const warningText = computed(() => current.value
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Effectif</label>
-              <div :class="[readBox, current.capacityWarning && '!border-danger']">{{ current.headcount }}</div>
-              <p v-if="current.capacityWarning" :class="cls.fieldError">
+              <div :class="[readBox, current.capacityWarning && '!border-warning']">{{ current.headcount }}</div>
+              <p v-if="current.capacityWarning" :class="cls.fieldWarning">
                 <TriangleAlert class="w-3 h-3 shrink-0" /> {{ warningText }}
               </p>
             </div>
             <div :class="cls.field">
-              <label :class="cls.fieldLabel">Demandé par</label>
+              <label :class="cls.fieldLabel">Rempli par</label>
               <div :class="readBox">{{ current.requestedByName }}</div>
+            </div>
+            <div v-if="current.requestedForName" :class="cls.field">
+              <label :class="cls.fieldLabel">Pour</label>
+              <div :class="readBox">{{ current.requestedForName }}</div>
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Date</label>

@@ -11,7 +11,7 @@
       <div
         v-if="toast.visible"
         class="fixed bottom-6 right-6 z-[1100] flex items-center gap-2.5 rounded-lg px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.2)] text-[13px] font-medium max-w-[340px]"
-        :class="toast.status === 'error' ? 'bg-destructive text-destructive-foreground' : toast.status === 'success' ? 'bg-success text-white' : 'bg-primary text-primary-foreground'"
+        :class="toast.status === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-white'"
         role="status"
         aria-live="polite"
       >

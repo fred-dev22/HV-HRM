@@ -67,6 +67,15 @@ const CONFIG: Record<string, PillConfig> = {
   OnTrial:            { label: 'En période d\'essai', class: 'bg-warning-bg text-warning'  },
   Extended:           { label: 'Prolongée',          class: 'bg-warning-bg text-warning'  },
   Converted:          { label: 'Convertie en CDI',   class: 'bg-success-bg text-success'  },
+
+  // Module Formation (design uniquement, voir src/stores/training), les
+  // statuts communs (Draft/Pending/Approved/Rejected/Cancelled/Scheduled/
+  // Done/Active/Inactive) sont deja couverts ci-dessus.
+  InPreparation:      { label: 'En préparation',      class: 'bg-warning-bg text-warning'  },
+  InProgress:         { label: 'En cours',            class: 'bg-info-bg text-info'        },
+  Archived:           { label: 'Archivée',            class: 'bg-neutral-bg text-neutral'  },
+  Requested:          { label: 'Demandée',            class: 'bg-warning-bg text-warning'  },
+  Attended:           { label: 'A participé',         class: 'bg-success-bg text-success'  },
 }
 
 const cfg = computed<PillConfig>(() =>

@@ -23,6 +23,9 @@ export interface HiringRequest {
   requestedByName: string
   requestedAt: string
   status: HiringRequestStatus
+  /** Bénéficiaire réel si différent du créateur (ex : assistant qui exprime le besoin pour son directeur). */
+  requestedForEmployeeId?: string
+  requestedForName?: string
   /** Poste existant choisi dans le référentiel (absent = poste en texte libre). */
   positionId?: string
   /** Sièges du poste choisi, calculés par le backend à chaque lecture. */
@@ -58,6 +61,10 @@ export interface JobOffer {
   // Diffusion multi-plateformes (backlog) : retirer des flux publics + salaire affiché.
   excludeFromFeed?: boolean
   salaryText?: string
+  // Période d'essai par défaut du poste (retour client du 19/09), reprise
+  // automatiquement dans le contrat généré, modifiable à l'acceptation.
+  trialPeriodEnabled?: boolean
+  trialPeriodMonths?: number
 }
 
 // Piece jointe reelle (CV, PDF d'annonce...) stockee sur SharePoint.
@@ -98,6 +105,17 @@ export interface Application {
   notes: ApplicationNote[]
   // Présent si un contrat / une proposition d'embauche a déjà été généré.
   hasContract?: boolean
+  // Historique des entretiens liés à cette candidature (retour client du
+  // 19/09), projection légère : l'entretien complet se consulte via
+  // InterviewCard depuis l'onglet Entretiens.
+  interviews?: ApplicationInterviewSummary[]
+}
+
+export interface ApplicationInterviewSummary {
+  id: string
+  referenceCode: string
+  scheduledAt: string
+  status: InterviewStatus
 }
 
 // ── Entretiens ─────────────────────────────────────────────────
@@ -118,6 +136,8 @@ export interface InterviewCriterionScore {
 }
 
 export interface InterviewEvaluation {
+  id: string
+  evaluatorEmployeeId: string
   score: number
   comment: string
   interviewerName: string
@@ -152,7 +172,10 @@ export interface Interview {
   meetingLink?: string
   participants: InterviewParticipant[]
   status: InterviewStatus
-  evaluation?: InterviewEvaluation
+  // Une evaluation par intervieweur (retour client du 19/09) + note globale
+  // calculee cote backend (moyenne), null tant qu'aucune n'a ete soumise.
+  evaluations: InterviewEvaluation[]
+  globalScore: number | null
   // Reponse du candidat a l'invitation calendrier.
   candidateRsvp?: RsvpResponse
   candidateRsvpAt?: string
@@ -225,6 +248,10 @@ export interface Contract {
   // candidat -> employe") — non null une fois la conversion faite.
   employeeProfileCreated?: boolean
   createdEmployeeId?: string
+  // Défaut de période d'essai du poste d'origine (retour client du 19/09) :
+  // pré-remplit la case à l'acceptation, voir ContractWorkflowActions.vue.
+  jobOfferTrialPeriodEnabled?: boolean
+  jobOfferTrialPeriodMonths?: number
 }
 
 // ── Périodes d'essai ───────────────────────────────────────────

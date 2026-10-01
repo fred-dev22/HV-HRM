@@ -258,7 +258,7 @@
               <FormSection title="Contenu">
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Contenu <span class="text-danger">*</span></label>
-                  <textarea v-model="templateModal.content" :class="cls.fieldTextarea" rows="6" placeholder="Texte du contrat…"></textarea>
+                  <RichTextEditor v-model="templateModal.content" placeholder="Texte du contrat…" />
                   <p class="text-[11px] text-muted-foreground mt-1">{{ placeholderHint }}</p>
                 </div>
               </FormSection>
@@ -304,6 +304,7 @@ import FormSection from '../../components/ui/form-field/FormSection.vue'
 import ContractWorkflowActions from '../../components/recruitment/ContractWorkflowActions.vue'
 import ContractCard from '../../components/recruitment/ContractCard.vue'
 import ContractTemplateCard from '../../components/recruitment/ContractTemplateCard.vue'
+import RichTextEditor from '../../components/ui/RichTextEditor.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
@@ -514,8 +515,12 @@ async function create() {
 }
 
 /* ── Modèles de contrat ─────────────────────────────────────── */
+// Retire les balises d'un contenu redige avec RichTextEditor.vue (retour
+// client du 19/09) avant l'extrait de carte, qui reste toujours du texte
+// simple (jamais de mise en forme sur cette vignette).
 function excerpt(content: string): string {
-  return content.length > 140 ? content.slice(0, 140).trim() + '…' : content
+  const plain = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return plain.length > 140 ? plain.slice(0, 140).trim() + '…' : plain
 }
 
 const templateModal = reactive({ open: false, name: '', contractType: 'CDI', content: '', error: '' })

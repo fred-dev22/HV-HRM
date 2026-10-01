@@ -13,10 +13,11 @@ import FormSection from '../ui/form-field/FormSection.vue'
 import ModalShell from '../ui/ModalShell.vue'
 import JobOfferWorkflowActions from './JobOfferWorkflowActions.vue'
 import JobOfferDistributionPanel from './JobOfferDistributionPanel.vue'
+import ApplicationCard from './ApplicationCard.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
 import { JOB_DISTRIBUTION_UI_ENABLED } from '../../config/features'
-import { useJobOfferStore } from '../../stores/recruitment'
+import { useJobOfferStore, useApplicationStore } from '../../stores/recruitment'
 import type { JobOffer, ShareContent } from '../../stores/recruitment'
 
 const props = defineProps<{
@@ -29,6 +30,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const jobOfferStore = useJobOfferStore()
+const applicationStore = useApplicationStore()
+if (applicationStore.items.length === 0) applicationStore.fetchAll()
 
 const readBox = 'text-[13px] text-foreground bg-background border border-border rounded-md px-2.5 h-[38px] flex items-center'
 
@@ -53,6 +56,13 @@ function selectSidebar(no: string) {
 const showStats = computed(() => current.value?.status === 'Published' || current.value?.status === 'Closed')
 
 function formatCost(n: number): string { return `${n.toLocaleString('fr-FR')} MGA` }
+
+// Candidatures de cette offre (retour client du 19/09 : la fiche n'affichait
+// jusqu'ici qu'un compteur, jamais la liste). applicationStore.items est
+// deja charge app-wide, filtre local plutot qu'un fetch dedie par offre.
+const offerApplications = computed(() =>
+  current.value ? applicationStore.items.filter(a => a.jobOfferId === current.value!.id) : [])
+const openApplicationId = ref<string | null>(null)
 
 // Lien du portail carrière public — adressé par le jeton opaque de l'offre.
 const publicUrl = computed(() => current.value ? `${window.location.origin}/careers/${current.value.publicToken}` : '')
@@ -159,6 +169,10 @@ watch(currentId, () => { shareContent.value = null })
               <label :class="cls.fieldLabel">Publiée le</label>
               <div :class="readBox">{{ formatDate(current.publishedAt) }}</div>
             </div>
+            <div :class="cls.field">
+              <label :class="cls.fieldLabel">Période d'essai</label>
+              <div :class="readBox">{{ current.trialPeriodEnabled ? `${current.trialPeriodMonths ?? 2} mois` : 'Aucune' }}</div>
+            </div>
             <div v-if="current.evaluationTemplateName" :class="cls.field">
               <label :class="cls.fieldLabel">Grille d'évaluation d'entretien</label>
               <div :class="readBox">
@@ -221,9 +235,30 @@ watch(currentId, () => { shareContent.value = null })
             </div>
           </div>
         </FormSection>
+
+        <!-- Section Candidatures : liste + statut (retour client du 19/09,
+             la fiche n'affichait jusqu'ici qu'un compteur dans Statistiques). -->
+        <FormSection v-if="showStats" title="Candidatures" :recaps="[`${offerApplications.length} candidature(s)`]">
+          <p v-if="offerApplications.length === 0" class="text-[12px] text-muted-foreground">Aucune candidature reçue pour l'instant.</p>
+          <div v-else class="flex flex-col gap-1.5">
+            <button
+              v-for="a in offerApplications" :key="a.id" type="button"
+              class="flex items-center justify-between gap-3 px-2.5 py-2 rounded-md border border-border bg-background hover:bg-accent text-left transition-colors"
+              @click="openApplicationId = a.id"
+            >
+              <div class="min-w-0">
+                <div class="text-[13px] font-medium text-foreground truncate">{{ a.candidateName }}</div>
+                <div class="text-[11px] text-muted-foreground">{{ formatDate(a.appliedAt) }}</div>
+              </div>
+              <StatusPill :status="a.status" />
+            </button>
+          </div>
+        </FormSection>
       </div>
     </template>
   </CardModalShell>
+
+  <ApplicationCard v-if="openApplicationId" :items="offerApplications" :item-id="openApplicationId" @close="openApplicationId = null" />
 
   <!-- Contenu pret a coller pour diffusion manuelle -->
   <ModalShell :open="shareModal" title="Contenu à partager" max-width="max-w-[640px]" @close="shareModal = false">

@@ -40,6 +40,8 @@ function mapHiringRequest(r: Row): HiringRequest {
     requestedByName: r.createdByEmployee?.FullName ?? '',
     requestedAt: day(r.CreatedAt),
     status: r.Status,
+    requestedForEmployeeId: r.RequestedForEmployeeId ?? undefined,
+    requestedForName: r.requestedForEmployee?.FullName ?? undefined,
     positionId: r.PositionId ?? undefined,
     positionCapacity: r.PositionCapacity ?? undefined,
     positionAvailable: r.PositionAvailable ?? undefined,
@@ -67,6 +69,8 @@ function mapJobOffer(r: Row): JobOffer {
     recruitmentCost: r.RecruitmentCost != null ? num(r.RecruitmentCost) : undefined,
     excludeFromFeed: !!r.ExcludeFromFeed,
     salaryText: r.SalaryText ?? undefined,
+    trialPeriodEnabled: !!r.TrialPeriodEnabled,
+    trialPeriodMonths: r.TrialPeriodMonths ?? undefined,
   }
 }
 
@@ -137,6 +141,9 @@ function mapApplication(r: Row): Application {
     appliedAt: day(r.AppliedAt),
     notes: (r.notes ?? []).map(mapNote),
     hasContract: !!r.contract,
+    interviews: (r.interviews ?? []).map((i: Row) => ({
+      id: i.Id, referenceCode: i.ReferenceCode, scheduledAt: iso(i.ScheduledAt), status: i.Status,
+    })),
   }
 }
 
@@ -152,9 +159,10 @@ function mapParticipant(r: Row): InterviewParticipant {
   }
 }
 
-function mapInterviewEvaluation(r: Row | null | undefined): InterviewEvaluation | undefined {
-  if (!r) return undefined
+function mapInterviewEvaluation(r: Row): InterviewEvaluation {
   return {
+    id: r.Id,
+    evaluatorEmployeeId: r.EvaluatorEmployeeId,
     score: num(r.Score),
     comment: r.Comment,
     interviewerName: r.InterviewerName,
@@ -177,7 +185,8 @@ function mapInterview(r: Row): Interview {
     meetingLink: r.MeetingLink ?? undefined,
     participants: (r.participants ?? []).map(mapParticipant),
     status: r.Status,
-    evaluation: mapInterviewEvaluation(r.evaluation),
+    evaluations: (r.evaluations ?? []).map(mapInterviewEvaluation),
+    globalScore: r.GlobalScore != null ? num(r.GlobalScore) : null,
     candidateRsvp: (r.CandidateRsvp ?? undefined) as RsvpResponse | undefined,
     candidateRsvpAt: r.CandidateRsvpAt ? iso(r.CandidateRsvpAt) : undefined,
     candidateRsvpSource: r.CandidateRsvpSource ?? undefined,
@@ -247,6 +256,8 @@ function mapContract(r: Row): Contract {
     rejectionReason: r.RejectionReason ?? undefined,
     negotiationRounds: (r.negotiationRounds ?? []).map(mapNegotiationRound),
     employeeProfileCreated: !!r.EmployeeProfileCreated,
+    jobOfferTrialPeriodEnabled: !!r.application?.jobOffer?.TrialPeriodEnabled,
+    jobOfferTrialPeriodMonths: r.application?.jobOffer?.TrialPeriodMonths ?? undefined,
   }
 }
 
@@ -298,24 +309,26 @@ export const useHiringRequestStore = defineStore('recruitment-hiring-requests', 
         this.loading = false
       }
     },
-    async create(payload: { positionTitle: string; entityName: string; headcount: number; profile: string; positionId?: string }) {
+    async create(payload: { positionTitle: string; entityName: string; headcount: number; profile: string; positionId?: string; requestedForEmployeeId?: string }) {
       const { data } = await api.post<Row>('/recruitment/hiring-requests', {
         PositionTitle: payload.positionTitle,
         EntityName: payload.entityName,
         Headcount: payload.headcount,
         Profile: payload.profile,
         PositionId: payload.positionId,
+        RequestedForEmployeeId: payload.requestedForEmployeeId,
       })
       upsert(this.items, mapHiringRequest(data))
       return mapHiringRequest(data)
     },
-    async update(id: string, payload: Partial<{ positionTitle: string; entityName: string; headcount: number; profile: string; positionId: string | null }>) {
+    async update(id: string, payload: Partial<{ positionTitle: string; entityName: string; headcount: number; profile: string; positionId: string | null; requestedForEmployeeId: string | null }>) {
       const { data } = await api.patch<Row>(`/recruitment/hiring-requests/${id}`, {
         PositionTitle: payload.positionTitle,
         EntityName: payload.entityName,
         Headcount: payload.headcount,
         Profile: payload.profile,
         PositionId: payload.positionId,
+        RequestedForEmployeeId: payload.requestedForEmployeeId,
       })
       upsert(this.items, mapHiringRequest(data))
     },
@@ -362,7 +375,7 @@ export const useJobOfferStore = defineStore('recruitment-job-offers', {
     async create(payload: {
       hiringRequestId?: string; title: string; entityName: string; contractType: string;
       location: string; description: string; evaluationTemplateId?: string;
-      excludeFromFeed?: boolean; salaryText?: string
+      excludeFromFeed?: boolean; salaryText?: string; trialPeriodEnabled?: boolean; trialPeriodMonths?: number
     }) {
       const { data } = await api.post<Row>('/recruitment/job-offers', {
         HiringRequestId: payload.hiringRequestId,
@@ -374,6 +387,8 @@ export const useJobOfferStore = defineStore('recruitment-job-offers', {
         InterviewEvaluationTemplateId: payload.evaluationTemplateId,
         ExcludeFromFeed: payload.excludeFromFeed,
         SalaryText: payload.salaryText || undefined,
+        TrialPeriodEnabled: payload.trialPeriodEnabled,
+        TrialPeriodMonths: payload.trialPeriodMonths,
       })
       upsert(this.items, mapJobOffer(data))
       return mapJobOffer(data)
@@ -381,7 +396,7 @@ export const useJobOfferStore = defineStore('recruitment-job-offers', {
     async update(id: string, payload: Partial<{
       hiringRequestId: string | null; title: string; entityName: string; contractType: string;
       location: string; description: string; evaluationTemplateId: string | null;
-      excludeFromFeed: boolean; salaryText: string
+      excludeFromFeed: boolean; salaryText: string; trialPeriodEnabled: boolean; trialPeriodMonths: number | null
     }>) {
       const { data } = await api.patch<Row>(`/recruitment/job-offers/${id}`, {
         HiringRequestId: payload.hiringRequestId,
@@ -393,6 +408,8 @@ export const useJobOfferStore = defineStore('recruitment-job-offers', {
         InterviewEvaluationTemplateId: payload.evaluationTemplateId,
         ExcludeFromFeed: payload.excludeFromFeed,
         SalaryText: payload.salaryText,
+        TrialPeriodEnabled: payload.trialPeriodEnabled,
+        TrialPeriodMonths: payload.trialPeriodMonths,
       })
       upsert(this.items, mapJobOffer(data))
     },

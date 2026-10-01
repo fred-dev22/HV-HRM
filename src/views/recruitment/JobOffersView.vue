@@ -178,6 +178,18 @@
               </div>
             </FormSection>
 
+            <FormSection title="Période d'essai">
+              <label class="flex items-center gap-2 text-[13px] text-foreground">
+                <input v-model="form.trialPeriodEnabled" type="checkbox" />
+                Ce poste comporte une période d'essai
+              </label>
+              <div v-if="form.trialPeriodEnabled" :class="cls.field" class="mt-2.5 max-w-[160px]">
+                <label :class="cls.fieldLabel">Durée (mois) <span class="text-danger">*</span></label>
+                <input type="number" min="1" max="24" v-model.number="form.trialPeriodMonths" :class="cls.fieldInput" />
+              </div>
+              <p class="text-[11px] text-muted-foreground mt-2">Reprise automatiquement dans le contrat généré pour ce poste, modifiable au cas par cas à l'acceptation.</p>
+            </FormSection>
+
             <FormSection title="Diffusion">
               <div :class="cls.field">
                 <label :class="cls.fieldLabel">Rémunération affichée <span :class="cls.fieldOptional">(optionnel)</span></label>
@@ -343,13 +355,13 @@ const showCreate = ref(false)
 const error = ref<string | null>(null)
 const form = reactive({
   title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '', evaluationTemplateId: '',
-  salaryText: '', excludeFromFeed: false,
+  salaryText: '', excludeFromFeed: false, trialPeriodEnabled: false, trialPeriodMonths: 2,
 })
 
 function resetForm() {
   Object.assign(form, {
     title: '', entityId: '', contractType: 'CDI', location: '', description: '', hiringRequestId: '', evaluationTemplateId: '',
-    salaryText: '', excludeFromFeed: false,
+    salaryText: '', excludeFromFeed: false, trialPeriodEnabled: false, trialPeriodMonths: 2,
   })
   error.value = null
 }
@@ -374,6 +386,10 @@ function validate(): boolean {
   if (!form.entityId) { error.value = "L'entité est requise"; return false }
   if (!form.location.trim()) { error.value = 'Le lieu est requis'; return false }
   if (!form.description.trim()) { error.value = 'La description est requise'; return false }
+  if (form.trialPeriodEnabled && (!form.trialPeriodMonths || form.trialPeriodMonths < 1)) {
+    error.value = "La durée de la période d'essai doit être d'au moins 1 mois"
+    return false
+  }
   error.value = null
   return true
 }
@@ -390,6 +406,8 @@ function buildPayload() {
     evaluationTemplateId: form.evaluationTemplateId || undefined,
     salaryText: form.salaryText.trim() || undefined,
     excludeFromFeed: form.excludeFromFeed || undefined,
+    trialPeriodEnabled: form.trialPeriodEnabled,
+    trialPeriodMonths: form.trialPeriodEnabled ? form.trialPeriodMonths : undefined,
   }
 }
 

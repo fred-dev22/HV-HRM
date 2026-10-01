@@ -8,6 +8,7 @@
 import { ref, computed, watch } from 'vue'
 import CardModalShell from '../shared/CardModalShell.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
+import RichTextEditor from '../ui/RichTextEditor.vue'
 import * as cls from '../../lib/formClasses'
 import { resolveContractContent, buildContractHtml } from '../../lib/contractDocument'
 import { useContractStore } from '../../stores/recruitment'
@@ -80,6 +81,11 @@ function save() {
   })
   isEditMode.value = false
 }
+
+// Modele redige avec RichTextEditor (retour client du 19/09) : contenu HTML
+// a rendre tel quel (v-html) en lecture. Un modele plus ancien (texte brut)
+// garde l'affichage pre-line d'origine.
+const contentIsHtml = computed(() => !!current.value && /<[a-z][\s\S]*>/i.test(current.value.content))
 
 // Construit en JS (pas en template) : voir ContractsView.vue, deux "}}"
 // litteraux dans un meme mustache Vue font echouer le compilateur.
@@ -162,7 +168,8 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
         <FormSection title="Contenu">
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Contenu</label>
-            <textarea v-if="isEditMode" v-model="form.content" :class="cls.fieldTextarea" rows="6" placeholder="Texte du contrat…"></textarea>
+            <RichTextEditor v-if="isEditMode" v-model="form.content" placeholder="Texte du contrat…" />
+            <div v-else-if="contentIsHtml" class="text-[13px] text-foreground bg-background border border-border rounded-md p-3 [&_p]:m-0 [&_p+p]:mt-2.5" v-html="current.content"></div>
             <p v-else class="text-[13px] text-foreground whitespace-pre-line bg-background border border-border rounded-md p-3">{{ current.content }}</p>
             <p v-if="isEditMode" class="text-[11px] text-muted-foreground mt-1">{{ placeholderHint }}</p>
           </div>

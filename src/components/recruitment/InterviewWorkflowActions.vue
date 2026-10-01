@@ -43,14 +43,28 @@ async function cancelItem() {
 }
 
 /* ── Modale Évaluer ─────────────────────────────────────────── */
+// Ma propre evaluation si j'en ai deja soumis une pour cet entretien (retour
+// client du 19/09 : chaque intervieweur a desormais la sienne, plusieurs
+// coexistent sans s'ecraser, voir InterviewService.evaluate). Sert a la fois
+// a pre-remplir la modale (edition) et a choisir le libelle du bouton.
+const myEvaluation = computed(() => props.item.evaluations.find(e => e.evaluatorEmployeeId === auth.user?.id))
+
 const evaluateModal = reactive({
   open: false, templateId: '', score: 5, comment: '', interviewerName: '',
   criteriaScores: [] as { label: string; score: number }[], error: '',
 })
 function openEvaluate() {
+  const mine = myEvaluation.value
   Object.assign(evaluateModal, {
-    open: true, templateId: '', score: 5, comment: '',
-    interviewerName: auth.user?.name ?? '', criteriaScores: [], error: '',
+    open: true, templateId: '',
+    score: mine?.score ?? 5,
+    comment: mine?.comment ?? '',
+    interviewerName: mine?.interviewerName ?? auth.user?.name ?? '',
+    // Le gabarit utilise n'est pas conserve par id (seul son nom l'est) : la
+    // grille n'est donc pas re-selectionnable en edition, seuls ses criteres
+    // et leurs notes le sont.
+    criteriaScores: mine?.criteriaScores ? mine.criteriaScores.map(c => ({ label: c.label, score: c.score })) : [],
+    error: '',
   })
 }
 function onTemplateChange() {
@@ -89,8 +103,8 @@ async function confirmEvaluate() {
       <button :class="evaluateCls" @click="openEvaluate"><Star class="w-3.5 h-3.5" /> Évaluer</button>
       <button :class="cancelCls" @click="cancelItem"><Ban class="w-3.5 h-3.5" /> Annuler</button>
     </template>
-    <button v-else-if="item.status === 'Done' && !item.evaluation" :class="evaluateCls" @click="openEvaluate">
-      <Star class="w-3.5 h-3.5" /> Évaluer
+    <button v-else-if="item.status === 'Done'" :class="evaluateCls" @click="openEvaluate">
+      <Star class="w-3.5 h-3.5" /> {{ myEvaluation ? 'Modifier mon évaluation' : 'Évaluer' }}
     </button>
     <span v-else class="text-xs text-muted-foreground italic">Aucune action disponible</span>
   </div>

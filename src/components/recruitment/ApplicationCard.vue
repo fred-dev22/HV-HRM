@@ -8,13 +8,14 @@
  * filtrée différemment. Calquée sur HiringRequestCard / MissionCard.
  */
 import { ref, computed, watch } from 'vue'
-import { Plus, FileText, Upload, Trash2 } from 'lucide-vue-next'
+import { Plus, FileText, Upload, Trash2, CalendarClock } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import ApplicationWorkflowActions from './ApplicationWorkflowActions.vue'
+import InterviewCreateModal from './InterviewCreateModal.vue'
 import * as cls from '../../lib/formClasses'
-import { formatDate } from '../../lib/date'
+import { formatDate, formatInterviewDateTime } from '../../lib/date'
 import { confirmDialog } from '../../lib/confirm'
 import { withToast } from '../../lib/withToast'
 import { useSubmitGuard } from '../../lib/submitGuard'
@@ -54,6 +55,9 @@ function selectSidebar(no: string) {
 }
 
 const pageTitle = computed(() => current.value?.candidateName ?? '')
+
+/* ── Entretiens (bouton "Planifier" + historique, retour client du 19/09) ── */
+const showScheduleModal = ref(false)
 
 /* ── Notes ──────────────────────────────────────────────────── */
 const noteDraft = ref('')
@@ -169,6 +173,23 @@ function humanSize(bytes: number): string {
           </div>
         </FormSection>
 
+        <!-- Section Entretiens (retour client du 19/09 : ni le bouton
+             "Planifier" ni l'historique n'apparaissaient sur la fiche
+             candidature, seulement depuis l'écran "Entretiens" à part). -->
+        <FormSection title="Entretiens" :recaps="[`${current.interviews?.length ?? 0} entretien(s)`]">
+          <div class="flex flex-col gap-2">
+            <div v-if="!current.interviews?.length" class="text-xs text-muted-foreground italic">Aucun entretien planifié pour l'instant.</div>
+            <div v-for="i in current.interviews" :key="i.id" class="flex items-center gap-2.5 bg-background border border-border rounded-md px-2.5 h-[38px]">
+              <CalendarClock class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span class="text-[13px] text-foreground flex-1 truncate">{{ formatInterviewDateTime(i.scheduledAt) }}</span>
+              <StatusPill :status="i.status" />
+            </div>
+            <button :class="cls.btnOutline" class="self-end" @click="showScheduleModal = true">
+              <Plus class="w-3.5 h-3.5" /> Planifier un entretien
+            </button>
+          </div>
+        </FormSection>
+
         <!-- Section Documents (CV reel + pieces jointes) -->
         <FormSection title="Documents" :recaps="[`${docs.length} document(s)`]">
           <div class="flex flex-col gap-2">
@@ -213,4 +234,11 @@ function humanSize(bytes: number): string {
       </div>
     </template>
   </CardModalShell>
+
+  <InterviewCreateModal
+    :open="showScheduleModal"
+    :preselected-application-id="current?.id"
+    @close="showScheduleModal = false"
+    @created="applicationStore.fetchAll()"
+  />
 </template>

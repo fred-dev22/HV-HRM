@@ -40,11 +40,12 @@ async function send() {
   }
 }
 /* ── Modale Accepter ────────────────────────────────────────── */
-// Periode d'essai facultative, decochee par defaut : la creer par erreur pour
-// quelqu'un qui n'en a pas bloquerait ensuite sa conversion en employe si elle
-// etait annulee.
+// Periode d'essai facultative, pre-cochee selon le defaut du poste d'origine
+// (retour client du 19/09, voir JobOffer.TrialPeriodEnabled) mais toujours
+// modifiable au cas par cas : un poste avec periode d'essai par defaut peut
+// tout de meme en etre dispense pour un candidat experimente, et vice-versa.
 const acceptModal = reactive({ open: false, withTrial: false })
-function openAccept() { Object.assign(acceptModal, { open: true, withTrial: false }) }
+function openAccept() { Object.assign(acceptModal, { open: true, withTrial: !!props.item.jobOfferTrialPeriodEnabled }) }
 const { submitting: submittingAccept, guard: guardAccept } = useSubmitGuard()
 async function confirmAccept() {
   await guardAccept(() => withToast(
@@ -157,7 +158,7 @@ async function confirmRefuse() {
     <label class="flex items-start gap-2 text-[13px] text-foreground mt-3 cursor-pointer">
       <input v-model="acceptModal.withTrial" type="checkbox" class="mt-0.5" />
       <span>
-        Prévoir une période d'essai (2 mois)
+        Prévoir une période d'essai ({{ item.jobOfferTrialPeriodMonths ?? 2 }} mois)
         <span class="block text-[11px] text-muted-foreground">
           Décochez si ce recrutement n'a pas de période d'essai : le candidat pourra être passé en employé directement.
         </span>

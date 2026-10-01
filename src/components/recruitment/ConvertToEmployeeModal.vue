@@ -18,6 +18,7 @@ import { useSubmitGuard } from '../../lib/submitGuard'
 import { getApiErrorMessage } from '../../lib/api'
 import { useEntityStore } from '../../stores/entities'
 import { useEmployeeStore } from '../../stores/employees'
+import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useContractStore, useTrialStore } from '../../stores/recruitment'
 import type { Contract } from '../../stores/recruitment'
 
@@ -32,6 +33,7 @@ const emit = defineEmits<{ close: []; done: [] }>()
 
 const entityStore = useEntityStore()
 const employeeStore = useEmployeeStore()
+const categoryStore = useEmployeeCategoryStore()
 const contractStore = useContractStore()
 const trialStore = useTrialStore()
 
@@ -159,6 +161,7 @@ function prefill() {
   // Liste complete (pas directory, qui n'expose jamais hasAccount) : necessaire
   // au selecteur de validateur direct.
   if (employeeStore.employees.length === 0) employeeStore.fetchAll()
+  if (categoryStore.categories.length === 0) categoryStore.fetchAll()
   validatorTouched.value = false
   const { first, last } = splitName(props.contract.candidateName)
   form.FirstName = first
@@ -184,6 +187,7 @@ function buildPayload(): Record<string, unknown> {
     MaritalStatus: form.MaritalStatus,
     IdType: form.IdType,
     OrganizationUnitId: form.OrganizationUnitId,
+    EmployeeCategoryId: form.EmployeeCategoryId,
     ContractType: form.ContractType,
     IsExpatriate: form.IsExpatriate,
   }
@@ -193,7 +197,6 @@ function buildPayload(): Record<string, unknown> {
   if (form.WorkPhone.trim()) p.WorkPhone = form.WorkPhone.trim()
   if (form.Email.trim()) p.Email = form.Email.trim()
   if (form.PositionId) p.PositionId = form.PositionId
-  if (form.EmployeeCategoryId) p.EmployeeCategoryId = form.EmployeeCategoryId
   if (showDirectValidatorSection.value && form.DirectValidatorId) p.DirectValidatorId = form.DirectValidatorId
   return p
 }
@@ -203,6 +206,7 @@ async function submit() {
   if (!form.LastName.trim()) { error.value = 'Le nom est requis'; return }
   if (!form.BirthDate) { error.value = 'La date de naissance est requise'; return }
   if (!form.OrganizationUnitId) { error.value = "L'entité de rattachement est requise"; return }
+  if (!form.EmployeeCategoryId) { error.value = 'La catégorie est requise'; return }
   error.value = ''
   try {
     if (props.mode === 'contract') {
@@ -306,6 +310,13 @@ async function submit() {
                 <label :class="cls.fieldLabel">Type de contrat <span class="text-danger">*</span></label>
                 <select v-model="form.ContractType" :class="cls.fieldSelect">
                   <option v-for="c in CONTRACT_TYPES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </div>
+              <div :class="cls.field">
+                <label :class="cls.fieldLabel">Catégorie <span class="text-danger">*</span></label>
+                <select v-model="form.EmployeeCategoryId" :class="cls.fieldSelect">
+                  <option value="">-- Choisir --</option>
+                  <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
               </div>
               <div :class="cls.field" class="col-span-full">

@@ -19,6 +19,7 @@ export const fieldTextarea =
 export const fieldSelect = fieldInput + ' cursor-pointer'
 
 export const inputError = '!border-danger'
+export const inputWarning = '!border-warning'
 
 export const fieldError = 'text-[11px] text-danger flex items-center gap-1'
 
@@ -27,6 +28,9 @@ export const fieldErrorBlock =
 
 export const fieldWarning =
   'text-[11px] text-warning flex items-center gap-1 bg-warning-bg rounded px-2 py-1'
+
+export const fieldWarningBlock =
+  'text-xs text-warning flex items-center gap-1 bg-warning-bg rounded-md px-2.5 py-2'
 
 export const fieldRow = 'grid grid-cols-2 gap-3 max-sm:grid-cols-1'
 

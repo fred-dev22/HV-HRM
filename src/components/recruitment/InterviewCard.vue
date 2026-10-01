@@ -197,30 +197,36 @@ function downloadIcsFile() { if (current.value) downloadIcs(calendarEvent(curren
           </div>
         </FormSection>
 
-        <!-- Section Évaluation -->
-        <FormSection v-if="current.evaluation" title="Évaluation" :recaps="[`${current.evaluation.score}/5`, current.evaluation.interviewerName]">
-          <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
-            <div :class="cls.field">
-              <label :class="cls.fieldLabel">Note{{ current.evaluation.templateName ? ' globale' : '' }}</label>
-              <div :class="readBox">{{ current.evaluation.score }} / 5</div>
-            </div>
-            <div :class="cls.field">
-              <label :class="cls.fieldLabel">Évaluateur</label>
-              <div :class="readBox">{{ current.evaluation.interviewerName }}</div>
-            </div>
-            <div v-if="current.evaluation.templateName" :class="cls.field" class="col-span-2">
-              <label :class="cls.fieldLabel">Grille utilisée</label>
-              <div :class="readBox">{{ current.evaluation.templateName }}</div>
-            </div>
-            <div v-if="current.evaluation.criteriaScores && current.evaluation.criteriaScores.length > 0" class="col-span-2 grid grid-cols-2 gap-2">
-              <div v-for="c in current.evaluation.criteriaScores" :key="c.label" class="flex items-center justify-between bg-background border border-border rounded-md px-2.5 h-[34px] text-[13px]">
-                <span class="text-muted-foreground truncate">{{ c.label }}</span>
-                <span class="font-medium text-foreground shrink-0">{{ c.score }} / 5</span>
+        <!-- Section Évaluation : une par intervieweur, note globale =
+             moyenne (retour client du 19/09, avant une seule évaluation
+             au total pour tout l'entretien). -->
+        <FormSection v-if="current.evaluations.length > 0" title="Évaluation" :recaps="[current.globalScore !== null ? `${current.globalScore}/5 (moyenne)` : '', `${current.evaluations.length} évaluation(s)`]">
+          <div class="flex flex-col gap-3">
+            <div v-for="ev in current.evaluations" :key="ev.id" class="border border-border rounded-md p-3">
+              <div class="grid grid-cols-2 gap-x-6 gap-y-3 max-sm:grid-cols-1">
+                <div :class="cls.field">
+                  <label :class="cls.fieldLabel">Évaluateur</label>
+                  <div :class="readBox">{{ ev.interviewerName }}</div>
+                </div>
+                <div :class="cls.field">
+                  <label :class="cls.fieldLabel">Note{{ ev.templateName ? ' globale' : '' }}</label>
+                  <div :class="readBox">{{ ev.score }} / 5</div>
+                </div>
+                <div v-if="ev.templateName" :class="cls.field" class="col-span-2">
+                  <label :class="cls.fieldLabel">Grille utilisée</label>
+                  <div :class="readBox">{{ ev.templateName }}</div>
+                </div>
+                <div v-if="ev.criteriaScores && ev.criteriaScores.length > 0" class="col-span-2 grid grid-cols-2 gap-2">
+                  <div v-for="c in ev.criteriaScores" :key="c.label" class="flex items-center justify-between bg-background border border-border rounded-md px-2.5 h-[34px] text-[13px]">
+                    <span class="text-muted-foreground truncate">{{ c.label }}</span>
+                    <span class="font-medium text-foreground shrink-0">{{ c.score }} / 5</span>
+                  </div>
+                </div>
+                <div :class="cls.field" class="col-span-2">
+                  <label :class="cls.fieldLabel">Commentaire</label>
+                  <div :class="[readBox, 'h-auto min-h-[38px] py-2 whitespace-pre-line']">{{ ev.comment }}</div>
+                </div>
               </div>
-            </div>
-            <div :class="cls.field" class="col-span-2">
-              <label :class="cls.fieldLabel">Commentaire</label>
-              <div :class="[readBox, 'h-auto min-h-[38px] py-2 whitespace-pre-line']">{{ current.evaluation.comment }}</div>
             </div>
           </div>
         </FormSection>

@@ -40,11 +40,21 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// Un modele redige avec RichTextEditor.vue (retour client du 19/09) stocke
+// deja du HTML (<p>, <b>, <span style="font-size">...) : a utiliser tel
+// quel, jamais echapper ni re-decouper en paragraphes. Un modele plus ancien
+// (texte brut, retour a la ligne double) garde l'ancien traitement.
+function looksLikeHtml(s: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(s)
+}
+
 export function buildContractHtml(doc: ContractDocumentInput): string {
-  const paragraphs = doc.resolvedContent
-    .split(/\n{2,}/)
-    .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
-    .join('')
+  const paragraphs = looksLikeHtml(doc.resolvedContent)
+    ? doc.resolvedContent
+    : doc.resolvedContent
+        .split(/\n{2,}/)
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+        .join('')
 
   return `<!doctype html>
 <html lang="fr">
