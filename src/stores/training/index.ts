@@ -27,6 +27,22 @@ function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+// Prochain code de référence (ex. FOR-2026-005) : numéro le plus élevé déjà
+// utilisé + 1, jamais "nombre d'éléments + 1" qui recréerait un code existant
+// après une suppression.
+function nextReferenceCode(prefix: string, existingCodes: string[]): string {
+  const max = existingCodes.reduce((highest, code) => {
+    const n = Number(code.split('-').pop())
+    return Number.isFinite(n) && n > highest ? n : highest
+  }, 0)
+  return `${prefix}-${new Date().getFullYear()}-${String(max + 1).padStart(3, '0')}`
+}
+
+const isValidScore = (score: number) => Number.isFinite(score) && score >= 0 && score <= 5
+
+// Statuts d'inscription qui occupent une place dans la session.
+const SEAT_HOLDING: EnrollmentStatus[] = ['Requested', 'Approved', 'Attended']
+
 // ═══════════════════════════════════════════════════════════════
 // Catalogue de formations
 // ═══════════════════════════════════════════════════════════════
@@ -62,7 +78,7 @@ const MOCK_COURSES: Course[] = [
 ]
 
 export const useCourseStore = defineStore('training-courses', {
-  state: () => ({ items: [...MOCK_COURSES] as Course[] }),
+  state: () => ({ items: structuredClone(MOCK_COURSES) as Course[] }),
   getters: {
     inProgressCount: (state) => state.items.filter(c => c.status === 'InProgress').length,
     inPreparationCount: (state) => state.items.filter(c => c.status === 'InPreparation').length,
@@ -72,7 +88,7 @@ export const useCourseStore = defineStore('training-courses', {
       const course: Course = {
         ...payload,
         id: uid('crs'),
-        referenceCode: `FOR-2026-${String(this.items.length + 1).padStart(3, '0')}`,
+        referenceCode: nextReferenceCode('FOR', this.items.map(c => c.referenceCode)),
         status: 'InPreparation',
         budgetUsed: 0,
         sessionsCount: 0,
@@ -125,7 +141,7 @@ const MOCK_SESSIONS: TrainingSession[] = [
 ]
 
 export const useSessionStore = defineStore('training-sessions', {
-  state: () => ({ items: [...MOCK_SESSIONS] as TrainingSession[] }),
+  state: () => ({ items: structuredClone(MOCK_SESSIONS) as TrainingSession[] }),
   getters: {
     upcoming: (state) => state.items.filter(s => s.status === 'Scheduled')
       .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)),
@@ -135,7 +151,7 @@ export const useSessionStore = defineStore('training-sessions', {
       const session: TrainingSession = {
         ...payload,
         id: uid('ses'),
-        referenceCode: `SES-2026-${String(this.items.length + 1).padStart(3, '0')}`,
+        referenceCode: nextReferenceCode('SES', this.items.map(s => s.referenceCode)),
         status: 'Scheduled',
         enrolledCount: 0,
       }
@@ -148,8 +164,18 @@ export const useSessionStore = defineStore('training-sessions', {
       const item = this.items.find(s => s.id === id)
       if (item) Object.assign(item, patch)
     },
-    markDone(id: string) { this.update(id, { status: 'Done' }) },
-    cancel(id: string) { this.update(id, { status: 'Cancelled' }) },
+    // Seule une session encore planifiée peut être terminée ou annulée.
+    markDone(id: string) {
+      if (this.items.find(s => s.id === id)?.status === 'Scheduled') this.update(id, { status: 'Done' })
+    },
+    // Annuler une session annule aussi ses inscriptions en cours et libère
+    // leurs places (sinon des demandes "Approuvée" resteraient sur une
+    // session qui n'aura jamais lieu).
+    cancel(id: string) {
+      if (this.items.find(s => s.id === id)?.status !== 'Scheduled') return
+      this.update(id, { status: 'Cancelled' })
+      useEnrollmentStore().cancelForSession(id)
+    },
   },
 })
 
@@ -190,7 +216,7 @@ const MOCK_ENROLLMENTS: Enrollment[] = [
 ]
 
 export const useEnrollmentStore = defineStore('training-enrollments', {
-  state: () => ({ items: [...MOCK_ENROLLMENTS] as Enrollment[] }),
+  state: () => ({ items: structuredClone(MOCK_ENROLLMENTS) as Enrollment[] }),
   getters: {
     pendingRequests: (state) => state.items.filter(e => e.status === 'Requested'),
     coldEvalsDue: (state) => state.items.filter(e =>
@@ -198,28 +224,58 @@ export const useEnrollmentStore = defineStore('training-enrollments', {
       && e.coldEvaluationDueAt <= new Date().toISOString().slice(0, 10)),
   },
   actions: {
+    // Une inscription occupe une place tant qu'elle n'est ni refusée ni
+    // annulée. Les règles sont ici (et pas seulement dans le formulaire) pour
+    // qu'aucun autre écran ne puisse les contourner.
     request(payload: Omit<Enrollment, 'id' | 'status' | 'requestedAt'>) {
+      const session = useSessionStore().items.find(x => x.id === payload.sessionId)
+      if (!session) throw new Error('Session introuvable')
+      if (session.status !== 'Scheduled') throw new Error("Cette session n'est plus planifiée")
+      if (session.enrolledCount >= session.capacity) throw new Error('Cette session est complète')
+      const alreadyEnrolled = this.items.some(e =>
+        e.sessionId === payload.sessionId && e.employeeId === payload.employeeId && SEAT_HOLDING.includes(e.status))
+      if (alreadyEnrolled) throw new Error('Cet employé est déjà inscrit à cette session')
+
       const enrollment: Enrollment = { ...payload, id: uid('enr'), status: 'Requested', requestedAt: new Date().toISOString().slice(0, 10) }
       this.items.unshift(enrollment)
-      const session = useSessionStore()
-      const s = session.items.find(x => x.id === payload.sessionId)
-      if (s) s.enrolledCount += 1
+      session.enrolledCount += 1
       return enrollment
     },
-    approve(id: string) { this.setStatus(id, 'Approved') },
-    reject(id: string) { this.setStatus(id, 'Rejected') },
-    cancel(id: string) { this.setStatus(id, 'Cancelled') },
+    approve(id: string) { this.transition(id, ['Requested'], 'Approved') },
+    reject(id: string) { this.transition(id, ['Requested'], 'Rejected') },
+    cancel(id: string) { this.transition(id, ['Requested', 'Approved'], 'Cancelled') },
     setStatus(id: string, status: EnrollmentStatus) {
       const item = this.items.find(e => e.id === id)
-      if (item) item.status = status
+      if (!item) return
+      const wasHoldingSeat = SEAT_HOLDING.includes(item.status)
+      item.status = status
+      if (wasHoldingSeat && !SEAT_HOLDING.includes(status)) this.releaseSeat(item.sessionId)
+    },
+    // Ne change le statut que depuis un statut de départ autorisé : approuver
+    // une demande déjà refusée, ou refuser une demande déjà approuvée, est
+    // ignoré au lieu d'écraser silencieusement la décision précédente.
+    transition(id: string, from: EnrollmentStatus[], to: EnrollmentStatus) {
+      const item = this.items.find(e => e.id === id)
+      if (item && from.includes(item.status)) this.setStatus(id, to)
+    },
+    releaseSeat(sessionId: string) {
+      const session = useSessionStore().items.find(s => s.id === sessionId)
+      if (session) session.enrolledCount = Math.max(0, session.enrolledCount - 1)
+    },
+    cancelForSession(sessionId: string) {
+      this.items
+        .filter(e => e.sessionId === sessionId && (e.status === 'Requested' || e.status === 'Approved'))
+        .forEach(e => this.setStatus(e.id, 'Cancelled'))
     },
     markAttended(id: string) {
       const item = this.items.find(e => e.id === id)
-      if (item) { item.status = 'Attended'; item.attendanceSheetSigned = true }
+      if (item && item.status === 'Approved') { item.status = 'Attended'; item.attendanceSheetSigned = true }
     },
+    // Évaluation à chaud : seulement une fois la présence enregistrée. Elle
+    // programme l'évaluation à froid 3 mois plus tard.
     submitHotEvaluation(id: string, evaluation: EvaluationEntry) {
       const item = this.items.find(e => e.id === id)
-      if (!item) return
+      if (!item || item.status !== 'Attended' || !isValidScore(evaluation.score)) return
       item.hotEvaluation = evaluation
       const due = new Date(evaluation.date)
       due.setMonth(due.getMonth() + 3)
@@ -227,7 +283,8 @@ export const useEnrollmentStore = defineStore('training-enrollments', {
     },
     submitColdEvaluation(id: string, evaluation: EvaluationEntry) {
       const item = this.items.find(e => e.id === id)
-      if (item) item.coldEvaluation = evaluation
+      if (!item || item.status !== 'Attended' || !item.hotEvaluation || !isValidScore(evaluation.score)) return
+      item.coldEvaluation = evaluation
     },
   },
 })
@@ -259,7 +316,7 @@ const MOCK_PROVIDERS: Provider[] = [
 ]
 
 export const useProviderStore = defineStore('training-providers', {
-  state: () => ({ items: [...MOCK_PROVIDERS] as Provider[] }),
+  state: () => ({ items: structuredClone(MOCK_PROVIDERS) as Provider[] }),
   actions: {
     create(payload: Omit<Provider, 'id' | 'status' | 'nextEvaluationDueAt'>) {
       const provider: Provider = { ...payload, id: uid('prov'), status: 'active', nextEvaluationDueAt: '2026-12-01' }
@@ -273,6 +330,7 @@ export const useProviderStore = defineStore('training-providers', {
     // Évaluation annuelle (relance automatique programmée début décembre,
     // voir Liste des besoins.xlsx "Formations et perfectionnement" #2).
     submitEvaluation(id: string, score: number) {
+      if (!isValidScore(score)) return
       this.update(id, { lastEvaluationScore: score, lastEvaluationDate: new Date().toISOString().slice(0, 10) })
     },
     setStatus(id: string, status: ProviderStatus) { this.update(id, { status }) },
@@ -291,7 +349,7 @@ const MOCK_BUDGET: BudgetLine[] = [
 ]
 
 export const useBudgetStore = defineStore('training-budget', {
-  state: () => ({ items: [...MOCK_BUDGET] as BudgetLine[] }),
+  state: () => ({ items: structuredClone(MOCK_BUDGET) as BudgetLine[] }),
   getters: {
     totalAllocated: (state) => state.items.filter(b => b.requestStatus === 'Approved').reduce((s, b) => s + b.allocated, 0),
     totalUsed: (state) => state.items.filter(b => b.requestStatus === 'Approved').reduce((s, b) => s + b.used, 0),
@@ -302,8 +360,13 @@ export const useBudgetStore = defineStore('training-budget', {
       this.items.unshift(line)
       return line
     },
-    approve(id: string) { this.setStatus(id, 'Approved') },
-    reject(id: string) { this.setStatus(id, 'Rejected') },
+    // Seule une demande en attente peut être décidée : approuver une demande
+    // déjà refusée (ou l'inverse) est ignoré.
+    approve(id: string) { this.decide(id, 'Approved') },
+    reject(id: string) { this.decide(id, 'Rejected') },
+    decide(id: string, requestStatus: BudgetRequestStatus) {
+      if (this.items.find(b => b.id === id)?.requestStatus === 'Pending') this.setStatus(id, requestStatus)
+    },
     setStatus(id: string, requestStatus: BudgetRequestStatus) {
       const item = this.items.find(b => b.id === id)
       if (item) item.requestStatus = requestStatus

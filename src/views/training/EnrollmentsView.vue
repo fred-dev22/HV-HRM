@@ -199,6 +199,14 @@ function resetForm() { Object.assign(form, { sessionId: '', employeeId: '' }); e
 function validate(): boolean {
   if (!form.sessionId) { error.value = 'La session est requise'; return false }
   if (!form.employeeId) { error.value = "L'employé est requis"; return false }
+  const session = sessionStore.items.find(s => s.id === form.sessionId)
+  if (!session) { error.value = 'Session introuvable'; return false }
+  if (session.status !== 'Scheduled') { error.value = "Cette session n'est plus planifiée"; return false }
+  if (session.enrolledCount >= session.capacity) { error.value = 'Cette session est complète'; return false }
+  const alreadyEnrolled = enrollmentStore.items.some(e =>
+    e.sessionId === form.sessionId && e.employeeId === form.employeeId
+    && ['Requested', 'Approved', 'Attended'].includes(e.status))
+  if (alreadyEnrolled) { error.value = 'Cet employé est déjà inscrit à cette session'; return false }
   error.value = null
   return true
 }
