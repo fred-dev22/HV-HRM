@@ -1,226 +1,285 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+
+vi.mock('../../lib/api', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+  getApiErrorMessage: (_e: unknown, fallback: string) => fallback,
+}))
+
+import { api } from '../../lib/api'
 import {
   useCourseStore, useSessionStore, useEnrollmentStore, useProviderStore, useBudgetStore,
+  toLocalNaive,
 } from './index'
+import type { Course, TrainingSession, Enrollment, BudgetLine } from './index'
 
-beforeEach(() => setActivePinia(createPinia()))
+const get = vi.mocked(api.get)
+const post = vi.mocked(api.post)
+const patch = vi.mocked(api.patch)
 
-const coursePayload = {
-  title: 'Cours de test', category: 'Test', durationHours: 7, maxParticipants: 10,
-  description: 'x', budgetAllocated: 100000,
+beforeEach(() => {
+  setActivePinia(createPinia())
+  vi.resetAllMocks()
+})
+
+// Meme logique de composantes locales que le helper : independant du fuseau.
+function localNaive(iso: string) {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-function enrollPayload(sessionId: string, employeeId: string) {
-  return {
-    sessionId, courseTitle: 'T', sessionScheduledAt: '2026-10-06T08:30',
-    employeeId, employeeName: employeeId, entityName: 'DG', requestedByName: employeeId,
-  }
-}
+const course = (over: Partial<Course> = {}): Course => ({
+  id: 'c1', referenceCode: 'FOR-2026-001', title: 'Excel', category: 'Bureautique', description: 'd',
+  durationHours: 7, maxParticipants: 10, status: 'InPreparation', budgetAllocated: 100,
+  budgetUsed: 0, sessionsCount: 0, createdAt: '2026-10-01', ...over,
+})
+const session = (over: Partial<TrainingSession> = {}): TrainingSession => ({
+  id: 's1', referenceCode: 'SES-2026-001', courseId: 'c1', courseTitle: 'Excel',
+  scheduledAt: '2026-10-06T05:30:00.000Z', endAt: '2026-10-06T13:30:00.000Z', mode: 'InPerson',
+  trainerName: 'T', status: 'Scheduled', capacity: 10, enrolledCount: 0, ...over,
+})
+const enrollment = (over: Partial<Enrollment> = {}): Enrollment => ({
+  id: 'e1', sessionId: 's1', courseTitle: 'Excel', sessionScheduledAt: '2026-10-06T05:30:00.000Z',
+  employeeId: 'emp1', employeeName: 'A', entityName: 'DG', requestedByName: 'B',
+  requestedAt: '2026-10-01', status: 'Requested', ...over,
+})
 
-describe('catalogue (cours)', () => {
-  it('cree un cours en preparation sans session ni budget utilise', () => {
-    const store = useCourseStore()
-    const c = store.create(coursePayload)
-    expect(c.status).toBe('InPreparation')
-    expect(c.sessionsCount).toBe(0)
-    expect(c.budgetUsed).toBe(0)
-    expect(store.items[0]!.id).toBe(c.id)
+describe('conversion de dates', () => {
+  it('toLocalNaive donne YYYY-MM-DDTHH:mm en composantes locales', () => {
+    expect(toLocalNaive('2026-10-06T05:30:00.000Z')).toBe(localNaive('2026-10-06T05:30:00.000Z'))
+    expect(toLocalNaive('2026-10-06T05:30:00.000Z')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
   })
 
-  it('ne reutilise jamais un code de reference apres une suppression', () => {
+  it('fetchAll des sessions convertit scheduledAt et endAt', async () => {
+    get.mockResolvedValue({ data: [session()] })
+    const store = useSessionStore()
+    await store.fetchAll()
+    expect(get).toHaveBeenCalledWith('/training/sessions')
+    expect(store.items[0]!.scheduledAt).toBe(localNaive('2026-10-06T05:30:00.000Z'))
+    expect(store.items[0]!.endAt).toBe(localNaive('2026-10-06T13:30:00.000Z'))
+    expect(store.loaded).toBe(true)
+    expect(store.loading).toBe(false)
+  })
+
+  it('fetchAll des inscriptions convertit sessionScheduledAt et garde les jours', async () => {
+    get.mockResolvedValue({ data: [enrollment({ coldEvaluationDueAt: '2027-01-10' })] })
+    const store = useEnrollmentStore()
+    await store.fetchAll()
+    expect(store.items[0]!.sessionScheduledAt).toBe(localNaive('2026-10-06T05:30:00.000Z'))
+    expect(store.items[0]!.requestedAt).toBe('2026-10-01')
+    expect(store.items[0]!.coldEvaluationDueAt).toBe('2027-01-10')
+  })
+
+  it('schedule envoie scheduledAt et endAt en ISO UTC et met la liste a jour', async () => {
+    post.mockResolvedValue({ data: session({ id: 's9' }) })
+    get.mockResolvedValue({ data: [] })
+    const store = useSessionStore()
+    await store.schedule({
+      courseId: 'c1', scheduledAt: '2026-10-06T08:30', endAt: '2026-10-06T16:30',
+      mode: 'InPerson', location: 'Salle', trainerName: 'T', capacity: 10,
+    })
+    const [url, body] = post.mock.calls[0]! as [string, Record<string, unknown>]
+    expect(url).toBe('/training/sessions')
+    expect(body.scheduledAt).toBe(new Date('2026-10-06T08:30').toISOString())
+    expect(body.endAt).toBe(new Date('2026-10-06T16:30').toISOString())
+    expect(body.courseId).toBe('c1')
+    expect(store.items.map(s => s.id)).toEqual(['s9'])
+  })
+})
+
+describe('cours', () => {
+  it('create insere la ligne renvoyee par le serveur', async () => {
+    post.mockResolvedValue({ data: course() })
     const store = useCourseStore()
-    const a = store.create(coursePayload)
-    const b = store.create(coursePayload)
-    store.remove(a.id)
-    const c = store.create(coursePayload)
-    const codes = [b.referenceCode, c.referenceCode]
-    expect(new Set(codes).size).toBe(2)
-    expect(store.items.filter(x => x.referenceCode === c.referenceCode)).toHaveLength(1)
+    await store.create({ title: 'Excel', category: 'B', description: 'd', durationHours: 7, maxParticipants: 10, budgetAllocated: 100 })
+    expect(post).toHaveBeenCalledWith('/training/courses', expect.objectContaining({ title: 'Excel' }))
+    expect(store.items).toHaveLength(1)
+  })
+
+  it('setStatus fait un PATCH et remplace la ligne existante', async () => {
+    get.mockResolvedValue({ data: [course()] })
+    patch.mockResolvedValue({ data: course({ status: 'InProgress' }) })
+    const store = useCourseStore()
+    await store.fetchAll()
+    await store.setStatus('c1', 'InProgress')
+    expect(patch).toHaveBeenCalledWith('/training/courses/c1', { status: 'InProgress' })
+    expect(store.items).toHaveLength(1)
+    expect(store.items[0]!.status).toBe('InProgress')
+    expect(store.inProgressCount).toBe(1)
+    expect(store.inPreparationCount).toBe(0)
+  })
+
+  it('une erreur est relancee et laisse items inchange', async () => {
+    get.mockResolvedValue({ data: [course()] })
+    const err = new Error('refus serveur')
+    patch.mockRejectedValue(err)
+    const store = useCourseStore()
+    await store.fetchAll()
+    await expect(store.setStatus('c1', 'Archived')).rejects.toBe(err)
+    expect(store.items[0]!.status).toBe('InPreparation')
+  })
+
+  it('fetchAll remet loading a false meme en cas d erreur', async () => {
+    get.mockRejectedValue(new Error('boom'))
+    const store = useCourseStore()
+    await expect(store.fetchAll()).rejects.toThrow('boom')
+    expect(store.loading).toBe(false)
+    expect(store.loaded).toBe(false)
   })
 })
 
 describe('sessions', () => {
-  it('planifier une session incremente sessionsCount du cours', () => {
-    const courses = useCourseStore()
-    const sessions = useSessionStore()
-    const course = courses.items.find(c => c.id === 'crs-1')!
-    const before = course.sessionsCount
-    const s = sessions.schedule({
-      courseId: 'crs-1', courseTitle: course.title, scheduledAt: '2026-11-01T09:00',
-      endAt: '2026-11-01T17:00', mode: 'InPerson', location: 'Salle', trainerName: 'X', capacity: 5,
+  it('cancel remplace la session et recharge les inscriptions', async () => {
+    get.mockImplementation(async (url: string) => {
+      if (url === '/training/sessions') return { data: [session()] }
+      return { data: [enrollment({ status: 'Cancelled' })] }
     })
-    expect(s.status).toBe('Scheduled')
-    expect(s.enrolledCount).toBe(0)
-    expect(courses.items.find(c => c.id === 'crs-1')!.sessionsCount).toBe(before + 1)
-  })
-
-  it('ne peut etre marquee terminee ou annulee que si elle est planifiee', () => {
-    const sessions = useSessionStore()
-    sessions.markDone('ses-3') // deja Done
-    sessions.cancel('ses-3')
-    expect(sessions.items.find(s => s.id === 'ses-3')!.status).toBe('Done')
-  })
-
-  it('annuler une session annule ses inscriptions actives et libere les places', () => {
+    post.mockResolvedValue({ data: session({ status: 'Cancelled' }) })
     const sessions = useSessionStore()
     const enrollments = useEnrollmentStore()
-    const countBefore = sessions.items.find(s => s.id === 'ses-1')!.enrolledCount
-    sessions.cancel('ses-1')
-    expect(sessions.items.find(s => s.id === 'ses-1')!.status).toBe('Cancelled')
-    const active = enrollments.items.filter(e => e.sessionId === 'ses-1' && ['Requested', 'Approved'].includes(e.status))
-    expect(active).toHaveLength(0)
-    expect(enrollments.items.find(e => e.id === 'enr-1')!.status).toBe('Cancelled')
-    expect(enrollments.items.find(e => e.id === 'enr-2')!.status).toBe('Cancelled')
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(countBefore - 2)
+    await sessions.fetchAll()
+    await sessions.cancel('s1')
+    expect(post).toHaveBeenCalledWith('/training/sessions/s1/cancel')
+    expect(sessions.items[0]!.status).toBe('Cancelled')
+    expect(get).toHaveBeenCalledWith('/training/enrollments')
+    expect(enrollments.items[0]!.status).toBe('Cancelled')
+  })
+
+  it('markDone appelle /done', async () => {
+    post.mockResolvedValue({ data: session({ status: 'Done' }) })
+    const store = useSessionStore()
+    await store.markDone('s1')
+    expect(post).toHaveBeenCalledWith('/training/sessions/s1/done')
+    expect(store.items[0]!.status).toBe('Done')
+  })
+
+  it('upcoming ne garde que les sessions planifiees, triees par date', async () => {
+    get.mockResolvedValue({ data: [
+      session({ id: 'late', scheduledAt: '2026-12-01T08:00:00.000Z' }),
+      session({ id: 'done', status: 'Done' }),
+      session({ id: 'soon', scheduledAt: '2026-10-02T08:00:00.000Z' }),
+    ] })
+    const store = useSessionStore()
+    await store.fetchAll()
+    expect(store.upcoming.map(s => s.id)).toEqual(['soon', 'late'])
   })
 })
 
 describe('inscriptions', () => {
-  it('une demande valide est creee et occupe une place', () => {
+  it('request envoie sessionId et employeeId, insere la ligne et recharge les sessions', async () => {
+    post.mockResolvedValue({ data: enrollment() })
+    get.mockResolvedValue({ data: [session({ enrolledCount: 1 })] })
+    const enrollments = useEnrollmentStore()
     const sessions = useSessionStore()
-    const enrollments = useEnrollmentStore()
-    const before = sessions.items.find(s => s.id === 'ses-1')!.enrolledCount
-    const e = enrollments.request(enrollPayload('ses-1', 'emp-9'))
-    expect(e.status).toBe('Requested')
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(before + 1)
+    await enrollments.request({ sessionId: 's1', employeeId: 'emp1' })
+    expect(post).toHaveBeenCalledWith('/training/enrollments', { sessionId: 's1', employeeId: 'emp1' })
+    expect(enrollments.items).toHaveLength(1)
+    expect(sessions.items[0]!.enrolledCount).toBe(1)
   })
 
-  it('refuse une inscription quand la session est pleine', () => {
-    const sessions = useSessionStore()
-    const enrollments = useEnrollmentStore()
-    // ses-2 : capacite 8, 7 inscrits
-    enrollments.request(enrollPayload('ses-2', 'emp-20'))
-    expect(sessions.items.find(s => s.id === 'ses-2')!.enrolledCount).toBe(8)
-    expect(() => enrollments.request(enrollPayload('ses-2', 'emp-21'))).toThrow(/compl[èe]te/i)
-    expect(sessions.items.find(s => s.id === 'ses-2')!.enrolledCount).toBe(8)
+  it('request relance l erreur du serveur (session complete) sans rien inserer', async () => {
+    const err = Object.assign(new Error('Cette session est complète'), { isAxiosError: true })
+    post.mockRejectedValue(err)
+    const store = useEnrollmentStore()
+    await expect(store.request({ sessionId: 's1', employeeId: 'emp1' })).rejects.toBe(err)
+    expect(store.items).toHaveLength(0)
+    expect(get).not.toHaveBeenCalled()
   })
 
-  it('refuse un doublon pour le meme employe et la meme session', () => {
-    const enrollments = useEnrollmentStore()
-    // emp-1 est deja approuve sur ses-1
-    expect(() => enrollments.request(enrollPayload('ses-1', 'emp-1'))).toThrow(/d[ée]j[àa]/i)
+  it('approve et markAttended mettent a jour la ligne depuis la reponse', async () => {
+    get.mockResolvedValue({ data: [enrollment()] })
+    post.mockResolvedValueOnce({ data: enrollment({ status: 'Approved' }) })
+    post.mockResolvedValueOnce({ data: enrollment({ status: 'Attended', attendanceSheetSigned: true }) })
+    const store = useEnrollmentStore()
+    await store.fetchAll()
+    await store.approve('e1')
+    expect(store.items[0]!.status).toBe('Approved')
+    await store.markAttended('e1')
+    expect(post).toHaveBeenLastCalledWith('/training/enrollments/e1/attend', undefined)
+    expect(store.items[0]!.status).toBe('Attended')
+    expect(store.items).toHaveLength(1)
   })
 
-  it('refuse une session inconnue, terminee ou annulee', () => {
-    const enrollments = useEnrollmentStore()
-    expect(() => enrollments.request(enrollPayload('ses-inconnue', 'emp-9'))).toThrow()
-    expect(() => enrollments.request(enrollPayload('ses-3', 'emp-9'))).toThrow(/planifi/i) // Done
+  it('reject et cancel rechargent les sessions (places liberees)', async () => {
+    get.mockResolvedValue({ data: [] })
+    post.mockResolvedValue({ data: enrollment({ status: 'Rejected' }) })
+    const store = useEnrollmentStore()
+    await store.reject('e1')
+    expect(get).toHaveBeenCalledWith('/training/sessions')
+    get.mockClear()
+    post.mockResolvedValue({ data: enrollment({ status: 'Cancelled' }) })
+    await store.cancel('e1')
+    expect(get).toHaveBeenCalledWith('/training/sessions')
   })
 
-  it('un refus ou une annulation liberent la place, une approbation non', () => {
-    const sessions = useSessionStore()
-    const enrollments = useEnrollmentStore()
-    const base = sessions.items.find(s => s.id === 'ses-1')!.enrolledCount
-    const e1 = enrollments.request(enrollPayload('ses-1', 'emp-30'))
-    const e2 = enrollments.request(enrollPayload('ses-1', 'emp-31'))
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(base + 2)
-    enrollments.approve(e1.id)
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(base + 2)
-    enrollments.reject(e2.id)
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(base + 1)
-    enrollments.cancel(e1.id)
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(base)
+  it('submitHotEvaluation envoie le corps et prend coldEvaluationDueAt du serveur', async () => {
+    const evaluation = { score: 4, comment: 'ok', date: '2026-10-10' }
+    post.mockResolvedValue({ data: enrollment({ status: 'Attended', hotEvaluation: evaluation, coldEvaluationDueAt: '2027-01-10' }) })
+    const store = useEnrollmentStore()
+    await store.submitHotEvaluation('e1', evaluation)
+    expect(post).toHaveBeenCalledWith('/training/enrollments/e1/hot-evaluation', evaluation)
+    expect(store.items[0]!.coldEvaluationDueAt).toBe('2027-01-10')
   })
 
-  it('ne libere pas deux fois la meme place', () => {
-    const sessions = useSessionStore()
-    const enrollments = useEnrollmentStore()
-    const e = enrollments.request(enrollPayload('ses-1', 'emp-40'))
-    const afterRequest = sessions.items.find(s => s.id === 'ses-1')!.enrolledCount
-    enrollments.reject(e.id)
-    enrollments.cancel(e.id)
-    expect(sessions.items.find(s => s.id === 'ses-1')!.enrolledCount).toBe(afterRequest - 1)
+  it('coldEvalsDue garde les presences evaluees a chaud, sans eval a froid, echues', async () => {
+    const hot = { score: 4, comment: 'ok', date: '2026-01-01' }
+    get.mockResolvedValue({ data: [
+      enrollment({ id: 'due', status: 'Attended', hotEvaluation: hot, coldEvaluationDueAt: '2026-04-01' }),
+      enrollment({ id: 'future', status: 'Attended', hotEvaluation: hot, coldEvaluationDueAt: '2999-01-01' }),
+      enrollment({ id: 'done', status: 'Attended', hotEvaluation: hot, coldEvaluationDueAt: '2026-04-01', coldEvaluation: hot }),
+      enrollment({ id: 'nohot', status: 'Attended', coldEvaluationDueAt: '2026-04-01' }),
+    ] })
+    const store = useEnrollmentStore()
+    await store.fetchAll()
+    expect(store.coldEvalsDue.map(e => e.id)).toEqual(['due'])
   })
 
-  it('approuver ou refuser ne fonctionne que sur une demande en attente', () => {
-    const enrollments = useEnrollmentStore()
-    enrollments.approve('enr-5') // deja Rejected
-    expect(enrollments.items.find(e => e.id === 'enr-5')!.status).toBe('Rejected')
-    enrollments.reject('enr-1') // deja Approved
-    expect(enrollments.items.find(e => e.id === 'enr-1')!.status).toBe('Approved')
-  })
-
-  it('marquer present ne fonctionne que sur une inscription approuvee', () => {
-    const enrollments = useEnrollmentStore()
-    enrollments.markAttended('enr-2') // Requested
-    expect(enrollments.items.find(e => e.id === 'enr-2')!.status).toBe('Requested')
-    enrollments.markAttended('enr-1') // Approved
-    const e = enrollments.items.find(x => x.id === 'enr-1')!
-    expect(e.status).toBe('Attended')
-    expect(e.attendanceSheetSigned).toBe(true)
-  })
-
-  it('evaluation a chaud : uniquement apres presence, echeance a froid a +3 mois', () => {
-    const enrollments = useEnrollmentStore()
-    enrollments.submitHotEvaluation('enr-2', { score: 5, comment: 'x', date: '2026-10-10' }) // pas present
-    expect(enrollments.items.find(e => e.id === 'enr-2')!.hotEvaluation).toBeUndefined()
-    enrollments.markAttended('enr-1')
-    enrollments.submitHotEvaluation('enr-1', { score: 4, comment: 'bien', date: '2026-10-10' })
-    const e = enrollments.items.find(x => x.id === 'enr-1')!
-    expect(e.hotEvaluation?.score).toBe(4)
-    expect(e.coldEvaluationDueAt).toBe('2027-01-10')
-  })
-
-  it('evaluation a froid : uniquement apres une evaluation a chaud', () => {
-    const enrollments = useEnrollmentStore()
-    enrollments.submitColdEvaluation('enr-3', { score: 3, comment: 'ok', date: '2026-11-20' })
-    expect(enrollments.items.find(e => e.id === 'enr-3')!.coldEvaluation?.score).toBe(3)
-    enrollments.markAttended('enr-1')
-    enrollments.submitColdEvaluation('enr-1', { score: 2, comment: 'x', date: '2026-11-20' }) // pas de chaud
-    expect(enrollments.items.find(e => e.id === 'enr-1')!.coldEvaluation).toBeUndefined()
-  })
-
-  it('evaluations a froid a relancer : presents, evalues a chaud, echeance depassee, sans evaluation a froid', () => {
-    const enrollments = useEnrollmentStore()
-    expect(enrollments.coldEvalsDue.map(e => e.id)).not.toContain('enr-3') // echeance dans le futur
-    enrollments.markAttended('enr-1')
-    enrollments.submitHotEvaluation('enr-1', { score: 4, comment: 'x', date: '2025-01-10' }) // echeance 2025-04-10
-    expect(enrollments.coldEvalsDue.map(e => e.id)).toContain('enr-1')
-    enrollments.submitColdEvaluation('enr-1', { score: 4, comment: 'x', date: '2026-10-03' })
-    expect(enrollments.coldEvalsDue.map(e => e.id)).not.toContain('enr-1')
+  it('pendingRequests ne garde que le statut Requested', async () => {
+    get.mockResolvedValue({ data: [enrollment({ id: 'a' }), enrollment({ id: 'b', status: 'Approved' })] })
+    const store = useEnrollmentStore()
+    await store.fetchAll()
+    expect(store.pendingRequests.map(e => e.id)).toEqual(['a'])
   })
 })
 
 describe('prestataires', () => {
-  it('cree un prestataire actif et enregistre une evaluation', () => {
+  it('submitEvaluation poste la note et remplace le prestataire', async () => {
+    const provider = { id: 'p1', name: 'P', contactName: 'c', email: 'e', phone: '1', specialties: 's', nextEvaluationDueAt: '2026-12-01', status: 'active' as const }
+    get.mockResolvedValue({ data: [provider] })
+    post.mockResolvedValue({ data: { ...provider, lastEvaluationScore: 4.5 } })
     const store = useProviderStore()
-    const p = store.create({ name: 'P', contactName: 'C', email: 'a@b.c', phone: '1', specialties: 's' } as never)
-    expect(p.status).toBe('active')
-    store.submitEvaluation(p.id, 4.5)
-    const updated = store.items.find(x => x.id === p.id)!
-    expect(updated.lastEvaluationScore).toBe(4.5)
-    expect(updated.lastEvaluationDate).toBe(new Date().toISOString().slice(0, 10))
-    store.setStatus(p.id, 'inactive')
-    expect(store.items.find(x => x.id === p.id)!.status).toBe('inactive')
-  })
-
-  it('refuse une note hors de 0 a 5', () => {
-    const store = useProviderStore()
-    store.submitEvaluation('prov-1', 9)
-    expect(store.items.find(p => p.id === 'prov-1')!.lastEvaluationScore).toBe(4.2)
+    await store.fetchAll()
+    await store.submitEvaluation('p1', 4.5)
+    expect(post).toHaveBeenCalledWith('/training/providers/p1/evaluate', { score: 4.5 })
+    expect(store.items[0]!.lastEvaluationScore).toBe(4.5)
   })
 })
 
 describe('budget', () => {
-  it('une demande en attente n entre pas dans les totaux avant approbation', () => {
-    const store = useBudgetStore()
-    const allocatedBefore = store.totalAllocated
-    const line = store.requestBudget({ year: 2027, entityName: 'DG', courseTitle: 'Nouveau', allocated: 1000000 } as never)
-    expect(line.requestStatus).toBe('Pending')
-    expect(line.used).toBe(0)
-    expect(store.totalAllocated).toBe(allocatedBefore)
-    store.approve(line.id)
-    expect(store.totalAllocated).toBe(allocatedBefore + 1000000)
+  const line = (over: Partial<BudgetLine>): BudgetLine => ({
+    id: 'b1', year: 2026, entityName: 'DG', allocated: 1000, used: 400, requestStatus: 'Approved', ...over,
   })
 
-  it('un refus reste exclu des totaux et une demande deja decidee ne change plus', () => {
+  it('totalAllocated et totalUsed excluent les lignes non approuvees', async () => {
+    get.mockResolvedValue({ data: [
+      line({ id: 'a' }),
+      line({ id: 'b', allocated: 500, used: 100, requestStatus: 'Pending' }),
+      line({ id: 'c', allocated: 700, used: 50, requestStatus: 'Rejected' }),
+    ] })
     const store = useBudgetStore()
-    const before = store.totalAllocated
-    store.reject('bud-5')
-    expect(store.items.find(b => b.id === 'bud-5')!.requestStatus).toBe('Rejected')
-    store.approve('bud-5') // deja refusee
-    expect(store.items.find(b => b.id === 'bud-5')!.requestStatus).toBe('Rejected')
-    expect(store.totalAllocated).toBe(before)
+    await store.fetchAll()
+    expect(store.totalAllocated).toBe(1000)
+    expect(store.totalUsed).toBe(400)
+  })
+
+  it('approve remplace la ligne par la reponse du serveur', async () => {
+    get.mockResolvedValue({ data: [line({ requestStatus: 'Pending' })] })
+    post.mockResolvedValue({ data: line({ requestStatus: 'Approved' }) })
+    const store = useBudgetStore()
+    await store.fetchAll()
+    await store.approve('b1')
+    expect(post).toHaveBeenCalledWith('/training/budget/b1/approve')
+    expect(store.items[0]!.requestStatus).toBe('Approved')
   })
 })

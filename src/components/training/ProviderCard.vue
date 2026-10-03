@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Fiche d'un prestataire de formation, sur CardModalShell. Module Formation
- * (design uniquement, données fictives, voir src/stores/training).
+ * (backend /training, voir src/stores/training).
  */
 import { ref, computed, watch } from 'vue'
 import { Mail, Phone, CalendarClock } from 'lucide-vue-next'
@@ -11,6 +11,7 @@ import FormSection from '../ui/form-field/FormSection.vue'
 import ModalShell from '../ui/ModalShell.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
+import { runAction } from '../../lib/runAction'
 import { useProviderStore } from '../../stores/training'
 import type { Provider } from '../../stores/training'
 
@@ -45,15 +46,18 @@ function selectSidebar(no: string) {
 
 function toggleStatus() {
   if (!current.value) return
-  providerStore.setStatus(current.value.id, current.value.status === 'active' ? 'inactive' : 'active')
+  const id = current.value.id
+  const next = current.value.status === 'active' ? 'inactive' : 'active'
+  return runAction('Mise à jour…', () => providerStore.setStatus(id, next), 'Mise à jour impossible')
 }
 
 const evalOpen = ref(false)
 const evalScore = ref(5)
-function submitEvaluation() {
+async function submitEvaluation() {
   if (!current.value) return
-  providerStore.submitEvaluation(current.value.id, evalScore.value)
-  evalOpen.value = false
+  const id = current.value.id
+  const done = await runAction('Enregistrement…', () => providerStore.submitEvaluation(id, evalScore.value), 'Enregistrement impossible')
+  if (done) evalOpen.value = false
 }
 </script>
 

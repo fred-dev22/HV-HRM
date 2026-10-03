@@ -57,11 +57,11 @@
 
 <script setup lang="ts">
 /**
- * Évaluations à froid, module Formation (design uniquement, données
- * fictives, voir src/stores/training). Relance automatique 3 mois après
+ * Évaluations à froid, module Formation (backend /training,
+ * voir src/stores/training). Relance automatique 3 mois après
  * l'évaluation à chaud (voir Liste des besoins.xlsx #4).
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Snowflake } from 'lucide-vue-next'
 import { ListPageLayout } from '../../components'
 import ModalShell from '../../components/ui/ModalShell.vue'
@@ -69,12 +69,15 @@ import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useEnrollmentStore } from '../../stores/training'
 import type { Enrollment } from '../../stores/training'
 
 const enrollmentStore = useEnrollmentStore()
+onMounted(() => loadAll(() => enrollmentStore.fetchAll()))
 
 const columns: ListColumn[] = [
   { key: 'employeeName', label: 'Employé', sortable: true, hideable: false, width: 180 },
@@ -129,13 +132,15 @@ const { submitting, guard } = useSubmitGuard()
 async function submit() {
   if (!comment.value.trim()) { error.value = 'Le commentaire est requis'; return }
   if (!evalTarget.value) return
-  await guard(() => withToast('Enregistrement…', async () => {
-    enrollmentStore.submitColdEvaluation(evalTarget.value!.id, {
+  try {
+    await guard(() => withToast('Enregistrement…', () => enrollmentStore.submitColdEvaluation(evalTarget.value!.id, {
       score: score.value,
       comment: comment.value.trim(),
       date: new Date().toISOString().slice(0, 10),
-    })
-  }, () => 'Enregistrement impossible'))
-  evalOpen.value = false
+    }), () => 'Enregistrement impossible'))
+    evalOpen.value = false
+  } catch (e) {
+    error.value = getApiErrorMessage(e, 'Enregistrement impossible')
+  }
 }
 </script>

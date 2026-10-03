@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
  * Fiche d'une session planifiée, sur CardModalShell. Module Formation
- * (design uniquement, données fictives, voir src/stores/training).
+ * (backend /training, voir src/stores/training).
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { MapPin, Video, Users } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import * as cls from '../../lib/formClasses'
+import { runAction, loadAll } from '../../lib/runAction'
 import { useSessionStore, useEnrollmentStore } from '../../stores/training'
 import type { TrainingSession } from '../../stores/training'
 
@@ -51,8 +52,19 @@ function formatSessionDate(iso: string): string {
 const sessionEnrollments = computed(() =>
   current.value ? enrollmentStore.items.filter(e => e.sessionId === current.value!.id) : [])
 
-function markDone() { if (current.value) sessionStore.markDone(current.value.id) }
-function cancelSession() { if (current.value) sessionStore.cancel(current.value.id) }
+// La fiche liste les inscrits de la session : on les charge si l'écran parent ne l'a pas fait.
+onMounted(() => { if (!enrollmentStore.loaded) loadAll(() => enrollmentStore.fetchAll()) })
+
+function markDone() {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Mise à jour…', () => sessionStore.markDone(id), 'Action impossible')
+}
+function cancelSession() {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Annulation…', () => sessionStore.cancel(id), 'Annulation impossible')
+}
 </script>
 
 <template>

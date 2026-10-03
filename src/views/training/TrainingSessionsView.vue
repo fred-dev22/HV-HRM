@@ -38,8 +38,8 @@
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
 
     <template #row-actions="{ item }">
-      <button v-if="item.status === 'Scheduled'" type="button" :class="L.actApprove" @click.stop="sessionStore.markDone(item.id)">Marquer terminée</button>
-      <button v-if="item.status === 'Scheduled'" type="button" :class="L.actReject" @click.stop="sessionStore.cancel(item.id)">Annuler</button>
+      <button v-if="item.status === 'Scheduled'" type="button" :class="L.actApprove" @click.stop="markDone(item.id)">Marquer terminée</button>
+      <button v-if="item.status === 'Scheduled'" type="button" :class="L.actReject" @click.stop="cancelSession(item.id)">Annuler</button>
     </template>
 
     <template #details-panel="{ item }">
@@ -129,10 +129,10 @@
 
 <script setup lang="ts">
 /**
- * Sessions planifiées (TrainingSession), module Formation (design uniquement,
- * données fictives, voir src/stores/training).
+ * Sessions planifiées (TrainingSession), module Formation (backend /training,
+ * voir src/stores/training).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, CalendarDays, MapPin, Video } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -142,12 +142,18 @@ import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { runAction, loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useSessionStore, useCourseStore } from '../../stores/training'
 import type { TrainingSession, SessionMode } from '../../stores/training'
 
 const sessionStore = useSessionStore()
 const courseStore = useCourseStore()
+
+onMounted(() => loadAll(() => sessionStore.fetchAll(), () => courseStore.fetchAll()))
+
+const markDone = (id: string) => runAction('Mise à jour…', () => sessionStore.markDone(id), 'Action impossible')
+const cancelSession = (id: string) => runAction('Annulation…', () => sessionStore.cancel(id), 'Annulation impossible')
 
 const openCardId = ref<string | null>(null)
 function openCard(item: TrainingSession) { openCardId.value = item.id }
@@ -242,20 +248,16 @@ const { submitting, guard } = useSubmitGuard()
 async function create() {
   if (!validate()) return
   try {
-    await guard(() => withToast('Planification…', async () => {
-      const course = courseStore.items.find(c => c.id === form.courseId)!
-      sessionStore.schedule({
-        courseId: form.courseId,
-        courseTitle: course.title,
-        scheduledAt: form.scheduledAt,
-        endAt: form.endAt,
-        mode: form.mode,
-        location: form.mode === 'InPerson' ? form.location.trim() : undefined,
-        meetingLink: form.mode === 'VideoCall' ? form.meetingLink.trim() : undefined,
-        trainerName: form.trainerName.trim(),
-        capacity: form.capacity,
-      })
-    }, () => 'Planification impossible'))
+    await guard(() => withToast('Planification…', () => sessionStore.schedule({
+      courseId: form.courseId,
+      scheduledAt: form.scheduledAt,
+      endAt: form.endAt,
+      mode: form.mode,
+      location: form.mode === 'InPerson' ? form.location.trim() : undefined,
+      meetingLink: form.mode === 'VideoCall' ? form.meetingLink.trim() : undefined,
+      trainerName: form.trainerName.trim(),
+      capacity: form.capacity,
+    }), () => 'Planification impossible'))
     showCreate.value = false
     resetForm()
   } catch (e) {

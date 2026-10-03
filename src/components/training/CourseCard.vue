@@ -1,18 +1,19 @@
 <script setup lang="ts">
 /**
  * Fiche d'une formation du catalogue, sur CardModalShell. Module Formation
- * (design uniquement, données fictives, voir src/stores/training), calquée
+ * (backend /training, voir src/stores/training), calquée
  * sur JobOfferCard.vue.
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Coins, CalendarDays, Building2 } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
+import { runAction, loadAll } from '../../lib/runAction'
 import { useCourseStore, useSessionStore } from '../../stores/training'
-import type { Course } from '../../stores/training'
+import type { Course, CourseStatus } from '../../stores/training'
 
 const props = defineProps<{
   items: Course[]
@@ -54,9 +55,17 @@ const courseSessions = computed(() =>
   current.value ? sessionStore.items.filter(s => s.courseId === current.value!.id)
     .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt)) : [])
 
-function startCourse() { if (current.value) courseStore.setStatus(current.value.id, 'InProgress') }
-function archiveCourse() { if (current.value) courseStore.setStatus(current.value.id, 'Archived') }
-function reopenCourse() { if (current.value) courseStore.setStatus(current.value.id, 'InProgress') }
+// La fiche liste les sessions du cours : on les charge si l'écran parent ne l'a pas fait.
+onMounted(() => { if (!sessionStore.loaded) loadAll(() => sessionStore.fetchAll()) })
+
+function setStatus(status: CourseStatus) {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Mise à jour…', () => courseStore.setStatus(id, status), 'Mise à jour impossible')
+}
+function startCourse() { return setStatus('InProgress') }
+function archiveCourse() { return setStatus('Archived') }
+function reopenCourse() { return setStatus('InProgress') }
 </script>
 
 <template>

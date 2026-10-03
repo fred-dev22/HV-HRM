@@ -74,7 +74,7 @@
       </template>
 
       <!-- MODULE : Formation -->
-      <template v-else-if="navStore.activeModule === 'training'">
+      <template v-else-if="navStore.activeModule === 'training' && auth.hasPermission('FORMATION_ACCES')">
         <SidebarSection :label="t('nav.training')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.dashboard')"   :to="{ name: 'hr-training' }" />
           <SidebarItem :icon="Library"         :label="t('sidebar.catalog')"     :to="{ name: 'hr-training-catalog' }" />

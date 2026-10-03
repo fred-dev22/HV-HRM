@@ -49,8 +49,8 @@
     <template #cell-requestStatus="{ item }"><StatusPill v-if="item.requestStatus" :status="item.requestStatus" /></template>
 
     <template #row-actions="{ item }">
-      <button v-if="item.requestStatus === 'Pending'" type="button" :class="L.actApprove" @click.stop="budgetStore.approve(item.id)">Approuver</button>
-      <button v-if="item.requestStatus === 'Pending'" type="button" :class="L.actReject" @click.stop="budgetStore.reject(item.id)">Refuser</button>
+      <button v-if="item.requestStatus === 'Pending'" type="button" :class="L.actApprove" @click.stop="approve(item.id)">Approuver</button>
+      <button v-if="item.requestStatus === 'Pending'" type="button" :class="L.actReject" @click.stop="reject(item.id)">Refuser</button>
     </template>
 
     <template #details-panel="{ item }">
@@ -66,8 +66,8 @@
         </div>
         <p v-if="item.comment" class="text-[12px] text-muted-foreground">{{ item.comment }}</p>
         <div class="flex gap-2" v-if="item.requestStatus === 'Pending'">
-          <button :class="L.btnPrimary" class="flex-1 justify-center" @click="budgetStore.approve(item.id)">Approuver</button>
-          <button :class="L.btnOutline" class="flex-1 justify-center" @click="budgetStore.reject(item.id)">Refuser</button>
+          <button :class="L.btnPrimary" class="flex-1 justify-center" @click="approve(item.id)">Approuver</button>
+          <button :class="L.btnOutline" class="flex-1 justify-center" @click="reject(item.id)">Refuser</button>
         </div>
       </div>
     </template>
@@ -126,10 +126,10 @@
 
 <script setup lang="ts">
 /**
- * Suivi budgétaire (BudgetLine), module Formation (design uniquement,
- * données fictives, voir src/stores/training).
+ * Suivi budgétaire (BudgetLine), module Formation (backend /training,
+ * voir src/stores/training).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, Coins, TrendingDown, Hourglass } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -138,12 +138,17 @@ import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { runAction, loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useBudgetStore, useCourseStore } from '../../stores/training'
 import type { BudgetLine } from '../../stores/training'
 
 const budgetStore = useBudgetStore()
 const courseStore = useCourseStore()
+onMounted(() => loadAll(() => budgetStore.fetchAll(), () => courseStore.fetchAll()))
+
+const approve = (id: string) => runAction('Approbation…', () => budgetStore.approve(id), 'Approbation impossible')
+const reject = (id: string) => runAction('Refus…', () => budgetStore.reject(id), 'Refus impossible')
 
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
 const kpiIcon = 'w-9 h-9 rounded-lg flex items-center justify-center shrink-0'
@@ -221,16 +226,14 @@ const { submitting, guard } = useSubmitGuard()
 async function create() {
   if (!validate()) return
   try {
-    await guard(() => withToast('Soumission…', async () => {
-      const course = courseStore.items.find(c => c.id === form.courseId)
-      budgetStore.requestBudget({
-        year: form.year,
-        entityName: form.entityName.trim(),
-        courseTitle: course?.title,
-        allocated: form.allocated,
-        comment: form.comment.trim() || undefined,
-      })
-    }, () => 'Soumission impossible'))
+    const course = courseStore.items.find(c => c.id === form.courseId)
+    await guard(() => withToast('Soumission…', () => budgetStore.requestBudget({
+      year: form.year,
+      entityName: form.entityName.trim(),
+      courseTitle: course?.title,
+      allocated: form.allocated,
+      comment: form.comment.trim() || undefined,
+    }), () => 'Soumission impossible'))
     showCreate.value = false
     resetForm()
   } catch (e) {

@@ -1,7 +1,6 @@
 /**
- * Types du module Formation (design uniquement, données fictives, voir
- * src/stores/training/index.ts), même principe que le module Recrutement
- * avant son branchement au vrai backend. Statuts calqués sur les entités
+ * Types du module Formation (JSON identique à celui du backend
+ * /training, voir src/stores/training/index.ts). Statuts calqués sur les entités
  * déjà réelles ailleurs dans l'appli quand le sens correspond (Scheduled/
  * Done/Cancelled pour une session, Approved/Rejected pour une validation…),
  * voir StatusPill.vue.

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
  * Fiche d'une inscription / demande de formation, sur CardModalShell.
- * Module Formation (design uniquement, données fictives, voir
- * src/stores/training).
+ * Module Formation (backend /training, voir src/stores/training).
  */
 import { ref, computed, watch } from 'vue'
 import CardModalShell from '../shared/CardModalShell.vue'
@@ -10,6 +9,7 @@ import StatusPill from '../ui/StatusPill.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate } from '../../lib/date'
+import { runAction } from '../../lib/runAction'
 import { useEnrollmentStore } from '../../stores/training'
 import type { Enrollment } from '../../stores/training'
 
@@ -42,9 +42,21 @@ function selectSidebar(no: string) {
   if (e) currentId.value = e.id
 }
 
-function approve() { if (current.value) enrollmentStore.approve(current.value.id) }
-function reject() { if (current.value) enrollmentStore.reject(current.value.id) }
-function markAttended() { if (current.value) enrollmentStore.markAttended(current.value.id) }
+function approve() {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Approbation…', () => enrollmentStore.approve(id), 'Approbation impossible')
+}
+function reject() {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Refus…', () => enrollmentStore.reject(id), 'Refus impossible')
+}
+function markAttended() {
+  if (!current.value) return
+  const id = current.value.id
+  return runAction('Enregistrement…', () => enrollmentStore.markAttended(id), 'Enregistrement impossible')
+}
 </script>
 
 <template>

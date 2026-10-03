@@ -156,11 +156,11 @@
 
 <script setup lang="ts">
 /**
- * Catalogue de formations (Course), module Formation (design uniquement,
- * données fictives, voir src/stores/training). Calquée sur JobOffersView.vue :
+ * Catalogue de formations (Course), module Formation (backend /training,
+ * voir src/stores/training). Calquée sur JobOffersView.vue :
  * ListPageLayout + fiche plein écran (CourseCard.vue).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, Clock, GraduationCap, Archive } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -170,12 +170,15 @@ import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useCourseStore, useProviderStore } from '../../stores/training'
 import type { Course } from '../../stores/training'
 
 const courseStore = useCourseStore()
 const providerStore = useProviderStore()
+
+onMounted(() => loadAll(() => courseStore.fetchAll(), () => providerStore.fetchAll()))
 
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
 const kpiIcon = 'w-9 h-9 rounded-lg flex items-center justify-center shrink-0'
@@ -282,19 +285,15 @@ const { submitting, guard } = useSubmitGuard()
 async function create() {
   if (!validate()) return
   try {
-    await guard(() => withToast('Création…', async () => {
-      const provider = providerStore.items.find(p => p.id === form.providerId)
-      courseStore.create({
-        title: form.title.trim(),
-        category: form.category.trim(),
-        description: form.description.trim(),
-        durationHours: form.durationHours,
-        maxParticipants: form.maxParticipants,
-        providerId: form.providerId || undefined,
-        providerName: provider?.name,
-        budgetAllocated: form.budgetAllocated,
-      })
-    }, () => 'Création impossible'))
+    await guard(() => withToast('Création…', () => courseStore.create({
+      title: form.title.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      durationHours: form.durationHours,
+      maxParticipants: form.maxParticipants,
+      providerId: form.providerId || undefined,
+      budgetAllocated: form.budgetAllocated,
+    }), () => 'Création impossible'))
     showCreate.value = false
     resetForm()
   } catch (e) {

@@ -104,11 +104,11 @@
 
 <script setup lang="ts">
 /**
- * Prestataires de formation (Provider), module Formation (design uniquement,
- * données fictives, voir src/stores/training). Évaluation annuelle
+ * Prestataires de formation (Provider), module Formation (backend /training,
+ * voir src/stores/training). Évaluation annuelle
  * relancée automatiquement en décembre (voir Liste des besoins.xlsx #2).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, Landmark } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -119,11 +119,13 @@ import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useProviderStore } from '../../stores/training'
 import type { Provider } from '../../stores/training'
 
 const providerStore = useProviderStore()
+onMounted(() => loadAll(() => providerStore.fetchAll()))
 
 const openCardId = ref<string | null>(null)
 function openCard(item: Provider) { openCardId.value = item.id }
@@ -193,15 +195,13 @@ const { submitting, guard } = useSubmitGuard()
 async function create() {
   if (!validate()) return
   try {
-    await guard(() => withToast('Création…', async () => {
-      providerStore.create({
-        name: form.name.trim(),
-        contactName: form.contactName.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        specialties: form.specialties.trim(),
-      })
-    }, () => 'Création impossible'))
+    await guard(() => withToast('Création…', () => providerStore.create({
+      name: form.name.trim(),
+      contactName: form.contactName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      specialties: form.specialties.trim(),
+    }), () => 'Création impossible'))
     showCreate.value = false
     resetForm()
   } catch (e) {

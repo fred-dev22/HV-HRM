@@ -87,17 +87,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { CheckCircle2, GraduationCap, CalendarClock, Coins, Inbox, Snowflake } from 'lucide-vue-next'
 import { StatusPill } from '../../components'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
-import { useCourseStore, useSessionStore, useEnrollmentStore, useBudgetStore } from '../../stores/training'
+import { loadAll } from '../../lib/runAction'
+import { useCourseStore, useSessionStore, useEnrollmentStore, useBudgetStore, useProviderStore } from '../../stores/training'
 
 const courseStore = useCourseStore()
 const sessionStore = useSessionStore()
 const enrollmentStore = useEnrollmentStore()
 const budgetStore = useBudgetStore()
+const providerStore = useProviderStore()
+
+onMounted(() => loadAll(
+  () => courseStore.fetchAll(),
+  () => sessionStore.fetchAll(),
+  () => enrollmentStore.fetchAll(),
+  () => budgetStore.fetchAll(),
+  () => providerStore.fetchAll(),
+))
 
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
 const kpiIcon = 'w-9 h-9 rounded-lg flex items-center justify-center shrink-0'

@@ -32,9 +32,9 @@
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
 
     <template #row-actions="{ item }">
-      <button v-if="item.status === 'Requested'" type="button" :class="L.actApprove" @click.stop="enrollmentStore.approve(item.id)">Approuver</button>
-      <button v-if="item.status === 'Requested'" type="button" :class="L.actReject" @click.stop="enrollmentStore.reject(item.id)">Refuser</button>
-      <button v-if="item.status === 'Approved'" type="button" :class="L.actApprove" @click.stop="enrollmentStore.markAttended(item.id)">Marquer présent</button>
+      <button v-if="item.status === 'Requested'" type="button" :class="L.actApprove" @click.stop="approve(item.id)">Approuver</button>
+      <button v-if="item.status === 'Requested'" type="button" :class="L.actReject" @click.stop="reject(item.id)">Refuser</button>
+      <button v-if="item.status === 'Approved'" type="button" :class="L.actApprove" @click.stop="markAttended(item.id)">Marquer présent</button>
     </template>
 
     <template #details-panel="{ item }">
@@ -50,8 +50,8 @@
           <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Session</div>{{ formatDate(item.sessionScheduledAt) }}</div>
         </div>
         <div class="flex gap-2" v-if="item.status === 'Requested'">
-          <button :class="L.btnPrimary" class="flex-1 justify-center" @click="enrollmentStore.approve(item.id)">Approuver</button>
-          <button :class="L.btnOutline" class="flex-1 justify-center" @click="enrollmentStore.reject(item.id)">Refuser</button>
+          <button :class="L.btnPrimary" class="flex-1 justify-center" @click="approve(item.id)">Approuver</button>
+          <button :class="L.btnOutline" class="flex-1 justify-center" @click="reject(item.id)">Refuser</button>
         </div>
       </div>
     </template>
@@ -106,9 +106,9 @@
 <script setup lang="ts">
 /**
  * Inscriptions / demandes de formation (Enrollment), module Formation
- * (design uniquement, données fictives, voir src/stores/training).
+ * (backend /training, voir src/stores/training).
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Plus, UserPlus } from 'lucide-vue-next'
 import { ListPageLayout, StatusPill, CreateModalShell } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
@@ -119,6 +119,7 @@ import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
+import { runAction, loadAll } from '../../lib/runAction'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useEnrollmentStore, useSessionStore } from '../../stores/training'
 import type { Enrollment } from '../../stores/training'
@@ -128,6 +129,12 @@ const enrollmentStore = useEnrollmentStore()
 const sessionStore = useSessionStore()
 const employeeStore = useEmployeeStore()
 if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+
+onMounted(() => loadAll(() => enrollmentStore.fetchAll(), () => sessionStore.fetchAll()))
+
+const approve = (id: string) => runAction('Approbation…', () => enrollmentStore.approve(id), 'Approbation impossible')
+const reject = (id: string) => runAction('Refus…', () => enrollmentStore.reject(id), 'Refus impossible')
+const markAttended = (id: string) => runAction('Enregistrement…', () => enrollmentStore.markAttended(id), 'Enregistrement impossible')
 
 const openCardId = ref<string | null>(null)
 function openCard(item: Enrollment) { openCardId.value = item.id }
@@ -199,14 +206,8 @@ function resetForm() { Object.assign(form, { sessionId: '', employeeId: '' }); e
 function validate(): boolean {
   if (!form.sessionId) { error.value = 'La session est requise'; return false }
   if (!form.employeeId) { error.value = "L'employé est requis"; return false }
-  const session = sessionStore.items.find(s => s.id === form.sessionId)
-  if (!session) { error.value = 'Session introuvable'; return false }
-  if (session.status !== 'Scheduled') { error.value = "Cette session n'est plus planifiée"; return false }
-  if (session.enrolledCount >= session.capacity) { error.value = 'Cette session est complète'; return false }
-  const alreadyEnrolled = enrollmentStore.items.some(e =>
-    e.sessionId === form.sessionId && e.employeeId === form.employeeId
-    && ['Requested', 'Approved', 'Attended'].includes(e.status))
-  if (alreadyEnrolled) { error.value = 'Cet employé est déjà inscrit à cette session'; return false }
+  // Capacité, doublon et statut de la session sont contrôlés par le serveur,
+  // dont le message est affiché dans le formulaire.
   error.value = null
   return true
 }
@@ -215,19 +216,10 @@ const { submitting, guard } = useSubmitGuard()
 async function create() {
   if (!validate()) return
   try {
-    await guard(() => withToast('Inscription…', async () => {
-      const session = sessionStore.items.find(s => s.id === form.sessionId)!
-      const employee = employeeStore.directory.find(e => e.id === form.employeeId)!
-      enrollmentStore.request({
-        sessionId: session.id,
-        courseTitle: session.courseTitle,
-        sessionScheduledAt: session.scheduledAt,
-        employeeId: employee.id,
-        employeeName: employee.name,
-        entityName: employee.entityName ?? '',
-        requestedByName: employee.name,
-      })
-    }, () => 'Inscription impossible'))
+    await guard(() => withToast('Inscription…', () => enrollmentStore.request({
+      sessionId: form.sessionId,
+      employeeId: form.employeeId,
+    }), () => 'Inscription impossible'))
     showCreate.value = false
     resetForm()
   } catch (e) {

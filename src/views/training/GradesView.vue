@@ -67,21 +67,23 @@
 
 <script setup lang="ts">
 /**
- * Notes participants, module Formation (design uniquement, données
- * fictives, voir src/stores/training). Vue consolidée en lecture seule des
+ * Notes participants, module Formation (backend /training,
+ * voir src/stores/training). Vue consolidée en lecture seule des
  * évaluations à chaud/à froid déjà soumises (HotEvaluationsView /
  * ColdEvaluationsView traitent les relances en attente).
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Flame, Snowflake, Star } from 'lucide-vue-next'
 import { ListPageLayout } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
+import { loadAll } from '../../lib/runAction'
 import { useEnrollmentStore } from '../../stores/training'
 import type { Enrollment } from '../../stores/training'
 
 const enrollmentStore = useEnrollmentStore()
+onMounted(() => loadAll(() => enrollmentStore.fetchAll()))
 
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
 const kpiIcon = 'w-9 h-9 rounded-lg flex items-center justify-center shrink-0'
