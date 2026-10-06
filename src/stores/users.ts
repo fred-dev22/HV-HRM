@@ -77,5 +77,20 @@ export const useUserStore = defineStore('users', () => {
     }
   }
 
-  return { error, createUserAccount, fetchUserPermissions, grantUserPermission, revokeUserPermission }
+  // Reinitialisation par un administrateur, sans email : le serveur genere le
+  // mot de passe temporaire et ne le renvoie qu'une fois (voir
+  // ResetPasswordDialog.vue). Pas de toast de succes : le dialogue affiche le
+  // resultat lui-meme.
+  async function resetUserPassword(userId: string) {
+    error.value = null
+    try {
+      const { data } = await api.post<{ temporaryPassword: string; email: string }>(`/users/${userId}/reset-password`)
+      return data
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'La réinitialisation du mot de passe a échoué')
+      throw err
+    }
+  }
+
+  return { error, createUserAccount, resetUserPassword, fetchUserPermissions, grantUserPermission, revokeUserPermission }
 })

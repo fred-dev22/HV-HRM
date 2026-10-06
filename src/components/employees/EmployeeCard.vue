@@ -12,6 +12,7 @@ import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
 import type { LookupFetchParams } from '../ui/table-lookup/TableLookupField.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import CreateUserAccountDialog from './CreateUserAccountDialog.vue'
+import ResetPasswordDialog from './ResetPasswordDialog.vue'
 import * as cls from '../../lib/formClasses'
 import { formatDate, todayIso } from '../../lib/date'
 import { confirmDialog } from '../../lib/confirm'
@@ -225,6 +226,16 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
 
 /* ── Accès système (compte utilisateur) ────────────────────────── */
 const showCreateAccount = ref(false)
+// Reinitialisation du mot de passe par un administrateur (employe qui ne
+// recoit pas ses emails). Jamais pour son propre compte (le serveur le refuse
+// aussi) ; le compte administrateur systeme n'apparait pas dans cette liste.
+const showResetPassword = ref(false)
+const canResetPassword = computed(() =>
+  !!current.value?.hasAccount
+  && !!current.value?.userId
+  && current.value.id !== auth.user?.id
+  && auth.hasPermission('EMPLOYE_PERMISSION_GERER'),
+)
 function onAccountCreated(userId: string) {
   if (current.value) store.markHasAccount(current.value.id, userId)
   // userId passé explicitement plutôt que relu depuis current.value.userId :
@@ -554,6 +565,9 @@ async function deletePermanently() {
           <button v-if="!current.hasAccount && auth.hasPermission('EMPLOYE_COMPTE_CREER')" :class="[cls.btnOutline, '!px-3 !py-1.5 !text-xs shrink-0']" @click="showCreateAccount = true">
             Créer un compte utilisateur
           </button>
+          <button v-if="canResetPassword" :class="[cls.btnOutline, '!px-3 !py-1.5 !text-xs shrink-0']" @click="showResetPassword = true">
+            <KeyRound class="w-3.5 h-3.5" /> Réinitialiser le mot de passe
+          </button>
         </div>
         </FormSection>
 
@@ -626,5 +640,13 @@ async function deletePermanently() {
     :employee-email="current.email"
     @close="showCreateAccount = false"
     @created="onAccountCreated"
+  />
+
+  <ResetPasswordDialog
+    v-if="showResetPassword && current && current.userId"
+    :user-id="current.userId"
+    :employee-name="current.name"
+    :employee-email="current.email"
+    @close="showResetPassword = false"
   />
 </template>
