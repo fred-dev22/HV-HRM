@@ -399,6 +399,7 @@ async function deletePermanently() {
             <label :class="cls.fieldLabel">Email</label>
             <input v-if="isEditMode" type="email" v-model="form.email" :class="cls.fieldInput" />
             <div v-else :class="readBox">{{ current.email || '-' }}</div>
+            <p v-if="isEditMode && current.hasAccount" class="text-[11px] text-muted-foreground mt-1">Cet employé a un compte de connexion : modifier cet email modifie aussi son identifiant de connexion et l'adresse qui reçoit ses mails.</p>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Téléphone</label>
