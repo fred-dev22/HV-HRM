@@ -8,6 +8,12 @@ export const useNavigationStore = defineStore('navigation', () => {
   const previousEntityRoute = ref<RouteLocationRaw>({ name: 'hr-entities' })
   const activeEntityTab     = ref('tree')
 
+  // Menu burger (petit ecran) : ouvre la barre laterale en tiroir. Partage
+  // entre AppNavBar (bouton) et AppSidebar (tiroir).
+  const mobileMenuOpen = ref(false)
+  function toggleMobileMenu() { mobileMenuOpen.value = !mobileMenuOpen.value }
+  function closeMobileMenu()  { mobileMenuOpen.value = false }
+
   function setModule(module: string) {
     activeModule.value = module
   }
@@ -22,6 +28,7 @@ export const useNavigationStore = defineStore('navigation', () => {
 
   return {
     activeModule, setModule,
+    mobileMenuOpen, toggleMobileMenu, closeMobileMenu,
     previousEntityRoute, activeEntityTab,
     setPreviousRoute, setEntityTab,
   }

@@ -84,7 +84,7 @@
 
           <template v-else v-for="(row, i) in pagedRows" :key="rowKey ? row[rowKey] : i">
             <tr
-              class="border-b border-border last:border-b-0 transition-colors cursor-pointer hover:bg-primary/10"
+              class="border-b border-border last:border-b-0 transition-colors cursor-pointer hover:bg-tint"
               @click="$emit('rowClick', row)"
             >
               <td
@@ -160,7 +160,7 @@ defineEmits<{
 // ── Classes du design system ─────────────────────────────────
 const toolBtnClass =
   'w-[30px] h-[30px] border border-border rounded-md bg-background text-muted-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-card hover:text-foreground'
-const toolBtnActiveClass = '!bg-primary/10 !text-primary !border-primary'
+const toolBtnActiveClass = '!bg-tint !text-primary !border-primary'
 const pgBtnClass =
   'w-7 h-7 border border-border rounded bg-background text-muted-foreground cursor-pointer flex items-center justify-center transition-colors hover:bg-card hover:text-foreground disabled:opacity-40 disabled:cursor-default'
 

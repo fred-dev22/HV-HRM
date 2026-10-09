@@ -29,7 +29,7 @@ const auth = useAuthStore()
 if (empStore.employees.length === 0) empStore.fetchAll()
 
 const TYPE_LABELS: Record<string, string> = { Direction: 'Direction', Department: 'Département', Service: 'Service' }
-const TYPE_BADGE: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-primary/10 text-primary' }
+const TYPE_BADGE: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-tint text-primary' }
 
 const entityColumns = [{ key: 'code', label: 'Code', width: '90px' }, { key: 'name', label: 'Nom' }]
 // Une entité désactivée reste visible (grisée, non sélectionnable côté
@@ -268,7 +268,7 @@ async function deletePermanently() {
           <div class="flex flex-col gap-1.5">
             <div v-for="child in children" :key="child.id" class="flex items-center gap-2 px-2.5 py-2 bg-background rounded-md text-[13px]">
               <span class="text-[11px] font-medium px-2 py-0.5 rounded-full" :class="TYPE_BADGE[child.type]">{{ TYPE_LABELS[child.type] }}</span>
-              <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary">{{ child.code }}</span>
+              <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary">{{ child.code }}</span>
               <span>{{ child.name }}</span>
             </div>
           </div>

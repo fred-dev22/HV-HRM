@@ -6,6 +6,7 @@ import type { LeaveBalance } from '../types'
 
 export interface EmployeeLeaveBalances {
   employeeId:   string
+  employeeNumber?: string
   employeeName: string
   entityName:   string
   balances:     LeaveBalance[]

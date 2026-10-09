@@ -326,7 +326,7 @@ async function deletePermanently() {
         <!-- Lignes -->
         <FormSection :title="`Lignes de dépense (${current.lines.length})`" :recaps="[`${fmt(current.totalAmount)} MGA`]">
           <div v-if="isEditMode" class="flex justify-end mb-2">
-            <button class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-primary/10 text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20" @click="addLine">
+            <button class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20" @click="addLine">
               <Plus class="w-3.5 h-3.5" /> Ajouter
             </button>
           </div>
@@ -353,7 +353,7 @@ async function deletePermanently() {
                 <td :class="[td, 'text-center']">
                   <div class="flex flex-col items-center gap-1">
                     <button
-                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-tint shrink-0"
                       title="Ajouter un justificatif"
                       @click="triggerLineAttachmentUpload(l.id)"
                     >
@@ -388,7 +388,7 @@ async function deletePermanently() {
                 <td :class="[td, 'text-center']">
                   <div v-if="lineIds[i]" class="flex flex-col items-center gap-1">
                     <button
-                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-tint shrink-0"
                       title="Ajouter un justificatif"
                       @click="triggerLineAttachmentUpload(lineIds[i]!)"
                     >
@@ -431,7 +431,7 @@ async function deletePermanently() {
         <FormSection :title="`Pièces jointes (${attachments.length})`">
           <input ref="attachmentInput" type="file" class="hidden" @change="onAttachmentSelected" />
           <button
-            class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-primary/10 text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="attachmentStore.uploading"
             @click="triggerAttachmentUpload"
           >

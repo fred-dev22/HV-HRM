@@ -23,7 +23,7 @@ import { useAttachmentStore } from '../../stores/attachments'
 import { useAuthStore } from '../../stores/auth'
 import { useEmployeeStore } from '../../stores/employees'
 import { confirmDialog } from '../../lib/confirm'
-import { getWorkingDaysBetween } from '../../utils/calendar'
+import { getChargedDaysBetween } from '../../utils/calendar'
 import type { LeaveRequest } from '../../types'
 
 const props = defineProps<{
@@ -201,9 +201,17 @@ const formIsPastDate = computed(() => {
   return new Date(p[0] ?? 0, (p[1] ?? 1) - 1, p[2] ?? 1) < today
 })
 
+// Jours decomptes du solde, recalcules en direct a chaque changement de dates,
+// de periode ou de type (decompte calendaire) : meme calcul que le formulaire de
+// creation (miroir de computeWorkingDays cote serveur, qui reste l'autorite a
+// l'enregistrement). Affiche dans "Jours ouvres" pendant la modification.
 const formWorkingDaysCount = computed(() => {
-  if (!form.value.startDate || !form.value.endDate) return 0
-  return getWorkingDaysBetween(form.value.startDate, form.value.endDate, calendarStore.calendar, form.value.startPeriod, form.value.endPeriod)
+  if (!form.value.startDate || !form.value.endDate || form.value.endDate < form.value.startDate) return 0
+  const isExpatriate = employeeStore.getById(current.value?.employeeId ?? '')?.isExpatriate ?? false
+  return getChargedDaysBetween(
+    form.value.startDate, form.value.endDate, calendarStore.calendar,
+    form.value.startPeriod, form.value.endPeriod, isExpatriate, currentType.value?.countCalendarDays ?? false,
+  )
 })
 
 // Meme restriction qu'a la creation : le solde "myBalances" n'est connu que
@@ -374,7 +382,7 @@ async function deletePermanently() {
           <!-- Jours ouvrés -->
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Jours ouvrés</label>
-            <div :class="readBox">{{ current.daysCount }} jour(s)</div>
+            <div :class="readBox">{{ isEditMode ? formWorkingDaysCount : current.daysCount }} jour(s)</div>
           </div>
 
           <!-- Référence -->
@@ -436,7 +444,7 @@ async function deletePermanently() {
         <FormSection v-if="isMedicalLeave" :title="`Justificatif médical (${attachments.length})`">
           <input ref="attachmentInput" type="file" class="hidden" @change="onAttachmentSelected" />
           <button
-            class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-primary/10 text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="attachmentStore.uploading"
             @click="triggerAttachmentUpload"
           >

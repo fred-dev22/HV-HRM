@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
+import { brand } from '../config/appConfig'
 import { withToast } from '../lib/withToast'
 import type {
   CompanyCalendar, WorkingDays, WorkingHours,
@@ -144,7 +145,7 @@ function mapHoliday(raw: BackendHoliday): Holiday {
 export const useCalendarStore = defineStore('calendar', () => {
   // ── State ────────────────────────────────────────────────────
   const calendarId   = ref('')
-  const calendarName = ref('Calendrier standard HV')
+  const calendarName = ref(`Calendrier standard ${brand.shortName}`)
   const isDefault    = ref(true)
   const workingDays  = ref<WorkingDays>(emptyWorkingDays())
   const updatedAt    = ref('')

@@ -218,6 +218,10 @@ export const useEmployeeStore = defineStore('employees', () => {
   // remplacer par la petite liste d'équipe (voire vide) selon l'ordre
   // d'arrivée des deux réponses.
   const team = ref<Employee[]>([])
+  // "Mon equipe" (fetchCollaborators) : entite dirigee + employes dont on valide les demandes.
+// `collaboratorLinks` dit pourquoi chacun y figure : 'Entite', 'Direct', 'Pool'.
+  const collaborators = ref<Employee[]>([])
+  const collaboratorLinks = ref<Record<string, string[]>>({})
   const loading   = ref(false)
   const error     = ref<string | null>(null)
 
@@ -293,6 +297,22 @@ export const useEmployeeStore = defineStore('employees', () => {
   // "Mon équipe" — les employés des unités que le demandeur dirige, cote
   // EMPLOYE_VOIR_EQUIPE plutot que EMPLOYE_VOIR_TOUT (voir /employees/team
   // cote backend).
+  async function fetchCollaborators() {
+    loading.value = true
+    error.value = null
+    try {
+      await ensurePositionsLoaded()
+      const { data } = await api.get<(BackendEmployee & { Links?: string[] })[]>('/employees/collaborators')
+      collaborators.value = data.map(mapEmployee)
+      collaboratorLinks.value = Object.fromEntries(data.map(e => [e.Id, e.Links ?? []]))
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Impossible de charger vos collaborateurs')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchTeam() {
     loading.value = true
     error.value = null
@@ -429,15 +449,15 @@ export const useEmployeeStore = defineStore('employees', () => {
   const VALIDATOR_CODES = ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER']
   function applyEffectivePermissions(employeeId: string, effectiveCodes: string[]) {
     const next = VALIDATOR_CODES.filter(c => effectiveCodes.includes(c))
-    for (const list of [employees.value, team.value]) {
+    for (const list of [employees.value, team.value, collaborators.value]) {
       const idx = list.findIndex(e => e.id === employeeId)
       if (idx !== -1) list[idx] = { ...list[idx]!, validatorPermissions: next }
     }
   }
 
   return {
-    employees, directory, team, loading, error,
+    employees, directory, team, collaborators, collaboratorLinks, loading, error,
     activeEmployees, trialEmployees, validatorEmployees, fetchNextNumber,
-    getById, getByEntityId, fetchAll, fetchTeam, fetchDirectory, fetchOne, createEmployee, updateEmployee, deactivateEmployee, reactivateEmployee, deleteEmployeePermanently, markHasAccount, applyEffectivePermissions,
+    getById, getByEntityId, fetchAll, fetchTeam, fetchCollaborators, fetchDirectory, fetchOne, createEmployee, updateEmployee, deactivateEmployee, reactivateEmployee, deleteEmployeePermanently, markHasAccount, applyEffectivePermissions,
   }
 })

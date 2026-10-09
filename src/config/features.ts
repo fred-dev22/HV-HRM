@@ -1,34 +1,30 @@
-// Fonctionnalités temporairement désactivées pour raisons budgétaires,
-// accord validé avec le DSI — seront réactivées dans un deuxième temps.
-// Rien n'est supprimé (routes, code, données) : seule la navigation/l'UI
-// est masquée, pour permettre une réactivation en changeant juste ce flag.
-export const MISSIONS_EXPENSES_ENABLED: boolean = false
+// Fonctionnalites actives sur CETTE instance. Les valeurs ne sont plus figees a
+// la compilation : le backend les expose (GET /api/config/public, variable
+// ENABLED_MODULES) et applyEnabledModules() les renseigne au demarrage, avant
+// l'affichage. Meme version du frontend pour tous les clients ; activer ou
+// couper un module = changer ENABLED_MODULES cote serveur, sans reconstruire.
+//
+// `export let` : liaisons vivantes, les importeurs voient la valeur appliquee.
+// Le verrou reel est cote backend (un module coupe repond 404) : ces drapeaux
+// ne font que masquer navigation et ecrans.
 
-// Modules encore à l'état de placeholder (aucune fonctionnalité réelle
-// derrière — voir router/index.ts, tous sur le composant PlaceholderView) :
-// Formation, Paie, Rapports (l'onglet du haut, distinct de la section
-// "Rapports" du sidebar Administration qui elle est réelle). Masqués tant
-// qu'ils ne sont pas construits, pas pour une raison budgétaire.
-export const PLACEHOLDER_MODULES_ENABLED: boolean = false
+export let MISSIONS_EXPENSES_ENABLED = false
+export let RECRUITMENT_MODULE_ENABLED = false
+export let FORMATION_MODULE_ENABLED = false
+export let PAYROLL_MODULE_ENABLED = false
+export let REPORTS_MODULE_ENABLED = false
+// Modules encore a l'etat de coquille vide (Paie, Rapports) : vrai si l'un des deux est actif.
+export let PLACEHOLDER_MODULES_ENABLED = false
+// Diffusion des offres (canaux, flux publics) : option, FEATURE_JOB_DISTRIBUTION_UI cote serveur.
+export let JOB_DISTRIBUTION_UI_ENABLED = false
 
-// Module Recrutement : a son propre flag, distinct de PLACEHOLDER_MODULES_ENABLED
-// ci-dessus, car il a de vrais écrans sur cette branche (design + données
-// fictives, voir src/views/recruitment/) alors que Formation/Paie/Rapports
-// restent de simples coquilles vides. A true UNIQUEMENT sur la branche
-// dev-recrutement-module, pour prévisualiser le module avant validation
-// client. Remettre à false avant toute fusion vers qa/main.
-export const RECRUITMENT_MODULE_ENABLED: boolean = true
-
-// Module Formation : meme principe que RECRUITMENT_MODULE_ENABLED ci-dessus
-// (vrais ecrans, design + donnees fictives, voir src/views/training/), sorti
-// de PLACEHOLDER_MODULES_ENABLED des que construit. Paie/Rapports restent de
-// simples coquilles vides tant qu'ils ne sont pas a leur tour construits.
-export const FORMATION_MODULE_ENABLED: boolean = true
-
-// Diffusion des offres (canaux, flux publics feed.json/feed.xml, "Contenu a
-// partager") : section "Diffusion" de la fiche d'une offre d'emploi ET entree
-// "Diffusion des offres" du menu Recrutement, masquees temporairement sur
-// demande (19/09/2026) : fonctionnalite pas encore prete a etre montree, il
-// reste des choses a faire dessus. Rien n'est supprime (route, code, donnees) :
-// remettre a true pour tout reafficher.
-export const JOB_DISTRIBUTION_UI_ENABLED: boolean = false
+export function applyEnabledModules(modules: readonly string[], features: { jobDistributionUi?: boolean } = {}): void {
+  const on = new Set(modules)
+  MISSIONS_EXPENSES_ENABLED = on.has('missions_expenses')
+  RECRUITMENT_MODULE_ENABLED = on.has('recruitment')
+  FORMATION_MODULE_ENABLED = on.has('training')
+  PAYROLL_MODULE_ENABLED = on.has('payroll')
+  REPORTS_MODULE_ENABLED = on.has('reports')
+  PLACEHOLDER_MODULES_ENABLED = PAYROLL_MODULE_ENABLED || REPORTS_MODULE_ENABLED
+  JOB_DISTRIBUTION_UI_ENABLED = RECRUITMENT_MODULE_ENABLED && features.jobDistributionUi === true
+}

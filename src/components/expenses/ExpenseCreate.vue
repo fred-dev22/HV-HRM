@@ -187,7 +187,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
         <div class="max-w-3xl mx-auto">
           <!-- Bénéficiaire -->
           <FormSection title="Général">
-          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" />
+          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" :can-create-for-others="auth.hasPermission('FRAIS_CREER_POUR_AUTRE')" />
           <div v-if="selectedEmployee" class="flex items-center gap-2.5 mt-3 px-3.5 py-2.5 bg-background border border-border rounded-lg">
             <UserAvatar :name="selectedEmployee.name" size="sm" />
             <div>
@@ -213,7 +213,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
           <!-- Lignes -->
           <FormSection title="Lignes de dépense">
           <div class="flex justify-end mb-2">
-            <button class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-primary/10 text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20" @click="addLine">
+            <button class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20" @click="addLine">
               <Plus class="w-3.5 h-3.5" /> Ajouter
             </button>
           </div>
@@ -268,7 +268,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
           <FormSection :title="`Pièces jointes (${pendingFiles.length})`">
             <input ref="fileInput" type="file" class="hidden" @change="onFileSelected" />
             <button
-              class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-primary/10 text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2"
+              class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2"
               @click="triggerFileUpload"
             >
               <Upload class="w-3.5 h-3.5" /> Ajouter un fichier

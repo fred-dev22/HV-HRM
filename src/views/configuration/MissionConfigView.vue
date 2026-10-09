@@ -215,7 +215,7 @@ const initialLoading = ref(true)
 // ── Classes du design system ─────────────────────────────────
 const thUpper = 'px-3 py-2.5 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-[0.05em] bg-background border-b border-border whitespace-nowrap'
 const tdCell = 'px-3 py-2.5 border-b border-border'
-const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary'
+const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-tint hover:text-primary'
 
 const amountInputRef = ref<HTMLInputElement | null>(null)
 

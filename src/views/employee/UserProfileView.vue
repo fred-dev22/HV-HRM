@@ -24,7 +24,7 @@
             <!-- Avatar card -->
             <div :class="[card, 'flex flex-col items-center gap-2.5 text-center !py-6']">
               <div class="relative">
-                <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                <div class="w-20 h-20 rounded-full bg-tint flex items-center justify-center">
                   <span class="text-[28px] font-bold text-primary">{{ employee?.initials }}</span>
                 </div>
                 <button class="absolute bottom-0 right-0 w-[26px] h-[26px] rounded-full bg-primary text-white border-0 cursor-pointer flex items-center justify-center">
@@ -189,7 +189,7 @@ if (categoryStore.categories.length === 0) categoryStore.fetchAll()
 // ── Classes du design system ─────────────────────────────────
 const card = 'bg-card border border-border rounded-[10px] p-4'
 const cardTitle = 'text-[13px] font-semibold text-foreground flex items-center gap-1.5'
-const quickBtn = 'flex items-center gap-2 px-3 py-2 rounded-md text-[13px] text-foreground no-underline bg-background border border-border transition-colors hover:bg-primary/10 hover:text-primary'
+const quickBtn = 'flex items-center gap-2 px-3 py-2 rounded-md text-[13px] text-foreground no-underline bg-background border border-border transition-colors hover:bg-tint hover:text-primary'
 const formGrid = 'grid grid-cols-2 gap-3 max-sm:grid-cols-1'
 const fieldLabel = 'text-xs font-medium text-muted-foreground'
 const infoLabel = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.04em]'

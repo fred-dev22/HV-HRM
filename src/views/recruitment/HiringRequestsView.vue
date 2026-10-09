@@ -30,7 +30,7 @@
     <template #above-table>
       <div class="grid grid-cols-3 gap-2.5 mb-3.5 max-md:grid-cols-1">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ hiringRequestStore.items.length }}</div><div :class="kpiLbl">Total</div></div>
         </div>
         <div :class="kpiItem">

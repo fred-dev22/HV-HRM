@@ -4,7 +4,7 @@
     <!-- ── En-tête minimal ── -->
     <header class="h-[60px] shrink-0 bg-card border-b border-border shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-10 flex items-center justify-between max-[480px]:px-4">
       <div class="flex items-center">
-        <img src="/hv-logo.png" alt="HV" class="h-[34px] block" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-[34px] block" />
       </div>
       <span class="bg-warning/10 text-warning border border-warning/20 px-3 py-1 rounded-full text-[11px] font-semibold">Sécurité du compte</span>
     </header>

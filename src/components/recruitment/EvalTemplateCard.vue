@@ -115,7 +115,7 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
     @clear-save-error="saveError = ''"
   >
     <template #title-badges>
-      <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">
+      <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">
         {{ current.criteria.length }} critère(s)
       </span>
     </template>

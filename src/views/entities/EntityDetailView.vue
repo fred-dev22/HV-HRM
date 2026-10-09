@@ -80,7 +80,7 @@
                   <div :class="infoRow" v-if="entity.responsibleName">
                     <span :class="infoLbl">Responsable</span>
                     <div class="flex items-center gap-1.5">
-                      <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold bg-primary/10 text-primary">
+                      <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold bg-tint text-primary">
                         {{ respInitials }}
                       </div>
                       <span>{{ entity.responsibleName }}</span>
@@ -200,8 +200,8 @@ const card = 'bg-card border border-border rounded-lg p-4 flex flex-col gap-3'
 const cardTitle = 'flex items-center gap-1.5 text-[13px] font-semibold pb-2.5 border-b border-border text-foreground'
 const infoRow = 'flex items-center justify-between text-[13px] gap-2'
 const infoLbl = 'text-xs text-muted-foreground shrink-0'
-const codeChip = 'text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary tracking-[0.04em]'
-const entityLink = 'flex items-center gap-2 px-2.5 py-2 rounded-md bg-background no-underline text-foreground text-[13px] transition-colors hover:bg-primary/10'
+const codeChip = 'text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary tracking-[0.04em]'
+const entityLink = 'flex items-center gap-2 px-2.5 py-2 rounded-md bg-background no-underline text-foreground text-[13px] transition-colors hover:bg-tint'
 const emptyInfo = 'text-xs text-muted-foreground flex items-center gap-1.5'
 const histIcon = 'w-7 h-7 rounded-full bg-background text-muted-foreground flex items-center justify-center shrink-0'
 const btnSuccess = L.btnOutline + ' !bg-success-bg !text-success !border-success'
@@ -212,7 +212,7 @@ function typeBadge(type: string): string {
   const m: Record<string, string> = {
     Direction:  'bg-danger-bg text-danger',
     Department: 'bg-success-bg text-success',
-    Service:    'bg-primary/10 text-primary',
+    Service:    'bg-tint text-primary',
   }
   return m[type] ?? 'bg-neutral-bg text-neutral'
 }

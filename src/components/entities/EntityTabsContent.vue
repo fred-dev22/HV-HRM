@@ -105,7 +105,7 @@
           </thead>
           <tbody>
             <tr v-for="e in listPageItems" :key="e.id" :class="L.rowHover">
-              <td :class="L.td"><span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary tracking-[0.04em]">{{ e.code }}</span></td>
+              <td :class="L.td"><span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary tracking-[0.04em]">{{ e.code }}</span></td>
               <td :class="[L.td, 'font-medium']">{{ e.name }}</td>
               <td :class="L.td">
                 <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="typeBadge(e.type)">{{ typeLabel(e.type) }}</span>
@@ -164,7 +164,7 @@
           </thead>
           <tbody>
             <tr v-for="e in store.pendingEntities" :key="e.id" :class="L.rowHover">
-              <td :class="L.td"><span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary tracking-[0.04em]">{{ e.code }}</span></td>
+              <td :class="L.td"><span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary tracking-[0.04em]">{{ e.code }}</span></td>
               <td :class="[L.td, 'font-medium']">{{ e.name }}</td>
               <td :class="L.td">
                 <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="typeBadge(e.type)">{{ typeLabel(e.type) }}</span>
@@ -217,8 +217,8 @@ const navStore = useNavigationStore()
 const tabClass = 'px-[18px] py-2.5 text-[13px] text-muted-foreground cursor-pointer border-b-2 border-transparent flex items-center gap-1.5 transition-colors hover:text-foreground'
 const tabActive = '!text-primary !border-primary font-medium'
 const hint = 'text-[11px] text-muted-foreground flex items-center gap-1 ml-auto'
-const switcherBtn = 'px-2 py-1.5 rounded-md border-0 cursor-pointer flex items-center justify-center bg-transparent text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
-const switcherActive = '!bg-primary/10 !text-primary'
+const switcherBtn = 'px-2 py-1.5 rounded-md border-0 cursor-pointer flex items-center justify-center bg-transparent text-muted-foreground transition-colors hover:bg-tint hover:text-primary'
+const switcherActive = '!bg-tint !text-primary'
 const filterSel = 'h-[30px] px-2 border border-border rounded-md text-xs text-foreground bg-card outline-none focus:border-primary'
 const thUpper = 'px-3 py-2.5 text-left text-[11px] font-semibold text-muted-foreground bg-background uppercase tracking-[0.04em] border-b border-border whitespace-nowrap'
 const actWarning = L.actBtn + ' bg-warning-bg text-warning'
@@ -227,7 +227,7 @@ function typeBadge(type: string): string {
   const m: Record<string, string> = {
     Direction:  'bg-danger-bg text-danger',
     Department: 'bg-success-bg text-success',
-    Service:    'bg-primary/10 text-primary',
+    Service:    'bg-tint text-primary',
   }
   return m[type] ?? 'bg-neutral-bg text-neutral'
 }

@@ -48,8 +48,8 @@
           v-for="emp in filtered"
           :key="emp.id"
           type="button"
-          class="flex items-center gap-2 w-full px-2 py-[7px] border-0 rounded-md bg-transparent cursor-pointer text-left transition-colors hover:bg-primary/10"
-          :class="{ 'bg-primary/10': modelValue === emp.id }"
+          class="flex items-center gap-2 w-full px-2 py-[7px] border-0 rounded-md bg-transparent cursor-pointer text-left transition-colors hover:bg-tint"
+          :class="{ 'bg-tint': modelValue === emp.id }"
           @click="select(emp.id)"
         >
           <span :class="avatarClass" :style="{ background: emp.avatarBg ?? '#B5D4F4', color: emp.avatarText ?? '#0C447C' }">{{ initials(emp.name) }}</span>

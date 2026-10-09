@@ -9,6 +9,8 @@
  * externe. Feasible des maintenant, sans attendre le backend du module.
  */
 
+import { brand, logoUrl } from '../config/appConfig'
+
 export interface ContractDocumentInput {
   candidateName: string
   jobTitle: string
@@ -91,9 +93,9 @@ export function buildContractHtml(doc: ContractDocumentInput): string {
 <body>
   <div class="page">
     <div class="header">
-      <img src="/hv-logo.png" alt="HV">
+      ${logoUrl() ? `<img src="${escapeHtml(new URL(logoUrl(), window.location.origin).href)}" alt="${escapeHtml(brand.shortName)}">` : ''}
       <div class="company">
-        <div class="name">HV</div>
+        <div class="name">${escapeHtml(brand.shortName)}</div>
         <div class="tagline">Ressources Humaines</div>
       </div>
     </div>
@@ -102,7 +104,7 @@ export function buildContractHtml(doc: ContractDocumentInput): string {
     <div class="body">${paragraphs}</div>
     <div class="signatures">
       <div class="block">
-        <div class="role">Pour HV</div>
+        <div class="role">Pour ${escapeHtml(brand.shortName)}</div>
         <div class="line">Nom, fonction et signature</div>
       </div>
       <div class="block">

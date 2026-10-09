@@ -21,7 +21,7 @@
               <div class="text-sm font-semibold text-foreground truncate">{{ o.title }}</div>
               <div class="text-[11px] text-muted-foreground mt-0.5">{{ o.entityName }} · {{ o.contractType }} · {{ o.location }}</div>
             </div>
-            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary shrink-0">{{ o.referenceCode }}</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary shrink-0">{{ o.referenceCode }}</span>
           </div>
           <p class="text-[12px] text-muted-foreground line-clamp-2">{{ o.description }}</p>
           <button

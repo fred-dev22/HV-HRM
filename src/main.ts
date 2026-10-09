@@ -6,17 +6,38 @@ import { i18n } from './plugins/i18n'
 import { Vue3OrgChartPlugin } from 'vue3-org-chart'
 import { useAuthStore } from './stores/auth'
 import './assets/main.css'
+import { loadAppConfig, brand, logoUrl } from './config/appConfig'
 
 const app = createApp(App)
 app.use(createPinia())
 app.use(i18n)
 app.use(Vue3OrgChartPlugin)
 
+
 // Restore the session (if a valid JWT is in localStorage) before installing
 // the router — router install triggers its first navigation immediately,
 // and that navigation's guard needs isLoggedIn already resolved or it
 // bounces an already-authenticated user back to /login (and nothing
 // re-triggers navigation once restoreSession resolves afterwards).
+// Marque et modules de l'instance, lus sur le backend avant tout affichage.
+await loadAppConfig()
+// Textes de l'interface qui portent le nom du client. Le nom du produit
+// ("Productive 247 HRM", nav.app_name) reste celui des fichiers de langue.
+for (const lang of ['fr', 'en'] as const) {
+  const isFr = lang === 'fr'
+  i18n.global.mergeLocaleMessage(lang, {
+    nav: {
+      company: brand.shortName,
+      context_rh: `${isFr ? 'RH' : 'HR'} · ${brand.shortName}`,
+      context_employee: `${isFr ? 'EMPLOYÉ' : 'EMPLOYEE'} · ${brand.shortName}`,
+    },
+  })
+}
+
+// Disponibles dans tous les templates : $brand.shortName, $brandLogo.
+app.config.globalProperties.$brand = brand
+app.config.globalProperties.$brandLogo = logoUrl()
+
 await useAuthStore().restoreSession()
 
 app.use(router)

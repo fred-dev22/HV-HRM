@@ -18,7 +18,7 @@
     </div>
     <div v-else class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
       <div :class="kpiItem">
-        <div :class="kpiIcon" class="bg-primary/10"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
+        <div :class="kpiIcon" class="bg-tint"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
         <div><div :class="kpiVal">{{ openPositionsCount }}</div><div :class="kpiLbl">Postes ouverts</div></div>
       </div>
       <div :class="kpiItem">

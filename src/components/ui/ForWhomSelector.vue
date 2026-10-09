@@ -1,5 +1,8 @@
 <template>
-  <div class="flex flex-col gap-2.5">
+  <!-- canCreateForOthers : permission CONGE/MISSION/FRAIS_CREER_POUR_AUTRE. Sans elle,
+       aucune bascule ni selecteur : la demande est toujours pour soi-meme (le serveur
+       refuse aussi toute demande pour un autre employe). -->
+  <div v-if="canCreateForOthers" class="flex flex-col gap-2.5">
     <!-- hideSelfOption : compte systeme (Employee.IsSystem, ex. "Admin
          HV") — pas un vrai membre du personnel, "Pour moi-même" n'a
          aucun sens (aucun solde/existence RH reelle a lui). On saute
@@ -64,7 +67,7 @@ interface EmployeeItem {
   status?: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: BeneficiaryValue
   availableEmployees: EmployeeItem[]
   errorEmployee?: string
@@ -73,14 +76,19 @@ const props = defineProps<{
   // responsable d'initialiser modelValue.mode à 'for-employee' dans ce cas
   // (ce composant ne le force pas lui-même).
   hideSelfOption?: boolean
-}>()
+  // Permission de creer pour un autre employe (defaut : oui, pour ne rien casser
+  // chez un appelant qui ne la fournit pas encore).
+  canCreateForOthers?: boolean
+}>(), {
+  canCreateForOthers: true,
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: BeneficiaryValue]
 }>()
 
 const modeBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer border border-border bg-background text-muted-foreground transition-colors hover:bg-card hover:text-foreground'
-const modeActive = '!bg-primary/10 !text-primary !border-primary'
+const modeActive = '!bg-tint !text-primary !border-primary'
 
 function setMode(mode: 'self' | 'for-employee') {
   emit('update:modelValue', { mode, employeeId: '' })

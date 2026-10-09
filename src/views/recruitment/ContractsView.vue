@@ -45,7 +45,7 @@
       <template #above-table>
         <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
           <div :class="kpiItem">
-            <div :class="kpiIcon" class="bg-primary/10"><FileSignature class="w-[18px] h-[18px] text-primary" /></div>
+            <div :class="kpiIcon" class="bg-tint"><FileSignature class="w-[18px] h-[18px] text-primary" /></div>
             <div><div :class="kpiVal">{{ contractStore.items.length }}</div><div :class="kpiLbl">Total</div></div>
           </div>
           <div :class="kpiItem">
@@ -91,7 +91,7 @@
       <template #cell-candidateName="{ item }"><span class="font-medium text-foreground text-xs truncate">{{ item.candidateName }}</span></template>
       <template #cell-jobTitle="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.jobTitle }}</span></template>
       <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName }}</span></template>
-      <template #cell-templateName="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ item.templateName }}</span></template>
+      <template #cell-templateName="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ item.templateName }}</span></template>
       <template #cell-startDate="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.startDate) }}</span></template>
       <template #cell-endDate="{ item }"><span class="text-muted-foreground text-xs">{{ item.endDate ? formatDate(item.endDate) : '-' }}</span></template>
       <template #cell-salary="{ item }"><span class="text-xs font-semibold tabular-nums">{{ formatSalary(item.salary) }}</span></template>
@@ -212,7 +212,7 @@
         <div v-for="t in contractStore.templates" :key="t.id" :class="[L.card, 'flex flex-col gap-2.5']">
           <div class="flex items-center justify-between gap-2">
             <span class="text-sm font-semibold text-foreground truncate">{{ t.name }}</span>
-            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary shrink-0">{{ t.contractType }}</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary shrink-0">{{ t.contractType }}</span>
           </div>
           <p class="text-[12px] text-muted-foreground line-clamp-3">{{ excerpt(t.content) }}</p>
           <button :class="L.btnOutline" class="self-start" @click="openTemplateCardId = t.id"><Pencil class="w-3.5 h-3.5" /> Modifier</button>

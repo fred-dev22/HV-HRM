@@ -47,7 +47,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
         <div class="absolute inset-0 bg-black/50" @click="emit('cancel')"></div>
         <div class="relative z-10 w-full max-w-[420px] bg-card border border-border rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.22)] p-5">
           <div class="flex items-start gap-3">
-            <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" :class="destructive ? 'bg-danger-bg text-danger' : 'bg-primary/10 text-primary'">
+            <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" :class="destructive ? 'bg-danger-bg text-danger' : 'bg-tint text-primary'">
               <AlertTriangle class="w-5 h-5" />
             </div>
             <div class="min-w-0 flex-1">

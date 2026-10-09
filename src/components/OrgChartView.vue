@@ -137,17 +137,17 @@ function onNodeClick(id: string) {
 }
 
 .org-node--direction {
-  background: var(--hv-red);
-  color: var(--hv-white);
+  background: var(--brand-primary);
+  color: var(--brand-white);
 }
 .org-node--department {
   background: #1A8A50;
-  color: var(--hv-white);
+  color: var(--brand-white);
 }
 .org-node--service {
   background: var(--color-card);
   color: var(--color-foreground);
-  border: 1.5px solid var(--hv-maroon);
+  border: 1.5px solid var(--brand-accent);
 }
 
 .org-node__code-badge {
@@ -163,8 +163,8 @@ function onNodeClick(id: string) {
   color: inherit;
 }
 .org-node--service .org-node__code-badge {
-  background: var(--hv-maroon-light);
-  color: var(--hv-maroon);
+  background: var(--brand-accent-light);
+  color: var(--brand-accent);
 }
 
 .org-node__header {
@@ -234,13 +234,13 @@ function onNodeClick(id: string) {
   transition: background 0.12s;
 }
 .org-node--service .org-node__toggle {
-  border-color: var(--hv-maroon);
-  color: var(--hv-maroon);
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
 }
 .org-node__toggle:hover { background: var(--color-primary-light); }
 
 /* Surcharger les lignes de connexion vue3-org-chart */
 :deep(.vue3-org-chart-container) {
-  --vue3-org-chart-line-color: var(--hv-red);
+  --vue3-org-chart-line-color: var(--brand-primary);
 }
 </style>

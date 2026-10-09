@@ -1,13 +1,22 @@
 <template>
+  <!--
+    Grand ecran : barre laterale fixe (reductible). Petit ecran (< md) : masquee,
+    et ouverte en panneau deroulant par le menu burger (navStore.mobileMenuOpen).
+  -->
   <aside
-    class="relative shrink-0 bg-sidebar border-r border-sidebar-border py-2.5 hidden md:flex md:flex-col transition-[width] duration-200 ease-in-out"
-    :class="collapsed ? 'w-[60px]' : 'w-[220px]'"
+    class="shrink-0 bg-sidebar border-r border-sidebar-border py-2.5 transition-[width] duration-200 ease-in-out"
+    :class="[
+      navStore.mobileMenuOpen
+        ? 'fixed top-[92px] inset-x-0 z-[150] flex flex-col max-h-[calc(100vh-92px)] overflow-y-auto shadow-lg !border-r-0 border-b md:relative md:top-auto md:inset-x-auto md:z-auto md:max-h-none md:overflow-visible md:shadow-none md:!border-r md:border-b-0'
+        : 'relative hidden md:flex md:flex-col',
+      collapsed ? 'md:w-[60px]' : 'md:w-[220px]',
+    ]"
   >
 
   <!-- Réduire / agrandir — bouton flottant au milieu du bord droit -->
   <button
     type="button"
-    class="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-card border border-border text-muted-foreground cursor-pointer flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    class="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-card border border-border text-muted-foreground cursor-pointer hidden md:flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     :title="collapsed ? 'Agrandir' : 'Réduire'"
     @click="toggleCollapsed"
   >
@@ -24,7 +33,8 @@
     <template v-else-if="auth.isHRSpace">
 
       <!-- MODULE : Administration -->
-      <template v-if="navStore.activeModule === 'administration'">
+      <ModuleHeader module-key="administration" />
+      <template v-if="showModule('administration')">
         <SidebarSection :label="t('sidebar.dashboard')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.overview')"    :to="{ name: 'hr-dashboard' }" />
           <SidebarItem :icon="CalendarRange"   :label="t('sidebar.my_planning')" :to="{ name: 'hr-planning' }" />
@@ -41,7 +51,7 @@
           <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED && auth.hasAnyPermission(['MISSION_VOIR_TOUT', 'MISSION_VOIR_EQUIPE'])"  :icon="Plane"    :label="t('sidebar.missions')"  :to="{ name: 'hr-missions' }" />
           <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED && auth.hasAnyPermission(['FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'])"      :icon="Receipt"  :label="t('sidebar.expenses')"  :to="{ name: 'hr-expenses' }" />
           <SidebarItem v-if="auth.hasPermission('ENTITE_VOIR')"                                    :icon="Network"  :label="t('sidebar.org_chart')" :to="{ name: 'hr-org-chart' }" />
-          <SidebarItem v-if="auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-needs' }" />
+          <SidebarItem v-if="RECRUITMENT_MODULE_ENABLED && auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-needs' }" />
           <SidebarItem v-if="auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
         </SidebarSection>
 
@@ -53,7 +63,8 @@
       </template>
 
       <!-- MODULE : Recrutement -->
-      <template v-else-if="navStore.activeModule === 'recruitment' && auth.hasPermission('RECRUTEMENT_ACCES')">
+      <ModuleHeader module-key="recruitment" />
+      <template v-if="showModule('recruitment')">
         <SidebarSection :label="t('nav.recruitment')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.dashboard')"    :to="{ name: 'hr-recruitment' }" />
           <SidebarItem :icon="Briefcase"       :label="t('sidebar.job_offers')"   :to="{ name: 'hr-recruitment-positions' }" />
@@ -74,7 +85,8 @@
       </template>
 
       <!-- MODULE : Formation -->
-      <template v-else-if="navStore.activeModule === 'training' && auth.hasPermission('FORMATION_ACCES')">
+      <ModuleHeader module-key="training" />
+      <template v-if="showModule('training')">
         <SidebarSection :label="t('nav.training')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.dashboard')"   :to="{ name: 'hr-training' }" />
           <SidebarItem :icon="Library"         :label="t('sidebar.catalog')"     :to="{ name: 'hr-training-catalog' }" />
@@ -93,7 +105,8 @@
       </template>
 
       <!-- MODULE : Paie -->
-      <template v-else-if="navStore.activeModule === 'payroll'">
+      <ModuleHeader module-key="payroll" />
+      <template v-if="showModule('payroll')">
         <SidebarSection :label="t('nav.payroll')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.dashboard')"   :to="{ name: 'hr-payroll' }" />
           <SidebarItem :icon="Calendar"        :label="t('sidebar.pay_periods')" :to="{ name: 'hr-payroll-periods' }" />
@@ -119,7 +132,8 @@
       </template>
 
       <!-- MODULE : Rapports -->
-      <template v-else-if="navStore.activeModule === 'reports'">
+      <ModuleHeader module-key="reports" />
+      <template v-if="showModule('reports')">
         <SidebarSection v-if="auth.hasPermission('RAPPORT_VOIR') || auth.hasPermission('ENTITE_VOIR')" :label="t('sidebar.reports')">
           <SidebarItem v-if="auth.hasPermission('RAPPORT_VOIR')" :icon="BarChart3" :label="t('sidebar.statistics')" :to="{ name: 'hr-statistics' }" />
           <SidebarItem v-if="auth.hasPermission('ENTITE_VOIR')"  :icon="Network"   :label="t('sidebar.org_chart')"  :to="{ name: 'hr-org-chart' }" />
@@ -184,8 +198,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch, type Component, type PropType } from 'vue'
-import { RouterLink }         from 'vue-router'
+import { computed, defineComponent, h, onBeforeUnmount, ref, watch, type Component, type PropType } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n }            from 'vue-i18n'
 import {
   LayoutDashboard, CalendarRange, CalendarOff, CalendarClock, PieChart, Users, Building, Plane,
@@ -193,17 +207,20 @@ import {
   Inbox, FilePlus, FileText, Clock, Library, UserPlus, Flame,
   Snowflake, Star, Landmark, ReceiptText, List, Clock3, Upload, AlarmClock, Table,
   TrendingUp, Gift, BarChart3, ArrowLeftRight, Percent, TrendingDown,
-  FileSpreadsheet, Plug, ClipboardCheck, Tags, ChevronLeft, ChevronRight,
+  FileSpreadsheet, Plug, ClipboardCheck, Tags, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-vue-next'
 import { useAuthStore }       from '../stores/auth'
 import { useNavigationStore } from '../stores/navigation'
 import { useLeaveRequestStore } from '../stores/leaveRequests'
 import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
+import { useHrModules } from '../composables/useHrModules'
 import SkeletonLoader from './ui/SkeletonLoader.vue'
 import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED } from '../config/features'
 
 const { t }        = useI18n()
+const route        = useRoute()
+const { hrNavItems } = useHrModules()
 const auth         = useAuthStore()
 const navStore     = useNavigationStore()
 const leaveStore   = useLeaveRequestStore()
@@ -242,6 +259,32 @@ const collapsed = ref(localStorage.getItem(COLLAPSE_KEY) === '1')
 function toggleCollapsed() { collapsed.value = !collapsed.value }
 watch(collapsed, (v) => localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0'))
 
+// Le mode "reduit" (icones seules) ne s'applique qu'a la barre fixe des grands
+// ecrans : dans le tiroir mobile on veut toujours les libelles.
+const desktopQuery = window.matchMedia('(min-width: 768px)')
+const isDesktop = ref(desktopQuery.matches)
+const onDesktopChange = (e: MediaQueryListEvent) => { isDesktop.value = e.matches }
+desktopQuery.addEventListener('change', onDesktopChange)
+onBeforeUnmount(() => desktopQuery.removeEventListener('change', onDesktopChange))
+const compact = computed(() => collapsed.value && isDesktop.value)
+
+// Petit ecran : chaque module est un menu repliable (on deplie "Administration"
+// pour voir ses sous-menus). Grand ecran : seul le module actif est affiche.
+const expandedModules = ref<string[]>([navStore.activeModule])
+const isExpanded = (key: string) => expandedModules.value.includes(key)
+function toggleModule(key: string) {
+  expandedModules.value = isExpanded(key)
+    ? expandedModules.value.filter(k => k !== key)
+    : [...expandedModules.value, key]
+}
+function showModule(key: string): boolean {
+  if (isDesktop.value) return navStore.activeModule === key && (key === 'administration' || hrNavItems.value.some(i => i.key === key))
+  return hrNavItems.value.some(i => i.key === key) && isExpanded(key)
+}
+
+// Le menu se referme des qu'on navigue (clic sur un sous-onglet).
+watch(() => route.fullPath, () => navStore.closeMobileMenu())
+
 // ── Classes du design system (tokens sidebar) ────────────────
 const itemClass =
   'flex items-center gap-2 py-[7px] pr-4 pl-6 text-[13px] text-muted-foreground cursor-pointer transition-colors no-underline select-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -253,11 +296,28 @@ const badgeClass =
 // ── Sub-components définis inline ────────────────────────────
 // Réfèrent `collapsed` par fermeture (même portée que le setup() parent) —
 // pas besoin de le repasser en prop sur chaque usage dans le template.
+const ModuleHeader = defineComponent({
+  props: { moduleKey: { type: String, required: true } },
+  setup(props) {
+    return () => {
+      const item = hrNavItems.value.find(i => i.key === props.moduleKey)
+      if (isDesktop.value || !item) return null
+      const open = isExpanded(props.moduleKey)
+      return h('button', {
+        type: 'button',
+        class: 'w-full flex items-center justify-between px-5 py-3 text-sm font-semibold border-b border-sidebar-border cursor-pointer select-none ' + (open ? 'text-primary' : 'text-foreground/80'),
+        'aria-expanded': String(open),
+        onClick: () => toggleModule(props.moduleKey),
+      }, [h('span', item.label), h(open ? ChevronUp : ChevronDown, { class: 'w-4 h-4 shrink-0', 'aria-hidden': 'true' })])
+    }
+  },
+})
+
 const SidebarSection = defineComponent({
   props: { label: String },
   setup(props, { slots }) {
     return () => {
-      if (collapsed.value) return h('div', { class: 'mb-1' }, slots.default?.())
+      if (compact.value) return h('div', { class: 'mb-1' }, slots.default?.())
       return h('div', { class: 'mb-1' }, [
         h('div', { class: 'text-[10px] font-bold text-muted-foreground uppercase tracking-[0.07em] pt-2 pb-1 pr-4 pl-5' }, props.label),
         slots.default?.(),
@@ -278,7 +338,7 @@ const SidebarItem = defineComponent({
     return () => {
       const iconEl  = h(props.icon, { class: 'w-4 h-4 shrink-0', 'aria-hidden': 'true' })
 
-      if (collapsed.value) {
+      if (compact.value) {
         // Réduit à un simple point (pas de chiffre, pas de place pour ça) —
         // positionné en absolu, l'item redevient donc position: relative.
         const dotEl = props.badge > 0

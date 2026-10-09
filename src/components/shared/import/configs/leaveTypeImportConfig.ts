@@ -18,7 +18,7 @@ export function buildLeaveTypeImportConfig(): ImportConfig {
 
   return {
     title: "Types d'absence",
-    intro: "Importez plusieurs types de congé/absence en une fois. La couleur est un code hexadécimal (ex: #EF463B), utilisée pour l'afficher dans le calendrier.",
+    intro: "Importez plusieurs types de congé/absence en une fois. La couleur est un code hexadécimal (ex: #2563EB), utilisée pour l'afficher dans le calendrier.",
     createEndpoint: '/leave-types',
     dependencies: [],
     columns: [
@@ -29,7 +29,7 @@ export function buildLeaveTypeImportConfig(): ImportConfig {
       { key: 'MonthlyAccrual', csvHeader: 'Acquisition mensuelle', label: 'Mensuel', required: false, type: 'boolean', sample: 'oui' },
       { key: 'DocumentRequired', csvHeader: 'Justificatif requis', label: 'Justificatif', required: false, type: 'boolean', sample: 'non' },
       { key: 'MinNoticeDays', csvHeader: 'Préavis minimum (jours)', label: 'Préavis', required: false, type: 'number', sample: '7' },
-      { key: 'Color', csvHeader: 'Couleur', label: 'Couleur', required: true, type: 'text', sample: '#EF463B' },
+      { key: 'Color', csvHeader: 'Couleur', label: 'Couleur', required: true, type: 'text', sample: '#2563EB' },
       // Ciblage d'eligibilite (demande client, 01/09) — les 3 colonnes sont
       // facultatives, laissees vides = s'applique a tout le monde, exactement
       // comme un type de conge cree sans toucher a la section Eligibilite du
@@ -42,7 +42,7 @@ export function buildLeaveTypeImportConfig(): ImportConfig {
       },
     ],
     sampleRows: [
-      { Code: 'ANNUAL', Nom: 'Congé annuel', Workflow: 'Standard (avec validation)', 'Jours par an': '30', 'Acquisition mensuelle': 'oui', 'Justificatif requis': 'non', 'Préavis minimum (jours)': '7', Couleur: '#EF463B', 'Genre concerné': '', 'Statut expatrié': '', 'Code entité': '' },
+      { Code: 'ANNUAL', Nom: 'Congé annuel', Workflow: 'Standard (avec validation)', 'Jours par an': '30', 'Acquisition mensuelle': 'oui', 'Justificatif requis': 'non', 'Préavis minimum (jours)': '7', Couleur: '#2563EB', 'Genre concerné': '', 'Statut expatrié': '', 'Code entité': '' },
       { Code: 'SICK', Nom: 'Congé maladie', Workflow: 'Médical (déclaration a posteriori)', 'Jours par an': '15', 'Acquisition mensuelle': 'non', 'Justificatif requis': 'oui', 'Préavis minimum (jours)': '0', Couleur: '#C8102E', 'Genre concerné': '', 'Statut expatrié': '', 'Code entité': '' },
     ],
     // Sans ça, un type de congé importé ne créditait aucun employé déjà en

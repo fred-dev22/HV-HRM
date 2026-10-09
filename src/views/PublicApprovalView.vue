@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-primary/10 max-[480px]:items-start max-[480px]:p-4 px-4">
+  <div class="min-h-screen flex items-center justify-center bg-page max-[480px]:items-start max-[480px]:p-4 px-4">
     <div class="bg-card rounded-xl p-10 w-full max-w-[480px] shadow-[0_2px_16px_rgba(0,0,0,0.08)] max-[480px]:p-6 max-[480px]:w-[90%] max-[480px]:my-4">
 
       <div class="flex justify-center mb-4">
-        <img src="/hv-logo.png" alt="Productive 247" class="h-14 w-auto" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-14 w-auto" />
       </div>
 
       <!-- Chargement -->
@@ -26,7 +26,7 @@
       <!-- Déjà traitée -->
       <div v-else-if="summary && summary.status === 'AlreadyDecided'" class="text-center">
         <div class="flex justify-center mb-4">
-          <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+          <div class="w-14 h-14 rounded-full bg-tint flex items-center justify-center">
             <CheckCircle2 class="w-7 h-7 text-primary" />
           </div>
         </div>

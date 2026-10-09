@@ -46,7 +46,7 @@
               v-for="n in notifStore.notifications"
               :key="n.id"
               class="relative flex gap-2.5 px-4 py-3 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-background"
-              :class="{ 'bg-primary/5': !n.read }"
+              :class="{ 'bg-tint/50': !n.read }"
               @click="handleNotifClick(n)"
             >
               <span v-if="!n.read" class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary" title="Non lue"></span>
@@ -152,14 +152,14 @@ const iconBtnClass =
 const dropdownClass =
   'absolute top-[calc(100%+8px)] right-0 bg-popover text-popover-foreground rounded-[10px] shadow-[0_4px_20px_rgba(0,0,0,0.16)] border border-border min-w-[150px] z-[200] p-1 overflow-hidden cursor-default text-left'
 const dropdownItemClass =
-  'flex items-center gap-2 px-4 py-[9px] text-[13px] cursor-pointer text-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+  'flex items-center gap-2 px-4 py-[9px] text-[13px] cursor-pointer text-foreground transition-colors hover:bg-tint hover:text-primary'
 
 // Icone + couleur par type de notification (voir NotificationService.create
 // cote backend pour la liste des types emis). "recruitment" et "reminder"
 // n'avaient pas d'entree avant (repli silencieux sur "system", gris neutre) —
 // desormais chacun a son icone et sa teinte dediees.
 const NOTIF_STYLE: Record<AppNotification['type'], { icon: Component; wrap: string }> = {
-  leave:       { icon: CalendarOff,   wrap: 'bg-primary/10 text-primary' },
+  leave:       { icon: CalendarOff,   wrap: 'bg-tint text-primary' },
   mission:     { icon: Plane,         wrap: 'bg-info-bg text-info' },
   expense:     { icon: Receipt,       wrap: 'bg-warning-bg text-warning' },
   recruitment: { icon: Briefcase,     wrap: 'bg-success-bg text-success' },

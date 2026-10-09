@@ -79,7 +79,7 @@ export function buildEmployeeImportConfig(): ImportConfig {
       { key: 'MaritalStatus', csvHeader: 'Situation matrimoniale', label: 'Situation', required: true, type: 'select', sample: 'Célibataire', options: () => MARITAL_OPTIONS },
       { key: 'IdType', csvHeader: 'Type de pièce', label: 'Type pièce', required: true, type: 'select', sample: 'CIN', options: () => ID_TYPE_OPTIONS },
       { key: 'IdNumber', csvHeader: 'Numéro de pièce', label: 'N° pièce', required: false, type: 'text', sample: '' },
-      { key: 'Email', csvHeader: 'Email', label: 'Email', required: true, type: 'text', sample: 'jean.rakoto@hv.com' },
+      { key: 'Email', csvHeader: 'Email', label: 'Email', required: true, type: 'text', sample: 'jean.rakoto@exemple.com' },
       { key: 'MobilePhone', csvHeader: 'Téléphone mobile', label: 'Mobile', required: false, type: 'text', sample: '' },
       { key: 'ContractType', csvHeader: 'Type de contrat', label: 'Contrat', required: true, type: 'select', sample: 'CDI', options: () => CONTRACT_OPTIONS },
       { key: 'HireDate', csvHeader: "Date d'embauche", label: 'Embauche', required: true, type: 'date', sample: '2024-01-15' },
@@ -111,7 +111,7 @@ export function buildEmployeeImportConfig(): ImportConfig {
     sampleRows: [
       {
         Matricule: '', Prénom: 'Jean', Nom: 'Rakoto', Genre: 'Homme', 'Date de naissance': '1990-05-12', 'Situation matrimoniale': 'Célibataire',
-        'Type de pièce': 'CIN', 'Numéro de pièce': '', Email: 'jean.rakoto@hv.com', 'Téléphone mobile': '',
+        'Type de pièce': 'CIN', 'Numéro de pièce': '', Email: 'jean.rakoto@exemple.com', 'Téléphone mobile': '',
         'Type de contrat': 'CDI', "Date d'embauche": '2024-01-15', 'Code entité': 'DG', 'Code poste': '', 'Code catégorie': '', Statut: 'Actif', 'Expatrié': 'non',
         'Créer un compte': 'non',
       },
@@ -120,7 +120,7 @@ export function buildEmployeeImportConfig(): ImportConfig {
         // existante plutot que de laisser le systeme generer EMP00x. Compte
         // coche : montre aux RH que ce champ existe et comment le remplir.
         Matricule: 'RH-2023-011', Prénom: 'Marie', Nom: 'Andria', Genre: 'Femme', 'Date de naissance': '1988-11-03', 'Situation matrimoniale': "Marié(e)",
-        'Type de pièce': 'CIN', 'Numéro de pièce': '', Email: 'marie.andria@hv.com', 'Téléphone mobile': '',
+        'Type de pièce': 'CIN', 'Numéro de pièce': '', Email: 'marie.andria@exemple.com', 'Téléphone mobile': '',
         'Type de contrat': 'CDI', "Date d'embauche": '2023-06-01', 'Code entité': 'DG', 'Code poste': '', 'Code catégorie': 'EMPLOYE', Statut: 'Actif', 'Expatrié': 'oui',
         // Categorie obligatoire des que "Créer un compte" est coche (voir
         // rowValidation plus bas) — 'EMPLOYE' existe dans le seed par defaut.

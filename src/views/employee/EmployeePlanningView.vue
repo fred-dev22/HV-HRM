@@ -5,7 +5,7 @@
           <div class="flex items-center justify-between gap-4 mb-5 flex-wrap max-md:flex-col max-md:items-start">
             <div class="flex items-center gap-3">
               <h1 class="text-xl font-bold text-foreground">Mon Planning</h1>
-              <span class="text-xs font-medium text-primary bg-primary/10 rounded-full px-3 py-[3px]">{{ monthYearLabel }}</span>
+              <span class="text-xs font-medium text-primary bg-tint rounded-full px-3 py-[3px]">{{ monthYearLabel }}</span>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
@@ -173,7 +173,7 @@ const APPROVED_LIKE_STATUSES = ['Approved', 'Registered', 'Done', 'Regularized']
 const PENDING_LIKE_STATUSES  = ['Pending', 'InApprovalN1', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4']
 
 function dayCardClass(day: DayPlanning): string {
-  if (day.date === today) return '!bg-primary/10 !border-2 !border-primary'
+  if (day.date === today) return '!bg-tint !border-2 !border-primary'
   if (day.isWorkingDay && !day.isAbsence && !day.isHoliday) return 'bg-card border-border'
   // Absence (approuvée ou en attente) : couleur portée par dayCardStyle()
   // (celle du type de congé, définie à sa création) — pas de classe fixe ici.

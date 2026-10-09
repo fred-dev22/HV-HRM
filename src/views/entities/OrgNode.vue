@@ -118,20 +118,20 @@ const typeIcon = computed(() => {
 // Accent bordure gauche selon le niveau (couleurs organigramme HV)
 const cardBorder = computed(() => {
   const map: Record<string, string> = {
-    Direction:  '4px solid var(--hv-direction-bg)',
-    Department: '3px solid var(--hv-department-bg)',
-    Service:    '2px solid var(--hv-service-border)',
+    Direction:  '4px solid var(--brand-direction-bg)',
+    Department: '3px solid var(--brand-department-bg)',
+    Service:    '2px solid var(--brand-service-border)',
   }
   return { borderLeft: map[props.entity.type] ?? '2px solid var(--color-border)' }
 })
 
 const typeColor = computed(() => {
   const map: Record<string, { background: string; color: string }> = {
-    Direction:  { background: 'var(--hv-maroon-light)', color: 'var(--hv-maroon)' },
-    Department: { background: 'var(--hv-red-light)',    color: 'var(--hv-red)' },
-    Service:    { background: 'var(--hv-red-light)',    color: 'var(--hv-red)' },
+    Direction:  { background: 'var(--brand-accent-light)', color: 'var(--brand-accent)' },
+    Department: { background: 'var(--brand-primary-light)',    color: 'var(--brand-primary)' },
+    Service:    { background: 'var(--brand-primary-light)',    color: 'var(--brand-primary)' },
   }
-  return map[props.entity.type] ?? { background: 'var(--hv-red-light)', color: 'var(--hv-red)' }
+  return map[props.entity.type] ?? { background: 'var(--brand-primary-light)', color: 'var(--brand-primary)' }
 })
 
 // ── Status helpers ────────────────────────────────────────────
@@ -164,7 +164,7 @@ function approveEntity() { store.approveEntity(props.entity.id) }
 .org-children {
   margin-left: 32px;
   padding-left: 22px;
-  border-left: 2px solid var(--hv-red-mid);
+  border-left: 2px solid var(--brand-primary-mid);
   margin-top: 6px;
   padding-bottom: 2px;
 }
@@ -179,7 +179,7 @@ function approveEntity() { store.approveEntity(props.entity.id) }
   top: 22px;
   width: 22px;
   height: 2px;
-  background: var(--hv-red-mid);
+  background: var(--brand-primary-mid);
 }
 .org-child:last-child::after {
   content: '';

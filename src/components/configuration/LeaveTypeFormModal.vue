@@ -25,7 +25,7 @@ const isEdit = computed(() => !!props.editId)
 const error  = ref('')
 
 const COLOR_OPTIONS = [
-  '#EF463B','#C8102E','#993556','#185FA5',
+  '#2563EB','#C8102E','#993556','#185FA5',
   '#854F0B','#8A5A0A','#2D7A3F','#5C3B8A',
 ]
 
@@ -40,8 +40,9 @@ const form = reactive({
   workflowType:     'Standard' as 'Standard' | 'Medical',
   isActive:         true,
   isSystem:         false,
-  color:            '#EF463B',
+  color:            '#2563EB',
   countCalendarDays: false,
+  blockIfInsufficientBalance: true,
 })
 // Ciblage d'eligibilite (voir EligibilityFields.vue) : champs texte ('',
 // 'M'/'F', 'true'/'false', id d'entite) comme tout autre select optionnel de
@@ -89,6 +90,7 @@ function populate() {
       form.isSystem         = lt.isSystem
       form.color            = lt.color
       form.countCalendarDays = lt.countCalendarDays ?? false
+      form.blockIfInsufficientBalance = lt.blockIfInsufficientBalance ?? true
       appliesToGenderText.value = lt.appliesToGender ?? ''
       appliesToExpatriateText.value = lt.appliesToExpatriate === undefined || lt.appliesToExpatriate === null ? '' : String(lt.appliesToExpatriate)
       organizationUnitIdText.value = lt.organizationUnitId ?? ''
@@ -97,7 +99,7 @@ function populate() {
     Object.assign(form, {
       name:'', code:'', daysPerYear:0, monthlyAccrual:false,
       noticeDays:0, documentRequired:false, documentDeadlineDays:undefined, workflowType:'Standard',
-      isActive:true, isSystem:false, color:'#EF463B', countCalendarDays:false,
+      isActive:true, isSystem:false, color:'#2563EB', countCalendarDays:false, blockIfInsufficientBalance:true,
     })
     appliesToGenderText.value = ''
     appliesToExpatriateText.value = ''
@@ -135,6 +137,7 @@ async function handleSave() {
     isSystem:         form.isSystem,
     color:            form.color,
     countCalendarDays: form.countCalendarDays,
+    blockIfInsufficientBalance: form.blockIfInsufficientBalance,
     appliesToGender:     appliesToGenderText.value ? (appliesToGenderText.value as 'M' | 'F') : undefined,
     appliesToExpatriate: appliesToExpatriateText.value === '' ? undefined : appliesToExpatriateText.value === 'true',
     organizationUnitId:  organizationUnitIdText.value || undefined,
@@ -196,6 +199,20 @@ async function handleSave() {
                 <p class="text-[11px] text-muted-foreground">
                   <template v-if="form.countCalendarDays">Tous les jours du calendrier comptent (week-ends et fériés inclus), ex: Convalescence Maladie.</template>
                   <template v-else>Seuls les jours ouvrés comptent (week-ends et fériés exclus) - comportement standard.</template>
+                </p>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <div class="flex items-center justify-between">
+                  <span :class="cls.fieldLabel">Bloquer si solde insuffisant</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer" v-model="form.blockIfInsufficientBalance" />
+                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-muted-foreground">
+                  <template v-if="form.blockIfInsufficientBalance">La demande ne peut pas être soumise si le solde ne couvre pas les jours demandés (le brouillon reste possible).</template>
+                  <template v-else>La demande part quand même, le validateur voit l'avertissement de solde insuffisant.</template>
+                  Sans effet si le type n'a pas de quota (jours par an = 0).
                 </p>
               </div>
               <div :class="[cls.field, 'col-span-2 max-sm:col-span-1']">

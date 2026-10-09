@@ -17,7 +17,7 @@
     <div v-else class="border border-border rounded-lg overflow-hidden">
       <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr class="bg-primary/10 text-xs">
+          <tr class="bg-tint text-xs">
             <th class="text-left font-semibold px-3 py-2">Canal</th>
             <th class="text-left font-semibold px-3 py-2">Statut</th>
             <th class="text-left font-semibold px-3 py-2 max-sm:hidden">Détail</th>

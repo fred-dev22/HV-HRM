@@ -30,7 +30,7 @@
     <template #above-table>
       <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Briefcase class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ jobOfferStore.items.length }}</div><div :class="kpiLbl">Total</div></div>
         </div>
         <div :class="kpiItem">
@@ -75,7 +75,7 @@
     <!-- Cellules -->
     <template #cell-title="{ item }"><span class="font-medium text-foreground text-xs truncate">{{ item.title }}</span></template>
     <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName }}</span></template>
-    <template #cell-contractType="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ item.contractType }}</span></template>
+    <template #cell-contractType="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ item.contractType }}</span></template>
     <template #cell-location="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.location }}</span></template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
     <template #cell-views="{ item }"><span class="text-xs font-medium tabular-nums">{{ item.views }}</span></template>

@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-primary/10 max-[480px]:items-start max-[480px]:p-4 px-4">
+  <div class="min-h-screen flex items-center justify-center bg-page max-[480px]:items-start max-[480px]:p-4 px-4">
     <div class="bg-card rounded-xl p-10 w-full max-w-[480px] shadow-[0_2px_16px_rgba(0,0,0,0.08)] max-[480px]:p-6 max-[480px]:w-[90%] max-[480px]:my-4">
 
       <div class="flex justify-center mb-4">
-        <img src="/hv-logo.png" alt="Productive 247" class="h-14 w-auto" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-14 w-auto" />
       </div>
 
       <!-- Chargement -->
@@ -129,7 +129,7 @@ function responseLabel(r: string): string {
 function btn(target: string, highlight = false): string {
   const base = 'w-full h-11 rounded-lg text-sm font-semibold cursor-pointer inline-flex items-center justify-center gap-2 border transition-colors'
   const active = summary.value?.currentResponse === target || highlight
-  return `${base} ${active ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-background text-foreground hover:border-primary/40'}`
+  return `${base} ${active ? 'border-primary bg-tint/50 text-primary' : 'border-border bg-background text-foreground hover:border-primary/40'}`
 }
 
 onMounted(async () => {

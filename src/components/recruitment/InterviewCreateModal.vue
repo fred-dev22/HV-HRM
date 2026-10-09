@@ -125,7 +125,7 @@ if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
 if (applicationStore.items.length === 0) applicationStore.fetchAll()
 
 const modeBtn = 'flex-1 h-[38px] px-2.5 rounded-md border border-border bg-background text-muted-foreground text-[13px] font-medium cursor-pointer inline-flex items-center justify-center gap-1.5 transition-colors hover:text-foreground'
-const modeBtnActive = '!bg-primary/10 !text-primary !border-primary/30'
+const modeBtnActive = '!bg-tint !text-primary !border-primary/30'
 
 // Non filtree par statut (contrairement au selecteur libre ci-dessous) : un
 // candidat deja "InterviewScheduled" peut tres bien avoir besoin d'un

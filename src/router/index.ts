@@ -416,7 +416,7 @@ router.beforeEach(async (to) => {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 
-    if (!RECRUITMENT_MODULE_ENABLED && (to.path.startsWith(RECRUITMENT_MODULE_PATH_PREFIX) || to.name === 'employee-internal-applications')) {
+    if (!RECRUITMENT_MODULE_ENABLED && (to.path.startsWith(RECRUITMENT_MODULE_PATH_PREFIX) || to.name === 'employee-internal-applications' || to.name === 'hr-needs')) {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 

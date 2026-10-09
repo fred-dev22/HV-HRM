@@ -1,12 +1,12 @@
 <template>
-  <div class="min-h-screen bg-primary/10">
+  <div class="min-h-screen bg-page">
     <div class="bg-gradient-to-b from-primary to-primary/85 px-6 py-12 flex flex-col items-center text-center">
       <div class="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] mb-5">
-        <img src="/hv-logo.png" alt="Productive 247" class="h-10 w-auto" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-10 w-auto" />
       </div>
       <h1 class="text-[26px] font-bold text-primary-foreground">Rejoignez nos équipes</h1>
       <p class="text-[13px] text-primary-foreground/80 mt-1.5 max-w-md">
-        Découvrez les offres d'emploi actuellement ouvertes chez HV et postulez en quelques clics.
+        Découvrez les offres d'emploi actuellement ouvertes chez {{ $brand.shortName }} et postulez en quelques clics.
       </p>
     </div>
 
@@ -33,7 +33,7 @@
                 <span v-if="offer.salaryText" class="inline-flex items-center gap-1"><Coins class="w-3.5 h-3.5 shrink-0" /> {{ offer.salaryText }}</span>
               </div>
             </div>
-            <span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+            <span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-tint text-primary whitespace-nowrap">
               <Briefcase class="w-3 h-3" /> {{ offer.contractType }}
             </span>
           </div>

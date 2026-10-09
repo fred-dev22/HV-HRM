@@ -152,7 +152,7 @@ async function saveDraft() {
             </div>
             <div :class="[cls.field, 'col-span-full']">
               <label :class="cls.fieldLabel">Email</label>
-              <input type="email" v-model="form.email" :class="cls.fieldInput" placeholder="service@hv.com" />
+              <input type="email" v-model="form.email" :class="cls.fieldInput" placeholder="service@exemple.com" />
             </div>
           </div>
           </FormSection>

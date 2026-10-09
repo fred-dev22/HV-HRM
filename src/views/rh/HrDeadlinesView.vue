@@ -28,7 +28,7 @@
         <button
           v-for="c in CATEGORY_KEYS" :key="c"
           class="text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors"
-          :class="activeCats.has(c) ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40'"
+          :class="activeCats.has(c) ? 'border-primary bg-tint text-primary' : 'border-border text-muted-foreground hover:border-primary/40'"
           @click="toggleCat(c)"
         >
           {{ CATEGORY_LABELS[c] }}
@@ -53,7 +53,7 @@
             <tbody>
               <tr v-for="d in group.items" :key="d.category + d.entityId + d.date" :class="L.rowHover">
                 <td :class="L.td" class="w-9">
-                  <span class="w-7 h-7 rounded-full flex items-center justify-center" :class="d.category === 'birthday' ? 'bg-success-bg text-success' : 'bg-primary/10 text-primary'">
+                  <span class="w-7 h-7 rounded-full flex items-center justify-center" :class="d.category === 'birthday' ? 'bg-success-bg text-success' : 'bg-tint text-primary'">
                     <component :is="iconFor(d.category)" class="w-3.5 h-3.5" />
                   </span>
                 </td>

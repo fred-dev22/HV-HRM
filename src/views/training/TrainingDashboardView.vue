@@ -24,7 +24,7 @@
         <div><div :class="kpiVal">{{ courseStore.inPreparationCount }}</div><div :class="kpiLbl">Formations planifiées</div></div>
       </div>
       <div :class="kpiItem">
-        <div :class="kpiIcon" class="bg-primary/10"><Coins class="w-[18px] h-[18px] text-primary" /></div>
+        <div :class="kpiIcon" class="bg-tint"><Coins class="w-[18px] h-[18px] text-primary" /></div>
         <div><div :class="kpiVal">{{ formatMga(budgetStore.totalUsed) }}</div><div :class="kpiLbl">Budget utilisé ({{ budgetUsedPct }}%)</div></div>
       </div>
     </div>

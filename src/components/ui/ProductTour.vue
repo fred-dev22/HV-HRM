@@ -93,7 +93,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
       <!-- Bulle descriptive -->
       <div class="absolute w-80 bg-card border border-border rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.24)] p-4 flex flex-col gap-2.5" :style="tooltipStyle">
         <div class="flex items-start justify-between gap-2">
-          <span class="text-[11px] font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">{{ stepIndex + 1 }}/{{ steps.length }}</span>
+          <span class="text-[11px] font-bold text-primary bg-tint rounded-full px-2 py-0.5">{{ stepIndex + 1 }}/{{ steps.length }}</span>
           <button class="text-muted-foreground hover:text-foreground cursor-pointer shrink-0" @click="skip" title="Fermer">
             <X class="w-4 h-4" />
           </button>

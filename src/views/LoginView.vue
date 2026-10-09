@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-primary/10 max-[480px]:items-start max-[480px]:p-4">
+  <div class="min-h-screen flex items-center justify-center bg-page max-[480px]:items-start max-[480px]:p-4">
     <div class="bg-card rounded-xl p-10 w-full max-w-[420px] shadow-[0_2px_16px_rgba(0,0,0,0.08)] max-[480px]:p-6 max-[480px]:w-[90%] max-[480px]:my-4">
 
       <div class="flex justify-center mb-4">
-        <img src="/hv-logo.png" alt="Productive 247" class="h-14 w-auto" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-14 w-auto" />
       </div>
 
       <h1 class="text-[22px] font-bold text-foreground text-center mb-2">{{ t('login.title') }}</h1>
@@ -15,7 +15,7 @@
           id="email"
           v-model="email"
           type="email"
-          placeholder="prenom.nom@hv.com"
+          placeholder="prenom.nom@exemple.com"
           autocomplete="email"
           :class="inputClass"
         />
@@ -70,10 +70,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Eye, EyeOff, ArrowRight } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import { getApiErrorMessage } from '../lib/api'
 
 const router = useRouter()
 const auth   = useAuthStore()
@@ -87,7 +89,7 @@ const error        = ref('')
 
 // ── Classes du design system ─────────────────────────────────
 const labelClass = 'block text-[13px] font-medium text-foreground mb-1.5'
-const inputClass = 'w-full h-12 px-3 border border-border rounded-lg text-sm bg-primary/10 text-foreground outline-none transition-colors focus:border-primary focus:bg-card'
+const inputClass = 'w-full h-12 px-3 border border-border rounded-lg text-sm bg-tint text-foreground outline-none transition-colors focus:border-primary focus:bg-card'
 
 async function handleLogin() {
   if (!email.value || !password.value) {
@@ -98,9 +100,15 @@ async function handleLogin() {
   loading.value = true
   try {
     await auth.login(email.value, password.value)
-    router.push(auth.isHRSpace ? { name: 'hr-dashboard' } : { name: 'employee-dashboard' })
-  } catch {
-    error.value = t('login.error_invalid')
+    await router.push(auth.isHRSpace ? { name: 'hr-dashboard' } : { name: 'employee-dashboard' })
+  } catch (err) {
+    // Identifiants : uniquement 401 sur le POST login. Toute autre erreur
+    // (hydratation post-login, permissions, etc.) doit afficher le vrai message.
+    if (axios.isAxiosError(err) && err.response?.status === 401) {
+      error.value = t('login.error_invalid')
+    } else {
+      error.value = getApiErrorMessage(err, t('login.error_session'))
+    }
   } finally {
     loading.value = false
   }

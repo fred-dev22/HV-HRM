@@ -2,43 +2,49 @@
 
 /*
  * Design system P247 — tokens alignés sur P247_FD_LWL_APP/src/style.css,
- * thème "Rouge HV" (le frontdesk LWL est en orange, seul --color-primary
+ * thème neutre par défaut (bleu) : la marque du client est appliquée au démarrage (src/config/appConfig.ts) depuis BRAND_PRIMARY_COLOR / BRAND_ACCENT_COLOR. Seul --color-primary
  * et ses dérivés changent — la structure des tokens est identique).
  *
  * `static` : émet tous les tokens même non référencés — indispensable tant
  * que des <style scoped> legacy consomment les variables via var().
  */
 @theme static {
-  /* Red Professional Theme Colors (HV) */
-  --color-background: oklch(97.5% 0.005 25);
-  --color-foreground: oklch(15% 0.01 25);
+  /* Couleurs du thème (valeurs neutres, remplacées par la marque du client) */
+  --color-background: oklch(97.5% 0.003 260);
+  /* Fond des pages d'acces (connexion, pages publiques, onboarding). Neutre par defaut ;
+     BRAND_BACKGROUND_COLOR le remplace pour un client. */
+  --color-page: #f3f4f6;
+  /* Surface legerement teintee (en-tetes de tableau, selections, champs de saisie).
+     Gris neutre par defaut ; BRAND_TINT_COLOR la remplace pour un client. */
+  --color-tint: #eef1f5;
+  --color-foreground: oklch(15% 0.01 260);
 
   --color-card: oklch(100% 0 0);
-  --color-card-foreground: oklch(11% 0.02 25);
+  --color-card-foreground: oklch(11% 0.02 260);
 
   --color-popover: oklch(100% 0 0);
-  --color-popover-foreground: oklch(11% 0.02 25);
+  --color-popover-foreground: oklch(11% 0.02 260);
 
-  /* Primary Red — rouge HV #EF463B */
-  --color-primary: #ef463b;
+  /* Couleur principale (BRAND_PRIMARY_COLOR) */
+  --color-primary: #2563eb;
   --color-primary-foreground: oklch(100% 0 0);
 
-  --color-secondary: oklch(89% 0.015 25);
-  --color-secondary-foreground: oklch(11% 0.02 25);
+  --color-secondary: oklch(89% 0.015 260);
+  --color-secondary-foreground: oklch(11% 0.02 260);
 
-  --color-muted: oklch(93% 0.01 25);
-  --color-muted-foreground: oklch(47% 0.015 25);
+  --color-muted: oklch(93% 0.01 260);
+  --color-muted-foreground: oklch(47% 0.015 260);
 
-  --color-accent: oklch(93% 0.01 25);
-  --color-accent-foreground: oklch(11% 0.02 25);
+  --color-accent: oklch(93% 0.01 260);
+  --color-accent-foreground: oklch(11% 0.02 260);
 
-  /* Destructive — bordeaux distinct du rouge primaire (accent HV #7A1F1F) */
-  --color-destructive: #7a1f1f;
+  /* Destructive / accent (BRAND_ACCENT_COLOR), distinct de la couleur principale */
+  --color-destructive: #1e3a5f;
   --color-destructive-foreground: oklch(100% 0 0);
 
-  --color-border: oklch(88% 0.01 25);
-  --color-input: oklch(88% 0.01 25);
-  --color-ring: #ef463b;
+  --color-border: oklch(88% 0.01 260);
+  --color-input: oklch(88% 0.01 260);
+  --color-ring: #2563eb;
 
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
@@ -53,9 +59,9 @@
   --color-header: #1a1a1a;
   --color-header-foreground: oklch(100% 0 0);
   --color-nav: oklch(100% 0 0);
-  --color-nav-foreground: oklch(11% 0.02 25);
-  --color-nav-hover: oklch(93% 0.01 25);
-  --color-nav-active: #ef463b;
+  --color-nav-foreground: oklch(11% 0.02 260);
+  --color-nav-hover: oklch(93% 0.01 260);
+  --color-nav-active: #2563eb;
 
   /* Cue colors */
   --color-cue-blue: oklch(65% 0.25 240);
@@ -68,14 +74,14 @@
   /* Status colors (extension HRM — pills, badges, alertes)
    * Retour client du 19/09 : succès reprenait jusqu'ici le rouge de marque,
    * confondu avec les erreurs (danger) dans les toasts. Vert standard
-   * (independant de la charte HV) pour que succès/erreur restent lisibles
+   * (independant de la charte du client) pour que succès/erreur restent lisibles
    * au premier coup d'oeil, quelle que soit la couleur de marque du client. */
   --color-success: #1f7a4d;
   --color-success-bg: #e5f3ea;
   --color-warning: #8a5a0a;
   --color-warning-bg: #fef5e1;
-  --color-danger: #7a1f1f;
-  --color-danger-bg: #f1e2df;
+  --color-danger: #1e3a5f;
+  --color-danger-bg: #e4e7ec;
   --color-info: #185fa5;
   --color-info-bg: #e6f1fb;
   --color-neutral: #6b6b68;
@@ -83,16 +89,16 @@
 
   /* Sidebar colors */
   --color-sidebar: oklch(100% 0 0);
-  --color-sidebar-foreground: oklch(11% 0.02 25);
-  --color-sidebar-primary: #ef463b;
+  --color-sidebar-foreground: oklch(11% 0.02 260);
+  --color-sidebar-primary: #2563eb;
   --color-sidebar-primary-foreground: oklch(100% 0 0);
-  --color-sidebar-accent: #fdeae8;
-  --color-sidebar-accent-foreground: #ef463b;
-  --color-sidebar-border: oklch(88% 0.01 25);
-  --color-sidebar-ring: #ef463b;
+  --color-sidebar-accent: #eef1f5;
+  --color-sidebar-accent-foreground: #2563eb;
+  --color-sidebar-border: oklch(88% 0.01 260);
+  --color-sidebar-ring: #2563eb;
 
   /* Chart colors */
-  --color-chart-1: #ef463b;
+  --color-chart-1: #2563eb;
   --color-chart-2: oklch(65% 0.25 240);
   --color-chart-3: oklch(70% 0.2 85);
   --color-chart-4: oklch(68% 0.23 55);
@@ -108,44 +114,44 @@
   }
 
   .dark {
-    --color-background: oklch(8% 0.02 25);
-    --color-foreground: oklch(98% 0.01 25);
+    --color-background: oklch(8% 0.02 260);
+    --color-foreground: oklch(98% 0.01 260);
 
-    --color-card: oklch(11% 0.02 25);
-    --color-card-foreground: oklch(98% 0.01 25);
+    --color-card: oklch(11% 0.02 260);
+    --color-card-foreground: oklch(98% 0.01 260);
 
-    --color-popover: oklch(11% 0.02 25);
-    --color-popover-foreground: oklch(98% 0.01 25);
+    --color-popover: oklch(11% 0.02 260);
+    --color-popover-foreground: oklch(98% 0.01 260);
 
-    --color-primary: oklch(65% 0.19 25);
-    --color-primary-foreground: oklch(11% 0.02 25);
+    --color-primary: oklch(65% 0.19 262);
+    --color-primary-foreground: oklch(11% 0.02 260);
 
-    --color-secondary: oklch(17% 0.02 25);
-    --color-secondary-foreground: oklch(98% 0.01 25);
+    --color-secondary: oklch(17% 0.02 260);
+    --color-secondary-foreground: oklch(98% 0.01 260);
 
-    --color-muted: oklch(17% 0.02 25);
-    --color-muted-foreground: oklch(65% 0.015 25);
+    --color-muted: oklch(17% 0.02 260);
+    --color-muted-foreground: oklch(65% 0.015 260);
 
-    --color-accent: oklch(17% 0.02 25);
-    --color-accent-foreground: oklch(98% 0.01 25);
+    --color-accent: oklch(17% 0.02 260);
+    --color-accent-foreground: oklch(98% 0.01 260);
 
-    --color-destructive: oklch(40% 0.12 20);
-    --color-destructive-foreground: oklch(98% 0.01 25);
+    --color-destructive: oklch(35% 0.07 255);
+    --color-destructive-foreground: oklch(98% 0.01 260);
 
-    --color-border: oklch(17% 0.02 25);
-    --color-input: oklch(17% 0.02 25);
-    --color-ring: oklch(70% 0.19 25);
+    --color-border: oklch(17% 0.02 260);
+    --color-input: oklch(17% 0.02 260);
+    --color-ring: oklch(70% 0.19 262);
 
-    --color-sidebar: oklch(11% 0.02 25);
-    --color-sidebar-foreground: oklch(98% 0.01 25);
-    --color-sidebar-primary: oklch(70% 0.19 25);
-    --color-sidebar-primary-foreground: oklch(11% 0.02 25);
-    --color-sidebar-accent: oklch(17% 0.02 25);
-    --color-sidebar-accent-foreground: oklch(98% 0.01 25);
-    --color-sidebar-border: oklch(17% 0.02 25);
-    --color-sidebar-ring: oklch(70% 0.19 25);
+    --color-sidebar: oklch(11% 0.02 260);
+    --color-sidebar-foreground: oklch(98% 0.01 260);
+    --color-sidebar-primary: oklch(70% 0.19 262);
+    --color-sidebar-primary-foreground: oklch(11% 0.02 260);
+    --color-sidebar-accent: oklch(17% 0.02 260);
+    --color-sidebar-accent-foreground: oklch(98% 0.01 260);
+    --color-sidebar-border: oklch(17% 0.02 260);
+    --color-sidebar-ring: oklch(70% 0.19 262);
 
-    --color-chart-1: oklch(70% 0.19 25);
+    --color-chart-1: oklch(70% 0.19 262);
     --color-chart-2: oklch(65% 0.25 240);
     --color-chart-3: oklch(70% 0.2 85);
     --color-chart-4: oklch(68% 0.23 55);
@@ -154,31 +160,31 @@
 }
 
 /*
- * ── Palette de marque HV (hors @theme) ──────────────────────────────
+ * ── Palette de marque (hors @theme) ──────────────────────────────
  * Couleurs de marque brutes consommées par les composants qui gardent
  * du CSS scoped : l'organigramme (OrgChartView/OrgChartTree/OrgNode),
  * les avatars (UserAvatar) et l'onboarding. Le @theme ci-dessus reste
  * la source des tokens sémantiques ; ce bloc ne porte que l'identité
- * visuelle HV qui n'a pas d'équivalent token sémantique.
+ * visuelle du client qui n'a pas d'équivalent token sémantique.
  */
 :root {
-  --hv-red: #ef463b;
-  --hv-red-dark: #c2352b;
-  --hv-red-light: #fdeae8;
-  --hv-red-mid: #f7beb8;
+  --brand-primary: #2563eb;
+  --brand-primary-dark: #1e4fbc;
+  --brand-primary-light: #eef1f5;
+  --brand-primary-mid: #b3c8f8;
 
-  --hv-maroon: #7a1f1f;
-  --hv-maroon-light: #f1e2df;
+  --brand-accent: #1e3a5f;
+  --brand-accent-light: #e4e7ec;
 
-  --hv-white: #ffffff;
+  --brand-white: #ffffff;
 
   /* Niveaux organigramme */
-  --hv-direction-bg: #7a1f1f;
-  --hv-department-bg: #ef463b;
-  --hv-service-border: #ef463b;
+  --brand-direction-bg: #1e3a5f;
+  --brand-department-bg: #2563eb;
+  --brand-service-border: #2563eb;
 
-  /* Rouge clair primaire (halos / hovers de l'organigramme & onboarding) */
-  --color-primary-light: var(--hv-red-light);
+  /* Teinte claire primaire (halos / hovers de l'organigramme & onboarding) */
+  --color-primary-light: var(--brand-primary-light);
 
   /* Lignes de connexion de l'organigramme */
   --color-tree-line: rgba(0, 0, 0, 0.2);

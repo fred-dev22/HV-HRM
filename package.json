@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "client:hv": "node scripts/client.mjs hv",
+    "client:reset": "node scripts/client.mjs reset",
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
@@ -27,7 +29,8 @@
     "vue": "^3.5.32",
     "vue-i18n": "^9.14.5",
     "vue-router": "^5.0.4",
-    "vue3-org-chart": "^0.2.5"
+    "vue3-org-chart": "^0.2.5",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

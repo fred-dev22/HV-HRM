@@ -316,7 +316,7 @@ const interimCandidates = computed(() => empStore.employees.filter(x => x.hasAcc
       <div v-else class="flex flex-col gap-2">
         <div v-for="level in ([1, 2, 3, 4] as const)" :key="level" class="flex flex-col gap-1.5 px-3 py-2 bg-background rounded-lg border border-border">
           <div class="flex items-center gap-2.5">
-            <span class="text-[11px] font-bold px-2.5 py-[3px] rounded-full bg-primary/10 text-primary shrink-0">N+{{ level }}</span>
+            <span class="text-[11px] font-bold px-2.5 py-[3px] rounded-full bg-tint text-primary shrink-0">N+{{ level }}</span>
 
             <template v-if="memberAt(level)">
               <span class="flex-1 text-[13px]">{{ employeeLabel(memberAt(level)!.employeeId) }}</span>

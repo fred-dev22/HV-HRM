@@ -184,7 +184,7 @@ async function saveDraft() {
 
           <!-- Bénéficiaire -->
           <FormSection title="Bénéficiaire">
-          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" />
+          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" :can-create-for-others="auth.hasPermission('MISSION_CREER_POUR_AUTRE')" />
           <div v-if="selectedEmployee" class="flex items-center gap-2.5 mt-3 mb-4 px-3.5 py-2.5 bg-background border border-border rounded-lg">
             <UserAvatar :name="selectedEmployee.name" size="sm" />
             <div>
@@ -285,7 +285,7 @@ async function saveDraft() {
             </div>
           </div>
           <button
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer border border-dashed border-border bg-transparent text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:bg-primary/10"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer border border-dashed border-border bg-transparent text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:bg-tint"
             @click="addLine"
           >
             <Plus class="w-3.5 h-3.5" /> Ajouter un frais

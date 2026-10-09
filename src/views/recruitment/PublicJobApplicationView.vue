@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-primary/10 flex flex-col items-center py-10 px-4">
+  <div class="min-h-screen bg-page flex flex-col items-center py-10 px-4">
     <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.1)] mb-6">
-      <img src="/hv-logo.png" alt="Productive 247" class="h-9 w-auto" />
+      <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-9 w-auto" />
     </div>
 
     <!-- Offre introuvable / non publiee -->
@@ -44,7 +44,7 @@
       <div class="bg-card rounded-2xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
         <div class="flex items-start justify-between gap-3">
           <h1 class="text-[20px] font-bold text-foreground">{{ offer.title }}</h1>
-          <span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+          <span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-tint text-primary whitespace-nowrap">
             <Briefcase class="w-3 h-3" /> {{ offer.contractType }}
           </span>
         </div>
@@ -79,12 +79,12 @@
 
             <label
               class="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-xl py-7 px-4 text-center transition-colors cursor-pointer"
-              :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-background'"
+              :class="dragOver ? 'border-primary bg-tint/50' : 'border-border hover:border-primary/40 hover:bg-background'"
               @dragover.prevent="dragOver = true"
               @dragleave.prevent="dragOver = false"
               @drop.prevent="onDrop"
             >
-              <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvFile ? 'bg-success-bg' : 'bg-primary/10'">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvFile ? 'bg-success-bg' : 'bg-tint'">
                 <FileCheck2 v-if="cvFile" class="w-4.5 h-4.5 text-success" />
                 <UploadCloud v-else class="w-4.5 h-4.5 text-primary" />
               </div>

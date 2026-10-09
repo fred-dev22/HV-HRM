@@ -47,7 +47,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const editorEl = ref<HTMLDivElement | null>(null)
 const toolBtn = 'w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer transition-colors'
-const toolBtnActive = '!bg-primary/10 !text-primary'
+const toolBtnActive = '!bg-tint !text-primary'
 const sizeSelect = 'h-7 px-1.5 rounded border border-border bg-background text-[12px] text-foreground cursor-pointer'
 
 const active = reactive({ bold: false, italic: false, underline: false })

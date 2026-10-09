@@ -72,7 +72,7 @@
 
               <!-- Portée actuelle — mise en évidence explicite du choix actif -->
               <div class="flex items-center gap-2 mt-2.5 px-3.5 py-2 rounded-lg text-[12.5px] font-medium"
-                   :class="scope === 'global' ? 'bg-success-bg text-success border border-success/30' : 'bg-primary/10 text-primary border border-primary/30'">
+                   :class="scope === 'global' ? 'bg-success-bg text-success border border-success/30' : 'bg-tint text-primary border border-primary/30'">
                 <component :is="scope === 'global' ? Globe : Tag" class="w-4 h-4 shrink-0" />
                 <span v-if="scope === 'global'">Portée actuelle : <strong>Calendrier global</strong> (s'applique à tous les employés sans calendrier dédié)</span>
                 <span v-else-if="selectedCategoryId">Portée actuelle : catégorie <strong>{{ selectedCategoryName }}</strong> ({{ currentCategoryDedicatedId ? 'calendrier dédié' : 'suit encore le calendrier global' }})</span>
@@ -622,14 +622,14 @@ async function saveWorkingDays() {
 const tabBtn = 'flex items-center gap-1.5 px-[18px] py-2.5 text-[13px] font-medium text-muted-foreground bg-transparent border-0 border-b-2 border-transparent cursor-pointer whitespace-nowrap transition-colors hover:text-foreground'
 const tabActive = '!text-primary !border-primary'
 const scopeBtn = 'inline-flex items-center gap-1.5 px-3.5 py-2 h-9 rounded-md text-[13px] font-medium border border-border bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-card hover:text-foreground'
-const scopeActive = '!bg-primary/10 !text-primary !border-primary'
+const scopeActive = '!bg-tint !text-primary !border-primary'
 const sectionCard = 'bg-card border border-border rounded-[10px] p-5 mb-4'
 const sectionHeader = 'flex items-center justify-between mb-4 gap-3 flex-wrap'
 const dataTable = 'w-full border-collapse text-[13px]'
 const th = 'text-left px-3 py-2 text-[11px] font-bold text-muted-foreground uppercase tracking-[0.06em] bg-background border-b border-border'
 const td = 'px-3 py-2.5 border-b border-border text-foreground'
 const dateBadge = 'text-xs font-medium bg-background border border-border rounded px-2 py-0.5 mr-1.5'
-const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary'
+const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-tint hover:text-primary'
 const ruleInput = 'w-[60px] h-7 px-1.5 text-center border border-border rounded bg-background text-xs text-foreground outline-none focus:border-primary'
 const toggleTrack = "w-8 h-[18px] rounded-full bg-border transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[16px]"
 

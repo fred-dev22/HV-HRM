@@ -38,7 +38,7 @@
         <div
           v-for="p in filterPresets" :key="p.value"
           class="text-[13px] text-foreground px-2 py-1.5 rounded-md cursor-pointer hover:bg-background"
-          :class="{ '!text-primary font-medium bg-primary/10': activePreset === p.value }"
+          :class="{ '!text-primary font-medium bg-tint': activePreset === p.value }"
           @click="activePreset = p.value"
         >{{ p.label }}</div>
       </div>

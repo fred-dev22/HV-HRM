@@ -1,7 +1,7 @@
 {
   "nav": {
     "app_name": "Productive 247 HRM",
-    "company": "HV",
+    "company": "HRM",
     "admin": "Administration",
     "recruitment": "Recruitment",
     "training": "Training",
@@ -11,8 +11,8 @@
     "my_absences": "My Absences",
     "my_missions": "My Missions",
     "my_documents": "My Documents",
-    "context_rh": "HR · HV",
-    "context_employee": "EMPLOYEE · HV"
+    "context_rh": "HR · HRM",
+    "context_employee": "EMPLOYEE · HRM"
   },
   "topbar": {
     "search_placeholder": "Search...",
@@ -31,6 +31,7 @@
     "loading": "Signing in…",
     "error_fields": "Please fill in all fields.",
     "error_invalid": "Invalid email or password.",
+    "error_session": "Sign-in succeeded, but your session could not be loaded. Try again or contact support.",
     "forgot_password": "Forgot your password?",
     "forgot_password_message": "Contact your HR administrator to reset your password."
   },
@@ -234,7 +235,7 @@
     "placeholder_first": "e.g. Aminata",
     "placeholder_last": "e.g. Diallo",
     "placeholder_code": "EMP001",
-    "placeholder_email": "first.last@hv.com",
+    "placeholder_email": "first.last@exemple.com",
     "placeholder_phone": "+230 5xx xxxx",
     "placeholder_job": "e.g. HR Assistant",
     "placeholder_position": "Position code",

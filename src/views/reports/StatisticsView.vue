@@ -34,7 +34,7 @@
             </div>
           </div>
           <div v-if="MISSIONS_EXPENSES_ENABLED" :class="kpiCard">
-            <div :class="kpiIcon" class="bg-primary/10"><Plane class="w-5 h-5 text-primary" /></div>
+            <div :class="kpiIcon" class="bg-tint"><Plane class="w-5 h-5 text-primary" /></div>
             <div>
               <div :class="kpiVal">{{ totalMissions }}</div>
               <div :class="kpiLabel">Ordres de mission</div>

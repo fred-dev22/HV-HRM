@@ -35,7 +35,7 @@
     <template #above-table>
       <div class="grid grid-cols-3 gap-2.5 mb-3.5 max-md:grid-cols-1">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Users class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Users class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ applicationStore.spontaneous.length }}</div><div :class="kpiLbl">Total</div></div>
         </div>
         <div :class="kpiItem">
@@ -122,12 +122,12 @@
             <FormSection title="CV">
               <label
                 class="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-lg py-8 px-4 text-center transition-colors cursor-pointer"
-                :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'"
+                :class="dragOver ? 'border-primary bg-tint/50' : 'border-border hover:border-primary/40'"
                 @dragover.prevent="dragOver = true"
                 @dragleave.prevent="dragOver = false"
                 @drop.prevent="onDrop"
               >
-                <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvName ? 'bg-success-bg' : 'bg-primary/10'">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center" :class="cvName ? 'bg-success-bg' : 'bg-tint'">
                   <FileCheck2 v-if="cvName" class="w-4.5 h-4.5 text-success" />
                   <UploadCloud v-else class="w-4.5 h-4.5 text-primary" />
                 </div>

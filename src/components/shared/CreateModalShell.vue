@@ -17,6 +17,10 @@ defineProps<{
   draftLabel?: string
   isSaving?: boolean
   saveError?: string | null
+  // Grise le bouton principal (ex. solde insuffisant) sans toucher au brouillon ;
+  // `createDisabledReason` s'affiche en infobulle.
+  createDisabled?: boolean
+  createDisabledReason?: string
 }>()
 
 const emit = defineEmits<{ close: []; create: []; saveDraft: [] }>()
@@ -70,7 +74,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               </button>
               <button
                 @click="emit('create')"
-                :disabled="isSaving"
+                :disabled="isSaving || createDisabled"
+                :title="createDisabled ? createDisabledReason : undefined"
                 :class="draftLabel
                   ? 'inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-card-foreground border border-border rounded hover:bg-background transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
                   : 'inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'"

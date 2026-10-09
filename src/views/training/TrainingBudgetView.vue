@@ -27,7 +27,7 @@
     <template #above-table>
       <div class="grid grid-cols-3 gap-2.5 mb-3.5 max-md:grid-cols-1">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Coins class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Coins class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ formatMga(budgetStore.totalAllocated) }}</div><div :class="kpiLbl">Budget alloué (approuvé)</div></div>
         </div>
         <div :class="kpiItem">

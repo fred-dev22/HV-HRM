@@ -331,7 +331,7 @@ async function deletePermanently() {
             </div>
           </div>
           <button
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer border border-dashed border-border bg-transparent text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:bg-primary/10"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer border border-dashed border-border bg-transparent text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:bg-tint"
             @click="addExpenseLine"
           >
             <Plus class="w-3.5 h-3.5" /> Ajouter un frais

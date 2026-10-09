@@ -29,7 +29,7 @@
     <template #above-table>
       <div class="grid grid-cols-2 gap-2.5 mb-3.5 max-sm:grid-cols-1">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Users class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Users class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ talentPoolStore.items.length }}</div><div :class="kpiLbl">Profils dans le vivier</div></div>
         </div>
         <div :class="kpiItem">
@@ -50,7 +50,7 @@
     <template #cell-candidatePhone="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.candidatePhone }}</span></template>
     <template #cell-tags="{ item }">
       <div class="flex flex-wrap gap-1">
-        <span v-for="tag in item.tags" :key="tag" class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ tag }}</span>
+        <span v-for="tag in item.tags" :key="tag" class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ tag }}</span>
         <span v-if="item.tags.length === 0" class="text-xs text-muted-foreground">Aucun tag</span>
       </div>
     </template>
@@ -83,7 +83,7 @@
         <div v-if="item.tags.length > 0">
           <div class="text-muted-foreground text-[11px] mb-1">Tags</div>
           <div class="flex flex-wrap gap-1">
-            <span v-for="tag in item.tags" :key="tag" class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ tag }}</span>
+            <span v-for="tag in item.tags" :key="tag" class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ tag }}</span>
           </div>
         </div>
         <button :class="L.btnPrimary" class="w-full justify-center" @click="openCard(item)">Ouvrir la fiche</button>

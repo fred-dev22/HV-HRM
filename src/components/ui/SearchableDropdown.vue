@@ -48,7 +48,7 @@
           :key="item.id"
           type="button"
           class="flex items-center gap-2 w-full px-2 py-[7px] border-0 rounded-md bg-transparent text-left transition-colors"
-          :class="item.itemDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-primary/10'"
+          :class="item.itemDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-tint'"
           :title="item.itemDisabled ? (item.disabledReason || 'Indisponible') : ''"
           @click="select(item)"
         >

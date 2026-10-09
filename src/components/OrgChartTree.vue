@@ -50,13 +50,13 @@ const OrgChartNode: any = defineComponent({
       const isDept    = node.type === 'Department'
 
       const cardStyle: Record<string, string> = isService
-        ? { background: 'var(--hv-maroon-light)', color: 'var(--hv-maroon)', border: '1px solid rgba(122,31,31,0.3)' }
+        ? { background: 'var(--brand-accent-light)', color: 'var(--brand-accent)', border: '1px solid color-mix(in srgb, var(--brand-accent) 30%, transparent)' }
         : isDept
-          ? { background: 'var(--hv-red-dark)', color: 'white' }
-          : { background: 'var(--hv-red)', color: 'white' }
+          ? { background: 'var(--brand-primary-dark)', color: 'white' }
+          : { background: 'var(--brand-primary)', color: 'white' }
 
       const badgeStyle: Record<string, string> = isService
-        ? { background: 'rgba(122,31,31,0.12)', color: 'var(--hv-maroon)' }
+        ? { background: 'color-mix(in srgb, var(--brand-accent) 12%, transparent)', color: 'var(--brand-accent)' }
         : { background: 'rgba(255,255,255,0.18)', color: 'white' }
 
       const metaStyle: Record<string, string> = {
@@ -103,9 +103,9 @@ const OrgChartNode: any = defineComponent({
                 position: 'absolute', bottom: '-9px', left: '50%',
                 transform: 'translateX(-50%)',
                 width: '18px', height: '18px', borderRadius: '50%',
-                border: `1px solid ${isService ? 'var(--hv-maroon)' : 'rgba(255,255,255,0.6)'}`,
+                border: `1px solid ${isService ? 'var(--brand-accent)' : 'rgba(255,255,255,0.6)'}`,
                 background: 'white',
-                color: isService ? 'var(--hv-maroon)' : 'var(--hv-red)',
+                color: isService ? 'var(--brand-accent)' : 'var(--brand-primary)',
                 fontSize: '10px', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 zIndex: '10', padding: '0', lineHeight: '1',

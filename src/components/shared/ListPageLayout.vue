@@ -297,7 +297,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
                 <button
                   v-for="opt in scopeOptions" :key="opt.value" type="button" role="option" :aria-selected="scope === opt.value"
                   class="w-full text-left px-3 py-2 text-[13px] transition-colors hover:bg-background"
-                  :class="scope === opt.value ? 'bg-primary/10 text-primary font-medium' : 'text-foreground'"
+                  :class="scope === opt.value ? 'bg-tint text-primary font-medium' : 'text-foreground'"
                   @click="selectScope(opt.value)"
                 >{{ opt.label }}</button>
               </div>
@@ -338,7 +338,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
             <button
               v-for="m in viewModes" :key="m.value" type="button" :title="m.label"
               class="px-2 py-1 rounded inline-flex items-center gap-1 text-xs cursor-pointer transition-colors"
-              :class="viewMode === m.value ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'"
+              :class="viewMode === m.value ? 'bg-tint text-primary' : 'text-muted-foreground hover:text-foreground'"
               @click="viewMode = m.value"
             >
               <component :is="m.icon" class="w-3.5 h-3.5" />
@@ -381,7 +381,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
             <div
               v-for="col in orderedColumns" :key="col.key"
               class="flex items-center gap-2 px-2.5 py-[5px] rounded group hover:bg-background"
-              :class="{ 'ring-1 ring-primary ring-inset bg-primary/5': dragOverKey === col.key && dragKey }"
+              :class="{ 'ring-1 ring-primary ring-inset bg-tint/50': dragOverKey === col.key && dragKey }"
               @dragover="onDragOver($event, col.key)" @drop="onDrop(col.key)"
             >
               <span draggable="true" class="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground" :class="{ 'opacity-40': dragKey === col.key }" @dragstart="onDragStart(col.key)" @dragend="onDragEnd">
@@ -394,7 +394,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
               <button
                 v-if="!hidden.has(col.key) && isPinnable(col)" type="button"
                 class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] transition-colors"
-                :class="pinned.has(col.key) ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-background hover:text-foreground'"
+                :class="pinned.has(col.key) ? 'border-primary/30 bg-tint text-primary' : 'border-border text-muted-foreground hover:bg-background hover:text-foreground'"
                 :title="pinned.has(col.key) ? 'Libérer' : 'Figer'" @click.stop="togglePin(col.key)"
               >
                 <PinOff v-if="pinned.has(col.key)" class="w-3 h-3" /><Pin v-else class="w-3 h-3" />
@@ -419,7 +419,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
               <tr>
                 <th
                   v-for="(col, ci) in renderColumns" :key="col.key"
-                  :class="[L.th, cellAlign(col), !col.sortable && 'cursor-default hover:bg-primary/10', ci < stickyCount && 'lpl-sticky-th', ci === stickyCount - 1 && 'lpl-sticky-last']"
+                  :class="[L.th, cellAlign(col), !col.sortable && 'cursor-default hover:bg-tint', ci < stickyCount && 'lpl-sticky-th', ci === stickyCount - 1 && 'lpl-sticky-last']"
                   :style="stickyStyle(ci)"
                   @click="toggleSort(col)" @dragover="onDragOver($event, col.key)" @drop="onDrop(col.key)"
                 >
@@ -447,7 +447,7 @@ const sep = 'w-px h-5 bg-border shrink-0'
                 v-else
                 v-for="item in items" :key="rowId(item)"
                 class="cursor-pointer transition-colors"
-                :class="isSelected(item) ? 'bg-primary/10' : 'hover:bg-primary/5'"
+                :class="isSelected(item) ? 'bg-tint' : 'hover:bg-tint/50'"
                 @click="selectRow(item)"
                 @dblclick="openCard(item)"
               >
@@ -516,8 +516,8 @@ const sep = 'w-px h-5 bg-border shrink-0'
 <style scoped>
 /* Fond des cellules épinglées (sticky) synchronisé avec l'état de la ligne */
 .lpl-sticky { background: var(--color-card); }
-tr:hover .lpl-sticky { background: var(--hv-red-light); }
-.lpl-sticky-selected { background: var(--hv-red-light); }
-.lpl-sticky-th { background: var(--hv-red-light); }
+tr:hover .lpl-sticky { background: var(--brand-primary-light); }
+.lpl-sticky-selected { background: var(--brand-primary-light); }
+.lpl-sticky-th { background: var(--brand-primary-light); }
 .lpl-scrolled .lpl-sticky-last { box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08); }
 </style>

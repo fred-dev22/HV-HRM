@@ -2,6 +2,7 @@
 
 declare module 'vue3-org-chart'
 
+
 interface ImportMetaEnv {
   readonly VITE_API_URL: string
 }

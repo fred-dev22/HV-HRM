@@ -26,7 +26,7 @@
       <div v-for="t in store.items" :key="t.id" :class="[L.card, 'flex flex-col gap-2.5 cursor-pointer']" @click="openCardId = t.id">
         <div class="flex items-center justify-between gap-2">
           <span class="text-sm font-semibold text-foreground truncate">{{ t.name }}</span>
-          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary shrink-0">
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary shrink-0">
             {{ t.criteria.length }} critère(s)
           </span>
         </div>

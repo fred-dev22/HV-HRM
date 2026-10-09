@@ -231,15 +231,26 @@ const displayedBalance = computed(() => {
   return source?.find(b => b.leaveTypeId === form.leaveTypeId) ?? null
 })
 
+// Solde insuffisant : BLOQUE la soumission (retour client du 08/10, qui revient
+// sur la decision du 04/08) — le bouton "Soumettre" est grise et le serveur
+// refuse aussi. Le brouillon reste possible. Le preavis, lui, ne bloque pas.
+// Non applicable aux types sans quota (conge non paye). `isBalanceInsufficient`
+// est l'avertissement (toujours affiche) ; `blocksOnBalance` le blocage, selon l'option du type. Pour "un autre employe", le solde n'est connu que si
+// l'ecran y a acces (beneficiaryBalances) : sinon le serveur tranche.
 const isBalanceInsufficient = computed(() => {
   if (!form.workingDaysCount || !currentType.value) return false
   if (currentType.value.daysPerYear <= 0) return false // illimité
-  if (forWhom.value.mode !== 'self' || !myBalance.value) return false
+  const known = displayedBalance.value
+  if (!known) return false
   // Compare au nombre reellement decompte (inclut le week-end "avale" pour
   // un beneficiaire local, voir chargedDaysCount), pas juste les jours
   // ouvres demandes.
-  return (chargedDaysCount.value ?? form.workingDaysCount) > myBalance.value.balance
+  return (chargedDaysCount.value ?? form.workingDaysCount) > known.balance
 })
+// Le solde insuffisant n'est BLOQUANT que si le type le demande (option
+// LeaveType.blockIfInsufficientBalance, active par defaut, y compris medical) ;
+// sinon l'avertissement reste affiche en rouge mais la demande peut partir.
+const blocksOnBalance = computed(() => isBalanceInsufficient.value && currentType.value?.blockIfInsufficientBalance !== false)
 
 const isNoticePeriodViolated = computed(() => {
   if (!form.startDate || !currentType.value || isMedicalType.value || currentType.value.noticeDays === 0) return false
@@ -314,7 +325,8 @@ function formatDateFR(dateStr: string): string {
   return `${p[2] ?? ''} ${MONTHS_FR[(p[1] ?? 1) - 1] ?? ''} ${p[0] ?? ''}`
 }
 
-function validate(): boolean {
+// forSubmission : seulement a la soumission, pas a l'enregistrement d'un brouillon.
+function validate(forSubmission = true): boolean {
   errors.employee = ''; errors.leaveType = ''; errors.startDate = ''; errors.workingDays = ''
   let ok = true
   if (forWhom.value.mode === 'for-employee' && !forWhom.value.employeeId) { errors.employee = 'Veuillez sélectionner un employé'; ok = false }
@@ -322,9 +334,12 @@ function validate(): boolean {
   if (!form.startDate) { errors.startDate = 'La date de début est obligatoire'; ok = false }
   if (isNotWorkingDay.value) { errors.startDate = "Ce jour n'est pas un jour ouvrable"; ok = false }
   if (!form.workingDaysCount || form.workingDaysCount <= 0) { errors.workingDays = 'Nombre de jours requis (min. 0.5)'; ok = false }
-  // Solde insuffisant n'est plus bloquant (décision du 04/08, même
-  // traitement que le préavis) — un avertissement reste affiché en rouge,
-  // le validateur décide en connaissance de cause.
+  // Solde insuffisant : bloque la soumission (pas le brouillon), voir
+  // isBalanceInsufficient. Le préavis minimum, lui, n'est jamais bloquant.
+  if (forSubmission && blocksOnBalance.value) {
+    error.value = 'Solde insuffisant : la demande ne peut pas être soumise. Enregistrez un brouillon, réduisez la durée ou choisissez un congé non payé.'
+    return false
+  }
   error.value = ok ? '' : 'Veuillez corriger les champs en erreur'
   return ok
 }
@@ -352,7 +367,7 @@ async function create() {
   }
 }
 async function saveDraft() {
-  if (!validate()) return
+  if (!validate(false)) return
   try {
     await leaveRequestStore.saveDraft(buildPayload())
     emit('created'); emit('close')
@@ -369,6 +384,8 @@ async function saveDraft() {
     :create-label="isMedicalType ? 'Enregistrer la déclaration' : 'Soumettre la demande'"
     draft-label="Enregistrer le brouillon"
     :save-error="error"
+    :create-disabled="blocksOnBalance"
+    create-disabled-reason="Solde insuffisant : vous pouvez enregistrer un brouillon"
     @close="emit('close')"
     @create="create"
     @save-draft="saveDraft"
@@ -377,7 +394,7 @@ async function saveDraft() {
       <div class="flex-1 overflow-auto px-6 py-5">
         <div class="max-w-3xl mx-auto">
           <FormSection title="Bénéficiaire">
-          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :error-employee="errors.employee" :hide-self-option="!!auth.user?.isSystem" />
+          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :error-employee="errors.employee" :hide-self-option="!!auth.user?.isSystem" :can-create-for-others="auth.hasPermission('CONGE_CREER_POUR_AUTRE')" />
           <div v-if="selectedEmployee" class="flex items-center gap-2.5 mt-3 px-3.5 py-2.5 bg-background border border-border rounded-lg">
             <UserAvatar :name="selectedEmployee.name" size="sm" />
             <div>
@@ -442,13 +459,13 @@ async function saveDraft() {
                 <label :class="cls.fieldLabel">Date de fin</label>
                 <input
                   type="date" v-model="form.endDate"
-                  :class="[cls.fieldInput, daysMode === 'from-days' && 'bg-primary/10 text-primary']"
+                  :class="[cls.fieldInput, daysMode === 'from-days' && 'bg-tint text-primary']"
                   @change="onEndDateChange"
                 />
                 <span
                   v-if="form.endDate && form.workingDaysCount"
                   class="inline-flex items-center text-[11px] font-semibold rounded-md px-2 py-[3px] mt-1 w-fit"
-                  :class="isBalanceInsufficient ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success'"
+                  :class="blocksOnBalance ? 'bg-danger-bg text-danger' : isBalanceInsufficient ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success'"
                 >{{ form.workingDaysCount }} {{ currentType?.countCalendarDays ? 'j calendaires' : 'j ouvrables' }}<template v-if="chargedDaysCount && chargedDaysCount > form.workingDaysCount"> (+ week-end = {{ chargedDaysCount }} j décomptés)</template></span>
               </div>
             </div>
@@ -462,13 +479,13 @@ async function saveDraft() {
               </div>
             </div>
 
-            <div v-if="resumeDate" class="flex items-center gap-2 text-[13px] text-muted-foreground bg-primary/10 rounded-md px-3 py-2">
+            <div v-if="resumeDate" class="flex items-center gap-2 text-[13px] text-muted-foreground bg-tint rounded-md px-3 py-2">
               <CalendarCheck class="w-4 h-4 text-primary shrink-0" />
               <span>Reprise prévue le <strong class="text-primary">{{ formatDateFR(resumeDate) }}</strong></span>
             </div>
 
             <div v-if="isNotWorkingDay" :class="cls.fieldErrorBlock"><CircleAlert class="w-3.5 h-3.5 shrink-0" /> Ce jour n'est pas un jour ouvrable</div>
-            <div v-if="isBalanceInsufficient" :class="cls.fieldErrorBlock"><CircleAlert class="w-3.5 h-3.5 shrink-0" /> Solde insuffisant ({{ myBalance?.balance ?? 0 }} jours disponibles)</div>
+            <div v-if="isBalanceInsufficient" :class="blocksOnBalance ? cls.fieldErrorBlock : 'text-xs text-warning flex items-center gap-1 bg-warning-bg rounded-md px-2.5 py-2'"><CircleAlert class="w-3.5 h-3.5 shrink-0" /> Solde insuffisant : {{ displayedBalance?.balance ?? 0 }} jour(s) disponible(s) pour {{ chargedDaysCount ?? form.workingDaysCount }} jour(s) décompté(s).<template v-if="blocksOnBalance"> La demande ne peut pas être soumise. Enregistrez un brouillon, réduisez la durée ou choisissez un congé non payé.</template><template v-else> La demande peut être soumise : le validateur en sera averti.</template></div>
             <div v-if="isNoticePeriodViolated" :class="cls.fieldErrorBlock"><CircleAlert class="w-3.5 h-3.5 shrink-0" /> Préavis de {{ currentType?.noticeDays }} jour(s) requis pour ce type</div>
 
             <div :class="cls.field">

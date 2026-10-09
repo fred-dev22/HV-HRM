@@ -196,7 +196,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                   @click="emit('select-sidebar', item.no)"
                   :class="[
                     'cursor-pointer block w-full text-left px-3 py-1.5 text-sm transition truncate',
-                    item.no === currentNo ? 'bg-primary/10 text-primary font-semibold' : 'text-primary hover:bg-primary/5 hover:underline',
+                    item.no === currentNo ? 'bg-tint text-primary font-semibold' : 'text-primary hover:bg-tint/50 hover:underline',
                   ]"
                 >{{ item.no }}</button>
               </div>

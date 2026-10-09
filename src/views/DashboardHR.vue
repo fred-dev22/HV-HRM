@@ -37,7 +37,7 @@
             <div :class="kpiSub">{{ t('dashboard.leaves_absences') }}</div>
           </div>
           <div :class="kpiCard">
-            <div :class="kpiAccent" class="bg-primary/10"><UserX class="w-[17px] h-[17px] text-primary" /></div>
+            <div :class="kpiAccent" class="bg-tint"><UserX class="w-[17px] h-[17px] text-primary" /></div>
             <div :class="kpiLabel">{{ t('dashboard.absent_today') }}</div>
             <div :class="kpiValue">{{ absentTodayCount }}</div>
             <div :class="kpiSub">{{ t('dashboard.on_employees', { count: activeEmployeesCount }) }}</div>
@@ -55,7 +55,7 @@
           class="flex items-center justify-between bg-card border border-border rounded-lg px-4 py-3.5 mb-3 no-underline text-foreground cursor-pointer transition-shadow hover:shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:border-primary/20"
         >
           <div class="flex items-center gap-3">
-            <div class="w-[38px] h-[38px] rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <div class="w-[38px] h-[38px] rounded-lg bg-tint text-primary flex items-center justify-center shrink-0">
               <Network class="w-5 h-5" />
             </div>
             <div>
@@ -93,7 +93,7 @@
             </div>
           </div>
           <div v-for="r in activeRequests" :key="r.id" class="flex items-center gap-2.5 py-2 border-b border-border last:border-b-0">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 bg-primary/10 text-primary">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 bg-tint text-primary">
               {{ r.employeeInitials }}
             </div>
             <div class="flex-1">
@@ -137,7 +137,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="e in sortedBalances" :key="e.name" class="hover:bg-primary/10">
+                  <tr v-for="e in sortedBalances" :key="e.name" class="hover:bg-tint">
                     <td :class="balTd">
                       <div class="flex items-center gap-1.5">
                         <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-semibold shrink-0" :style="{ background: e.avatarColor, color: e.avatarTextColor }">{{ e.initials }}</div>
@@ -318,7 +318,7 @@ const cardHeader = 'flex items-center justify-between mb-3'
 const cardTitle = 'flex items-center gap-1.5 text-sm font-semibold text-foreground'
 const tabClass = 'px-3.5 py-2 text-[13px] text-muted-foreground cursor-pointer border-b-2 border-transparent'
 const tabActive = '!text-primary !border-primary font-medium'
-const balTh = 'px-2.5 py-2 text-left text-xs font-semibold text-foreground bg-primary/10 border-b border-primary/20 whitespace-nowrap cursor-pointer select-none hover:bg-primary/15'
+const balTh = 'px-2.5 py-2 text-left text-xs font-semibold text-foreground bg-tint border-b border-primary/20 whitespace-nowrap cursor-pointer select-none hover:bg-primary/15'
 const balTd = 'px-2.5 py-2 border-b border-border'
 const pagBtn = 'min-w-[26px] h-[26px] px-1.5 rounded text-[11px] font-medium cursor-pointer border border-border bg-card text-foreground flex items-center justify-center transition-colors hover:bg-background disabled:opacity-35 disabled:cursor-not-allowed'
 const pagBtnActive = '!bg-primary !text-primary-foreground !border-primary'

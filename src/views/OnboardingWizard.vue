@@ -4,9 +4,9 @@
     <!-- ── En-tête minimal ── -->
     <header class="h-[60px] shrink-0 bg-card border-b border-border shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-10 flex items-center justify-between max-[480px]:px-4">
       <div class="flex items-center">
-        <img src="/hv-logo.png" alt="HV" class="h-[34px] block" />
+        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-[34px] block" />
       </div>
-      <span class="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[11px] font-semibold">Configuration initiale</span>
+      <span class="bg-tint text-primary border border-primary/20 px-3 py-1 rounded-full text-[11px] font-semibold">Configuration initiale</span>
     </header>
 
     <!-- id="below-topbar" : cible du <Teleport> de CreateModalShell -->
@@ -43,7 +43,7 @@
             <!-- ══ ÉTAPE 1 : Entreprise + Calendrier ══ -->
             <template v-if="currentStep === 1">
               <div class="px-7 py-5 border-b border-border bg-background flex items-center gap-3.5 max-md:px-4">
-                <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><CalendarDays class="w-6 h-6 text-primary" /></div>
+                <div class="w-12 h-12 rounded-xl bg-tint flex items-center justify-center shrink-0"><CalendarDays class="w-6 h-6 text-primary" /></div>
                 <div>
                   <div class="text-lg font-bold text-foreground">Entreprise et calendrier</div>
                   <div class="text-[13px] text-muted-foreground mt-1">Nom, devise, fuseau horaire, et les jours/horaires de travail par défaut</div>
@@ -53,7 +53,7 @@
                 <div class="grid grid-cols-3 gap-3 max-md:grid-cols-1">
                   <div :class="cls.field">
                     <label :class="cls.fieldLabel">Nom de l'entreprise *</label>
-                    <input v-model="companyForm.companyName" :class="cls.fieldInput" placeholder="ex : HV" />
+                    <input v-model="companyForm.companyName" :class="cls.fieldInput" placeholder="ex : Acme" />
                   </div>
                   <div :class="cls.field">
                     <label :class="cls.fieldLabel">Devise *</label>
@@ -93,7 +93,7 @@
             <!-- ══ ÉTAPE 2 : Jours fériés ══ -->
             <template v-else-if="currentStep === 2">
               <div class="px-7 py-5 border-b border-border bg-background flex items-center gap-3.5 max-md:px-4">
-                <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><CalendarOff class="w-6 h-6 text-primary" /></div>
+                <div class="w-12 h-12 rounded-xl bg-tint flex items-center justify-center shrink-0"><CalendarOff class="w-6 h-6 text-primary" /></div>
                 <div>
                   <div class="text-lg font-bold text-foreground">Jours fériés</div>
                   <div class="text-[13px] text-muted-foreground mt-1">Les fériés annuels et ponctuels de l'entreprise (optionnel, vous pouvez les ajouter plus tard)</div>
@@ -127,7 +127,7 @@
             <!-- ══ ÉTAPE 3 : Types de congé ══ -->
             <template v-else>
               <div class="px-7 py-5 border-b border-border bg-background flex items-center gap-3.5 max-md:px-4">
-                <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><ListChecks class="w-6 h-6 text-primary" /></div>
+                <div class="w-12 h-12 rounded-xl bg-tint flex items-center justify-center shrink-0"><ListChecks class="w-6 h-6 text-primary" /></div>
                 <div>
                   <div class="text-lg font-bold text-foreground">Types de congé</div>
                   <div class="text-[13px] text-muted-foreground mt-1">Au moins un type (ex: Congé annuel) est nécessaire pour que vos employés puissent soumettre une demande</div>
@@ -143,7 +143,7 @@
                   <div v-for="lt in leaveTypesStore.leaveTypes" :key="lt.id" class="flex items-center gap-2.5 px-2.5 py-2 bg-background border border-border rounded-lg">
                     <span class="w-6 h-6 rounded-md shrink-0" :style="{ background: lt.color }"></span>
                     <span class="flex-1 text-[13px] font-medium text-foreground">{{ lt.name }}</span>
-                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap shrink-0">{{ lt.workflowType === 'Medical' ? 'Médical' : 'Standard' }}</span>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-tint text-primary whitespace-nowrap shrink-0">{{ lt.workflowType === 'Medical' ? 'Médical' : 'Standard' }}</span>
                     <span class="text-xs text-muted-foreground shrink-0">{{ lt.daysPerYear }} j/an</span>
                   </div>
                 </div>
@@ -239,6 +239,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { brand } from '../config/appConfig'
 import { Check, CalendarDays, CalendarOff, ListChecks, CircleCheck, Plus, Trash2 } from 'lucide-vue-next'
 import { useAuthStore }       from '../stores/auth'
 import { useCalendarStore }   from '../stores/calendar'
@@ -257,7 +258,7 @@ const leaveTypesStore = useLeaveTypesStore()
 const companySettingsStore = useCompanySettingsStore()
 const router        = useRouter()
 
-const companyForm = reactive({ companyName: 'HV', currency: 'MUR', timezone: 'Indian/Mauritius' })
+const companyForm = reactive({ companyName: brand.name, currency: 'MUR', timezone: 'Indian/Mauritius' })
 const companyError = ref('')
 const saving        = ref(false)
 const finishing      = ref(false)
@@ -271,7 +272,7 @@ const btnOutline = 'inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text
 
 // Dégradé de fond (rouge clair → blanc → bordeaux clair HV)
 const bgStyle = {
-  background: 'linear-gradient(135deg, var(--hv-red-light) 0%, #ffffff 50%, var(--hv-maroon-light) 100%)',
+  background: 'linear-gradient(135deg, var(--color-page) 0%, #ffffff 50%, var(--color-page) 100%)',
 }
 
 // ── Étapes (suivent exactement les 3 onglets de l'écran Calendrier) ──

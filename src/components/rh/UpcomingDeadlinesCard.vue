@@ -68,7 +68,7 @@ const ICONS: Record<DeadlineCategory, unknown> = {
 }
 function iconFor(c: DeadlineCategory) { return ICONS[c] }
 function iconWrap(c: DeadlineCategory): string {
-  return c === 'birthday' ? 'bg-success-bg text-success' : 'bg-primary/10 text-primary'
+  return c === 'birthday' ? 'bg-success-bg text-success' : 'bg-tint text-primary'
 }
 
 function whenText(days: number): string {

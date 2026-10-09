@@ -346,7 +346,7 @@ import { useEntityStore } from '../../stores/entities'
 import { confirmDialog } from '../../lib/confirm'
 import { MISSIONS_EXPENSES_ENABLED } from '../../config/features'
 
-const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary'
+const iconBtn = 'w-7 h-7 flex items-center justify-center border-0 rounded-md bg-background text-muted-foreground cursor-pointer transition-colors hover:bg-tint hover:text-primary'
 
 // ── Onglets — Catégorie d'abord, puis Métier, puis Poste (voir decision du 29/07) ──
 const TABS = [

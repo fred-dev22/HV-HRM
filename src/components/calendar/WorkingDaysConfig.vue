@@ -6,7 +6,7 @@
       <div
         v-for="key in DAY_ORDER" :key="key"
         class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors flex-nowrap min-h-[44px] max-md:flex-wrap"
-        :class="{ 'bg-primary/10': days[key].enabled }"
+        :class="{ 'bg-tint': days[key].enabled }"
       >
         <!-- Nom du jour -->
         <span class="text-[13px] font-medium text-foreground w-[90px] shrink-0">{{ DAY_LABELS[key] }}</span>
@@ -26,7 +26,7 @@
             <CircleAlert class="w-3 h-3" />
             {{ dayHoursError(key) }}
           </span>
-          <span v-else class="text-[11px] font-semibold text-primary bg-primary/10 rounded px-2 py-0.5 whitespace-nowrap shrink-0">{{ calcDayHours(days[key]) }} eff.</span>
+          <span v-else class="text-[11px] font-semibold text-primary bg-tint rounded px-2 py-0.5 whitespace-nowrap shrink-0">{{ calcDayHours(days[key]) }} eff.</span>
 
           <!-- Séparateur visuel -->
           <span class="text-border text-base select-none shrink-0 max-md:hidden" aria-hidden="true">|</span>

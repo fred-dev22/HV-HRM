@@ -29,7 +29,7 @@
     <template #above-table>
       <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
         <div :class="kpiItem">
-          <div :class="kpiIcon" class="bg-primary/10"><Users class="w-[18px] h-[18px] text-primary" /></div>
+          <div :class="kpiIcon" class="bg-tint"><Users class="w-[18px] h-[18px] text-primary" /></div>
           <div><div :class="kpiVal">{{ applicationStore.fromOffers.length }}</div><div :class="kpiLbl">Total</div></div>
         </div>
         <div :class="kpiItem">

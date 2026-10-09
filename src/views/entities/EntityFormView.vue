@@ -89,7 +89,7 @@
                 </div>
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Courrier électronique</label>
-                  <input v-model="form.email" type="email" :class="[cls.fieldInput, errors.email && cls.inputError]" placeholder="service@hv.com" />
+                  <input v-model="form.email" type="email" :class="[cls.fieldInput, errors.email && cls.inputError]" placeholder="service@exemple.com" />
                   <div v-if="errors.email" :class="cls.fieldError">{{ errors.email }}</div>
                 </div>
               </div>

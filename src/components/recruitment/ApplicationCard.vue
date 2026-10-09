@@ -197,7 +197,7 @@ function humanSize(bytes: number): string {
             <div v-for="doc in docs" :key="doc.id" class="flex items-center gap-2 bg-background border border-border rounded-md px-2.5 h-[38px]">
               <FileText class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <a :href="doc.fileUrl" target="_blank" rel="noopener" class="text-[13px] text-primary hover:underline flex-1 truncate">{{ doc.fileName }}</a>
-              <span v-if="doc.isPrimaryCv" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">CV principal</span>
+              <span v-if="doc.isPrimaryCv" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-tint text-primary shrink-0">CV principal</span>
               <span class="text-[11px] text-muted-foreground shrink-0">{{ humanSize(doc.fileSize) }}</span>
               <button class="text-danger hover:brightness-90 shrink-0" title="Supprimer" @click="removeDoc(doc)">
                 <Trash2 class="w-3.5 h-3.5" />

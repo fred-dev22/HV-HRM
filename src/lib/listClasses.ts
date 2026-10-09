@@ -27,13 +27,13 @@ export const toolbar = 'flex items-center justify-between px-3.5 py-2 border-b b
 export const searchBox = 'flex items-center gap-1.5 border border-border rounded-md px-2 h-[30px] bg-card'
 export const searchInput = 'border-0 outline-none text-xs text-foreground bg-transparent w-40 placeholder:text-muted-foreground'
 export const tbIconBtn = 'w-[30px] h-[30px] rounded-md border border-border bg-card text-muted-foreground flex items-center justify-center cursor-pointer transition-colors relative hover:bg-background hover:text-foreground'
-export const tbIconBtnActive = '!bg-primary/10 !text-primary !border-primary/20'
+export const tbIconBtnActive = '!bg-tint !text-primary !border-primary/20'
 
 /* Table */
 export const table = 'w-full border-collapse text-[13px]'
-export const th = 'px-3 py-2.5 text-left text-xs font-semibold text-foreground bg-primary/10 border-b border-primary/20 whitespace-nowrap cursor-pointer select-none hover:bg-primary/15'
+export const th = 'px-3 py-2.5 text-left text-xs font-semibold text-foreground bg-tint border-b border-primary/20 whitespace-nowrap cursor-pointer select-none hover:bg-primary/15'
 export const td = 'px-3 py-2.5 border-b border-border text-foreground align-middle'
-export const rowHover = 'hover:bg-primary/10'
+export const rowHover = 'hover:bg-tint'
 
 /* Boutons d'action dans les lignes */
 export const actBtn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1'

@@ -19,7 +19,7 @@
       <div class="flex items-center gap-2">
         <button :class="L.btnOutline" @click="openCredit"><PlusCircle class="w-4 h-4" /> Ajuster un solde</button>
         <button :class="L.btnOutline" @click="showImport = true"><Upload class="w-4 h-4" /> Importer des soldes</button>
-        <button :class="L.btnOutline" @click="() => {}"><FileDown class="w-4 h-4" /> Exporter</button>
+        <button :class="L.btnOutline" @click="openExport"><FileDown class="w-4 h-4" /> Exporter</button>
       </div>
     </template>
 
@@ -148,6 +148,31 @@
   </CreateModalShell>
 
   <ImportWizardModal v-if="showImport" :open="showImport" :config="leaveBalanceImportConfig" @close="showImport = false" @imported="balanceStore.fetchAllBalances()" />
+
+  <!-- Export configurable : colonnes, ordre, titres, valeur fixe, format,
+       modeles. Demande client (import Sage paie : Matricule / Code / Solde). -->
+  <ExportConfigModal
+    v-if="showExport"
+    :open="showExport"
+    title="Soldes de congés"
+    scope="leave-balances"
+    file-base-name="soldes-conges"
+    :sources="exportSources"
+    :rows="exportRows"
+    :default-columns="exportDefaultColumns"
+    :presets="exportPresets"
+    @close="showExport = false"
+  >
+    <template #filters>
+      <div :class="fcls.field">
+        <label :class="fcls.fieldLabel">Entité</label>
+        <select v-model="exportEntity" :class="fcls.fieldSelect">
+          <option value="">Toutes les entités</option>
+          <option v-for="e in entityStore.approvedEntities" :key="e.id" :value="e.name">{{ e.name }}</option>
+        </select>
+      </div>
+    </template>
+  </ExportConfigModal>
 </template>
 
 <script setup lang="ts">
@@ -157,6 +182,9 @@ import { UserAvatar, ListPageLayout } from '../../components'
 import CreateModalShell from '../../components/shared/CreateModalShell.vue'
 import FormSection from '../../components/ui/form-field/FormSection.vue'
 import ImportWizardModal from '../../components/shared/import/ImportWizardModal.vue'
+import ExportConfigModal from '../../components/shared/export/ExportConfigModal.vue'
+import type { ExportSource, ExportColumnConfig } from '../../lib/exportFile'
+import type { ExportTemplate } from '../../lib/exportTemplates'
 import { buildLeaveBalanceImportConfig } from '../../components/shared/import/configs/leaveBalanceImportConfig'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import * as L from '../../lib/listClasses'
@@ -207,6 +235,74 @@ async function submitCredit() {
   }
 }
 
+// ── Export configurable ──────────────────────────────────────
+const showExport = ref(false)
+const exportEntity = ref('')
+
+function openExport() {
+  exportEntity.value = filterEntity.value
+  showExport.value = true
+}
+
+// Donnees proposees a l'utilisateur. Le matricule est un TEXTE (un matricule
+// "03958" ne doit pas perdre son zero initial dans Excel). Les soldes sont des
+// nombres ; vide si l'employe n'est pas eligible a ce type de conge.
+const exportSources = computed<ExportSource[]>(() => [
+  { key: 'matricule', label: 'Matricule', get: (r: EmployeeLeaveBalances) => r.employeeNumber ?? '' },
+  { key: 'name',      label: 'Nom complet', get: (r: EmployeeLeaveBalances) => r.employeeName },
+  { key: 'entity',    label: 'Entité', get: (r: EmployeeLeaveBalances) => r.entityName },
+  ...TYPE_COLS.value.map(c => ({
+    key: `bal:${c.leaveTypeId}`,
+    label: `Solde : ${c.leaveTypeName}`,
+    get: (r: EmployeeLeaveBalances) => cellFor(r, c.leaveTypeId)?.balance ?? '',
+  })),
+  ...TYPE_COLS.value.map(c => ({
+    key: `due:${c.leaveTypeId}`,
+    label: `Droit annuel : ${c.leaveTypeName}`,
+    get: (r: EmployeeLeaveBalances) => cellFor(r, c.leaveTypeId)?.daysPerYear ?? '',
+  })),
+])
+
+let exportColSeq = 0
+const col = (sourceKey: string | null, header: string, fixedValue?: string): ExportColumnConfig =>
+  ({ uid: `seed-${exportColSeq++}`, sourceKey, header, fixedValue })
+
+const exportDefaultColumns = computed<ExportColumnConfig[]>(() => [
+  col('matricule', 'Matricule'),
+  col('name', 'Nom complet'),
+  col('entity', 'Entité'),
+  ...TYPE_COLS.value.map(c => col(`bal:${c.leaveTypeId}`, `Solde : ${c.leaveTypeName}`)),
+])
+
+// Format demande par GDP pour l'import Sage paie : Matricule / Code / Solde.
+// La valeur du Code est a confirmer avec le client (0 dans leur exemple) :
+// modifiable dans la modale, puis a enregistrer comme modele.
+const exportPresets = computed<ExportTemplate[]>(() => {
+  const annual = TYPE_COLS.value.find(c => /annuel|annual/i.test(`${c.leaveTypeName} ${c.leaveTypeCode}`)) ?? TYPE_COLS.value[0]
+  if (!annual) return []
+  return [{
+    id: 'builtin:sage',
+    name: 'Import Sage paie (Matricule, Code, Solde)',
+    format: 'xlsx',
+    includeHeader: true,
+    csv: { delimiter: ';', decimal: ',' },
+    columns: [
+      col('matricule', 'Matricule'),
+      col(null, 'Code', '0'),
+      col(`bal:${annual.leaveTypeId}`, 'Solde'),
+    ],
+  }]
+})
+
+// Tri par matricule (ordre numerique naturel) : un fichier d'import est plus
+// facile a controler quand il suit la numerotation.
+const exportRows = computed(() => {
+  const list = exportEntity.value
+    ? balanceStore.allBalances.filter(r => r.entityName === exportEntity.value)
+    : [...balanceStore.allBalances]
+  return list.sort((a, b) => (a.employeeNumber ?? '').localeCompare(b.employeeNumber ?? '', 'fr', { numeric: true }))
+})
+
 const kpiCard = 'bg-card border border-border rounded-[10px] p-3.5 flex items-center gap-3'
 const kpiIcon = 'w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0'
 const kpiVal = 'text-[22px] font-bold text-foreground leading-none'
@@ -238,7 +334,7 @@ const TYPE_COLS = computed(() => {
 // correspond a rien puisque le code d'un type de conge est libre (choisi par
 // le RH a la creation, y compris depuis l'onboarding).
 const KPI_STYLES = [
-  { icon: Sun,       bg: 'bg-primary/10', text: 'text-primary' },
+  { icon: Sun,       bg: 'bg-tint', text: 'text-primary' },
   { icon: RefreshCw, bg: 'bg-warning-bg', text: 'text-warning' },
   { icon: Home,      bg: 'bg-info-bg',    text: 'text-info' },
 ]

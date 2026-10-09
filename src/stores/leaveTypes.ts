@@ -33,6 +33,9 @@ export interface LeaveTypeConfig {
   // ouvres, le comportement actuel. true = tous les jours du calendrier
   // comptent (weekends et feries inclus). Voir utils/calendar.ts.
   countCalendarDays?:   boolean
+  // Solde insuffisant : true (defaut) = la soumission est bloquee ; false = la demande
+  // part quand meme avec un avertissement pour le validateur.
+  blockIfInsufficientBalance?: boolean
 }
 
 interface BackendLeaveType {
@@ -55,6 +58,7 @@ interface BackendLeaveType {
   AppliesToExpatriate: boolean | null
   OrganizationUnitId: string | null
   CountCalendarDays: boolean
+  BlockIfInsufficientBalance?: boolean
 }
 
 const ICON_BY_CODE: Record<string, string> = {
@@ -90,6 +94,7 @@ function mapLeaveType(raw: BackendLeaveType): LeaveTypeConfig {
     appliesToExpatriate: raw.AppliesToExpatriate ?? undefined,
     organizationUnitId: raw.OrganizationUnitId ?? undefined,
     countCalendarDays: raw.CountCalendarDays,
+    blockIfInsufficientBalance: raw.BlockIfInsufficientBalance ?? true,
   }
 }
 
@@ -113,6 +118,7 @@ function toBackendPayload(payload: Partial<LeaveTypeConfig>) {
   if (payload.appliesToExpatriate !== undefined) body.AppliesToExpatriate = payload.appliesToExpatriate
   if (payload.organizationUnitId !== undefined) body.OrganizationUnitId = payload.organizationUnitId
   if (payload.countCalendarDays !== undefined) body.CountCalendarDays = payload.countCalendarDays
+  if (payload.blockIfInsufficientBalance !== undefined) body.BlockIfInsufficientBalance = payload.blockIfInsufficientBalance
   return body
 }
 

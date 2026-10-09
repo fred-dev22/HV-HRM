@@ -267,7 +267,7 @@ async function create() {
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Email <span class="text-danger">*</span></label>
-              <input type="email" v-model="form.email" :class="cls.fieldInput" placeholder="prenom.nom@hv.com" />
+              <input type="email" v-model="form.email" :class="cls.fieldInput" placeholder="prenom.nom@exemple.com" />
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Téléphone</label>

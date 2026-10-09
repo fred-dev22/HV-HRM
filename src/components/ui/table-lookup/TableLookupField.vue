@@ -331,7 +331,7 @@ onUnmounted(() => {
                   v-for="item in listItems"
                   :key="String(item[valueKey])"
                   class="transition-colors border-b border-border/50 last:border-0 text-foreground"
-                  :class="itemDisabled(item) ? 'opacity-50 cursor-not-allowed' : (String(item[valueKey]) === code ? 'bg-primary/10 cursor-pointer' : 'cursor-pointer hover:bg-primary/10')"
+                  :class="itemDisabled(item) ? 'opacity-50 cursor-not-allowed' : (String(item[valueKey]) === code ? 'bg-tint cursor-pointer' : 'cursor-pointer hover:bg-tint')"
                   :title="itemDisabled(item) ? itemDisabledReason(item) : ''"
                   @mousedown.stop.prevent="selectItem(item)"
                 >
@@ -366,7 +366,7 @@ onUnmounted(() => {
       <div class="border border-border rounded-md overflow-hidden">
         <table class="w-full text-[13px]">
           <thead>
-            <tr class="bg-primary/10 border-b border-primary/20">
+            <tr class="bg-tint border-b border-primary/20">
               <th v-for="col in columns" :key="col.key" class="px-3 py-2 text-left text-xs font-semibold text-foreground whitespace-nowrap">{{ col.label }}</th>
             </tr>
           </thead>
@@ -377,7 +377,7 @@ onUnmounted(() => {
               v-for="item in modalItems"
               :key="String(item[valueKey])"
               class="border-b border-border last:border-0"
-              :class="itemDisabled(item) ? 'opacity-50 cursor-not-allowed' : (String(item[valueKey]) === code ? 'bg-primary/10 cursor-pointer' : 'cursor-pointer hover:bg-primary/10')"
+              :class="itemDisabled(item) ? 'opacity-50 cursor-not-allowed' : (String(item[valueKey]) === code ? 'bg-tint cursor-pointer' : 'cursor-pointer hover:bg-tint')"
               :title="itemDisabled(item) ? itemDisabledReason(item) : ''"
               @click="selectFromModalIfEnabled(item)"
             >

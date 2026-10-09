@@ -150,18 +150,40 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // WebSocket optionnel : une panne (URL relative mal resolue, proxy, etc.)
+  // ne doit jamais annuler un login / restoreSession deja reussi.
+  function tryConnectRealtime() {
+    try {
+      connectRealtime()
+    } catch {
+      // Session HTTP valide ; le temps reel reviendra au prochain login/refresh.
+    }
+  }
+
   // ── Actions ──────────────────────────────────────────────────
   async function login(email: string, password: string) {
     resetOtherStores()
     const { data } = await api.post<{ accessToken: string }>('/auth/login', { email, password })
     setStoredToken(data.accessToken)
-    const payload = decodeJwt(data.accessToken)
-    categoryName.value = payload.categoryName
-    mustChangePassword.value = payload.mustChangePassword
-    await fetchPermissions(payload.sub)
-    user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
-    isLoggedIn.value = true
-    connectRealtime()
+    try {
+      const payload = decodeJwt(data.accessToken)
+      categoryName.value = payload.categoryName
+      mustChangePassword.value = payload.mustChangePassword
+      await fetchPermissions(payload.sub)
+      user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
+      isLoggedIn.value = true
+      tryConnectRealtime()
+    } catch (err) {
+      // Token deja en storage mais hydratation incomplete → session orpheline
+      // (garde isLoggedIn=false + message "identifiants incorrects" trompeur).
+      clearStoredToken()
+      user.value = null
+      categoryName.value = null
+      permissions.value = []
+      mustChangePassword.value = false
+      isLoggedIn.value = false
+      throw err
+    }
   }
 
   // PATCH /auth/change-password renvoie un nouveau token (mustChangePassword
@@ -194,11 +216,12 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchPermissions(payload.sub)
       user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
       isLoggedIn.value = true
-      connectRealtime()
+      tryConnectRealtime()
     } catch {
       // Token valid but the employee/session/permissions data couldn't be
       // loaded (deleted employee, deactivated account, backend unreachable,
-      // etc.) — treat as logged out.
+      // etc.) — treat as logged out. (connectRealtime est isole via
+      // tryConnectRealtime : il ne doit plus vider une session HTTP valide.)
       clearStoredToken()
       user.value = null
       categoryName.value = null

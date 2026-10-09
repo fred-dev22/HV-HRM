@@ -4,7 +4,7 @@
         <div :class="L.pageHeader">
           <div>
             <div :class="L.pageTitle">Organigramme</div>
-            <div :class="L.pageSub">Structure organisationnelle de HV</div>
+            <div :class="L.pageSub">Structure organisationnelle de {{ $brand.shortName }}</div>
           </div>
           <router-link :to="{ name: 'hr-entities' }" :class="L.btnOutline">
             <Building class="w-4 h-4" /> Gérer les entités
@@ -28,7 +28,7 @@
             </div>
           </div>
           <div :class="kpiItem">
-            <div :class="kpiIcon" class="bg-primary/10"><Check class="w-[18px] h-[18px] text-primary" /></div>
+            <div :class="kpiIcon" class="bg-tint"><Check class="w-[18px] h-[18px] text-primary" /></div>
             <div>
               <div :class="kpiVal">{{ store.approvedEntities.length }}</div>
               <div :class="kpiLbl">Approuvées</div>

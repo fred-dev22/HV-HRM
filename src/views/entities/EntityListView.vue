@@ -1,7 +1,7 @@
 <template>
   <ListPageLayout
     title="Entités organisationnelles"
-    subtitle="Structure hiérarchique de HV"
+    :subtitle="`Structure hiérarchique de ${$brand.shortName}`"
     :columns="columns"
     :items="pageItems"
     :total="totalCount"
@@ -39,7 +39,7 @@
       <div class="grid grid-cols-4 gap-2.5 mb-4 max-md:grid-cols-2">
         <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><Building class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.entities.length }}</div><div :class="kpiLbl">Total entités</div></div></div>
         <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.totalHeadcount }}</div><div :class="kpiLbl">Effectif total</div></div></div>
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-primary/10"><Check class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.approvedEntities.length }}</div><div :class="kpiLbl">Approuvées</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-tint"><Check class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.approvedEntities.length }}</div><div :class="kpiLbl">Approuvées</div></div></div>
         <div :class="kpiItem"><div :class="[kpiIcon, store.pendingEntities.length > 0 ? 'bg-warning-bg' : 'bg-background']"><Clock class="w-[18px] h-[18px]" :class="store.pendingEntities.length > 0 ? 'text-warning' : 'text-muted-foreground'" /></div><div><div :class="kpiVal">{{ store.pendingEntities.length }}</div><div :class="kpiLbl">En attente</div></div></div>
       </div>
     </template>
@@ -68,7 +68,7 @@
 
     <!-- Cellules -->
     <template #cell-code="{ item }">
-      <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary tracking-[0.04em]">{{ item.code }}</span>
+      <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary tracking-[0.04em]">{{ item.code }}</span>
     </template>
     <template #cell-name="{ item }"><span class="font-medium">{{ item.name }}</span></template>
     <template #cell-type="{ item }">
@@ -85,7 +85,7 @@
     <template #details-panel="{ item }">
       <div class="flex flex-col gap-3.5">
         <div>
-          <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-primary/10 text-primary tracking-[0.04em]">{{ item.code }}</span>
+          <span class="text-[11px] font-bold px-[7px] py-0.5 rounded bg-tint text-primary tracking-[0.04em]">{{ item.code }}</span>
           <div class="text-sm font-semibold text-foreground mt-1.5">{{ item.name }}</div>
         </div>
         <div class="flex items-center gap-2">
@@ -229,7 +229,7 @@ function typeLabel(t: EntityType | string): string {
   return map[t] ?? t
 }
 function typeBadge(type: string): string {
-  const m: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-primary/10 text-primary' }
+  const m: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-tint text-primary' }
   return m[type] ?? 'bg-neutral-bg text-neutral'
 }
 // La vraie racine est LA Direction Générale (voir store::directionGenerale),

@@ -27,8 +27,8 @@ const SIZES: Record<'sm' | 'md' | 'lg', string> = {
 }
 
 const COLORS = [
-  'var(--hv-red)',
-  'var(--hv-maroon)',
+  'var(--brand-primary)',
+  'var(--brand-accent)',
   'var(--color-info)',
   '#854F0B',
   '#993556',

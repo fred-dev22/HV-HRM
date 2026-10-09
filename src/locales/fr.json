@@ -1,7 +1,7 @@
 {
   "nav": {
     "app_name": "Productive 247 HRM",
-    "company": "HV",
+    "company": "HRM",
     "admin": "Administration",
     "recruitment": "Recrutement",
     "training": "Formation",
@@ -11,8 +11,8 @@
     "my_absences": "Mes absences",
     "my_missions": "Mes missions",
     "my_documents": "Mes documents",
-    "context_rh": "RH · HV",
-    "context_employee": "EMPLOYÉ · HV"
+    "context_rh": "RH · HRM",
+    "context_employee": "EMPLOYÉ · HRM"
   },
   "topbar": {
     "search_placeholder": "Rechercher...",
@@ -31,6 +31,7 @@
     "loading": "Connexion en cours…",
     "error_fields": "Veuillez remplir tous les champs.",
     "error_invalid": "Email ou mot de passe incorrect.",
+    "error_session": "Connexion réussie, mais impossible de charger votre session. Réessayez ou contactez le support.",
     "forgot_password": "Mot de passe oublié ?",
     "forgot_password_message": "Contactez votre administrateur RH pour réinitialiser votre mot de passe."
   },
@@ -234,7 +235,7 @@
     "placeholder_first": "ex: Aminata",
     "placeholder_last": "ex: Diallo",
     "placeholder_code": "EMP001",
-    "placeholder_email": "prenom.nom@hv.com",
+    "placeholder_email": "prenom.nom@exemple.com",
     "placeholder_phone": "+230 5xx xxxx",
     "placeholder_job": "ex: Assistante RH",
     "placeholder_position": "Code poste",

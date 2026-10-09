@@ -41,7 +41,7 @@
       <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
         <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.employees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_total') }}</div></div></div>
         <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><UserCheck class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.activeEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_active') }}</div></div></div>
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-primary/10"><Clock class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.trialEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_trial') }}</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-tint"><Clock class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.trialEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_trial') }}</div></div></div>
         <div :class="kpiItem"><div :class="kpiIcon" class="bg-warning-bg"><ShieldCheck class="w-[18px] h-[18px] text-warning" /></div><div><div :class="kpiVal">{{ store.validatorEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_managers') }}</div></div></div>
       </div>
     </template>
@@ -90,7 +90,7 @@
     <template #cell-code="{ item }"><span class="font-mono text-xs font-semibold text-primary">{{ item.code }}</span></template>
     <template #cell-jobTitle="{ item }"><span class="text-foreground text-xs truncate">{{ item.jobTitle || '-' }}</span></template>
     <template #cell-entityName="{ item }"><span class="text-muted-foreground text-xs truncate">{{ item.entityName || '-' }}</span></template>
-    <template #cell-category="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary">{{ categoryName(item.employeeCategoryId) }}</span></template>
+    <template #cell-category="{ item }"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ categoryName(item.employeeCategoryId) }}</span></template>
     <template #cell-contractType="{ item }"><span class="text-muted-foreground text-xs">{{ item.contractType }}</span></template>
     <template #cell-hireDate="{ item }"><span class="text-muted-foreground text-xs">{{ formatDate(item.hireDate) }}</span></template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>

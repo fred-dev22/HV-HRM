@@ -101,7 +101,7 @@ const readBox = 'text-[13px] text-foreground bg-background border border-border 
             <span
               v-for="tag in current.tags"
               :key="tag"
-              class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-primary/10 text-primary"
+              class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary"
             >{{ tag }}</span>
           </div>
           <p v-else class="text-xs text-muted-foreground italic">Aucun tag</p>

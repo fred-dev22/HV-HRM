@@ -451,7 +451,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                 class="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg py-10 px-4 text-center transition-colors"
                 :class="[
                   parsingFile ? 'opacity-60 pointer-events-none cursor-wait' : 'cursor-pointer',
-                  dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
+                  dragOver ? 'border-primary bg-tint/50' : 'border-border hover:border-primary/40',
                 ]"
                 @dragover.prevent="dragOver = true"
                 @dragleave.prevent="dragOver = false"

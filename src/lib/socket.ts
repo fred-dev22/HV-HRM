@@ -4,8 +4,10 @@ import { getStoredToken } from './api'
 // L'origine du serveur socket.io est l'hote nu, sans le prefixe /api ajoute
 // par app.setGlobalPrefix() cote backend (main.ts) — sinon socket.io essaie
 // de handshaker sur /api/socket.io au lieu de /socket.io.
+// VITE_API_URL peut etre relatif ("/api" en prod derriere reverse-proxy) :
+// new URL('/api') sans base leve une TypeError — d'ou le 2e argument.
 function socketOrigin(): string {
-  return new URL(import.meta.env.VITE_API_URL).origin
+  return new URL(import.meta.env.VITE_API_URL, window.location.origin).origin
 }
 
 let socket: Socket | null = null
