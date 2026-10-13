@@ -88,7 +88,7 @@
       <span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ formatDate(r.createdAt) }}</span>
     </template>
     <template #cell-status="{ item: r }">
-      <StatusPill :status="r.status" />
+      <StatusPill :status="r.status" :end-date="r.endDate" />
     </template>
 
     <!-- Aperçu rapide -->
@@ -101,7 +101,7 @@
             <div class="text-[11px] text-muted-foreground">{{ r.leaveTypeName }}</div>
           </div>
         </div>
-        <div><StatusPill :status="r.status" /></div>
+        <div><StatusPill :status="r.status" :end-date="r.endDate" /></div>
         <div v-if="r.createdByName && r.createdByName !== r.employeeName" class="text-[12px]">
           <div class="text-muted-foreground text-[11px]">Créé par</div>{{ r.createdByName }}
         </div>
@@ -209,6 +209,7 @@ const filterPresets = computed(() => [
   { label: t('absence.all'), value: '' },
   { label: t('absence.status.pending'),  value: 'Pending' },
   { label: t('absence.status.approved'), value: 'Approved' },
+  { label: 'Consommé', value: 'Consumed' },
   { label: t('absence.status.rejected'), value: 'Rejected' },
   { label: t('absence.status.draft'),    value: 'Draft' },
 ])
@@ -225,10 +226,26 @@ function resetFilters() {
 
 const PENDING_STATUSES = new Set(['Pending', 'InApprovalN1', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4'])
 
+// "Consomme" : demande approuvee dont la date de fin est passee (retour client du
+// 13/10). "Approuve" ne garde alors que les approuvees a venir ou en cours.
+function isConsumed(l: { status: string; endDate: string }): boolean {
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return l.status === 'Approved' && l.endDate.slice(0, 10) < today
+}
+function matchesStatusFilter(l: { status: string; endDate: string }): boolean {
+  const f = filterStatus.value
+  if (!f) return true
+  if (f === 'Pending') return PENDING_STATUSES.has(l.status)
+  if (f === 'Consumed') return isConsumed(l)
+  if (f === 'Approved') return l.status === 'Approved' && !isConsumed(l)
+  return l.status === f
+}
+
 /* ── Données ────────────────────────────────────────────────── */
 const filtered = computed(() => {
   let list = sourceList.value.filter(l => {
-    if (filterStatus.value === 'Pending' ? !PENDING_STATUSES.has(l.status) : (filterStatus.value && l.status !== filterStatus.value)) return false
+    if (!matchesStatusFilter(l)) return false
     if (filterType.value   && l.leaveTypeId !== filterType.value) return false
     if (filterFrom.value   && l.startDate < filterFrom.value)  return false
     if (filterTo.value     && l.endDate   > filterTo.value)    return false

@@ -50,9 +50,13 @@ function fmt(n: number) { return n.toLocaleString('fr-FR') }
 const forWhom = ref<BeneficiaryValue>({ mode: auth.user?.isSystem ? 'for-employee' : props.mode, employeeId: '' })
 // On exclut soi-même : "Pour moi-même" est déjà l'option dédiée à ce cas,
 // pas besoin de se retrouver aussi dans la liste "Pour un employé".
+// Avec la permission FRAIS_CREER_POUR_AUTRE (RH, DRH) : tous les employes. Sans elle :
+// uniquement ceux de sa propre entite (le serveur applique la meme regle).
+const mayPickAnyEmployee = computed(() => auth.hasPermission('FRAIS_CREER_POUR_AUTRE'))
 const employeeItems = computed(() =>
   employeeStore.directory
     .filter(e => e.id !== auth.user?.id)
+    .filter(e => mayPickAnyEmployee.value || (!!auth.user?.entityId && e.entityId === auth.user.entityId))
     .map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, initials: e.avatarText, avatarColor: e.avatarBg, status: e.status })),
 )
 
@@ -187,7 +191,7 @@ const cellInput = 'w-full h-8 px-2 border border-border rounded bg-card text-xs 
         <div class="max-w-3xl mx-auto">
           <!-- Bénéficiaire -->
           <FormSection title="Général">
-          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" :can-create-for-others="auth.hasPermission('FRAIS_CREER_POUR_AUTRE')" />
+          <ForWhomSelector v-model="forWhom" :available-employees="employeeItems" :hide-self-option="!!auth.user?.isSystem" :can-create-for-others="mayPickAnyEmployee || employeeItems.length > 0" />
           <div v-if="selectedEmployee" class="flex items-center gap-2.5 mt-3 px-3.5 py-2.5 bg-background border border-border rounded-lg">
             <UserAvatar :name="selectedEmployee.name" size="sm" />
             <div>

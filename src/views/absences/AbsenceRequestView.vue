@@ -59,13 +59,13 @@
     <template #cell-dates="{ item }"><span class="whitespace-nowrap text-[11px]">{{ formatDate(item.startDate) }} → {{ formatDate(item.endDate) }}</span></template>
     <template #cell-days="{ item }"><span class="font-medium whitespace-nowrap">{{ item.daysCount }}j</span></template>
     <template #cell-submitted="{ item }"><span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ formatDate(item.createdAt) }}</span></template>
-    <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
+    <template #cell-status="{ item }"><StatusPill :status="item.status" :end-date="item.endDate" /></template>
 
     <!-- Aperçu -->
     <template #details-panel="{ item }">
       <div class="flex flex-col gap-3.5">
         <div class="text-sm font-semibold text-foreground">{{ item.leaveTypeName }}</div>
-        <div><StatusPill :status="item.status" /></div>
+        <div><StatusPill :status="item.status" :end-date="item.endDate" /></div>
         <div class="grid grid-cols-2 gap-2 text-[12px]">
           <div><div class="text-muted-foreground text-[11px]">Début</div>{{ formatDate(item.startDate) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Fin</div>{{ formatDate(item.endDate) }}</div>

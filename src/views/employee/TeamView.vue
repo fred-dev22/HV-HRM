@@ -11,6 +11,7 @@
       subtitle="Les employés de l'entité que vous dirigez"
       :employees="ownEntity"
       :links="employeeStore.collaboratorLinks"
+      :balances="employeeStore.collaboratorBalances"
     />
     <TeamMembersList
       v-if="validatedOnly.length > 0"
@@ -19,6 +20,7 @@
       subtitle="Validateur direct, ou membre du pool d'approbation de leur entité"
       :employees="validatedOnly"
       :links="employeeStore.collaboratorLinks"
+      :balances="employeeStore.collaboratorBalances"
     />
     <div v-if="ownEntity.length === 0 && validatedOnly.length === 0 && !employeeStore.loading" class="px-7 py-6 text-[13px] text-muted-foreground">
       Aucun membre d'équipe trouvé

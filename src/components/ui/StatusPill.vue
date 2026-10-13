@@ -10,7 +10,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ status: string }>()
+// endDate (facultatif) : une demande approuvee dont la date de fin est passee s'affiche
+// "Consommé". Affichage uniquement : le statut reste Approved.
+const props = defineProps<{ status: string; endDate?: string }>()
 
 interface PillConfig { label: string; class: string }
 
@@ -50,6 +52,7 @@ const CONFIG: Record<string, PillConfig> = {
   Registered:       { label: 'Enregistré', class: 'bg-info-bg text-info'       },
   Done:             { label: 'Effectué',   class: 'bg-success-bg text-success' },
   Regularized:      { label: 'Régularisé', class: 'bg-neutral-bg text-neutral' },
+  Consumed:         { label: 'Consommé',   class: 'bg-neutral-bg text-neutral' },
 
   // Module Recrutement (design uniquement, voir src/stores/recruitment) —
   // les statuts communs (Draft/PendingApproval/Approved/Rejected/Returned/
@@ -78,7 +81,15 @@ const CONFIG: Record<string, PillConfig> = {
   Attended:           { label: 'A participé',         class: 'bg-success-bg text-success'  },
 }
 
-const cfg = computed<PillConfig>(() =>
-  CONFIG[props.status] ?? { label: props.status, class: 'bg-neutral-bg text-neutral' }
-)
+const isConsumed = computed(() => {
+  if (props.status !== 'Approved' || !props.endDate) return false
+  const t = new Date()
+  const todayKey = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  return props.endDate.slice(0, 10) < todayKey
+})
+
+const cfg = computed<PillConfig>(() => {
+  const key = isConsumed.value ? 'Consumed' : props.status
+  return CONFIG[key] ?? { label: props.status, class: 'bg-neutral-bg text-neutral' }
+})
 </script>

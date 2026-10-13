@@ -43,7 +43,7 @@
                   <span v-if="r.createdByName && r.createdByName !== r.employeeName"> · créé par {{ r.createdByName }}</span>
                 </div>
               </div>
-              <StatusPill :status="r.status" />
+              <StatusPill :status="r.status" :end-date="r.endDate" />
               <button v-if="r.employeeId === auth.user?.id && CANCELLABLE.has(r.status)" class="px-2.5 py-[5px] rounded text-[10px] font-medium cursor-pointer bg-warning-bg text-warning" @click="cancelRequest(r.id)">
                 {{ t('absence.actions.cancel') }}
               </button>

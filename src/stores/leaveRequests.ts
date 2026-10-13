@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
 import { withToast } from '../lib/withToast'
+import { useAttachmentStore } from './attachments'
 import type { LeaveRequest, LeaveRequestStatus, ValidationStep } from '../types'
 
 // ── Backend <-> frontend mapping ────────────────────────────────
@@ -10,7 +11,7 @@ interface BackendLeaveTypeRef { Id: string; Name: string; Color: string; Workflo
 interface BackendDecision {
   Id: string
   StepOrder: number
-  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned'
+  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned' | 'Cancelled'
   Comment: string | null
   DecidedAt: string | null
   CreatedAt: string
@@ -92,7 +93,7 @@ function mapLeaveRequest(raw: BackendLeaveRequest): LeaveRequest {
     rejectionReason: raw.RejectionReason ?? undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
-    validationHistory: raw.decisions ? raw.decisions.map(mapDecision) : undefined,
+    validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
     insufficientBalance: raw.InsufficientBalance ?? false,
   }
 }
@@ -277,35 +278,64 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
     }, () => error.value ?? 'Impossible de soumettre cette demande')
   }
 
+  // Le justificatif se rattache a la demande par son Id (voir le modele
+  // Attachment, reference polymorphe) : il ne peut donc partir qu'apres la
+  // creation du brouillon, et avant la soumission qui verifie sa presence.
+  async function uploadJustificatifs(leaveRequestId: string, files: File[]) {
+    const attachmentStore = useAttachmentStore()
+    for (const file of files) {
+      await attachmentStore.upload('LeaveRequest', leaveRequestId, file, { silent: true })
+    }
+  }
+
+  // Annule un brouillon cree juste avant un echec. Le serveur supprime aussi
+  // les justificatifs deja rattaches (voir LeaveRequestService.remove).
+  async function discardDraft(id: string) {
+    try {
+      await api.delete(`/leave-requests/${id}`)
+      removeEverywhere(id)
+    } catch {
+      // Suppression refusee (reseau...) : le brouillon existe toujours cote
+      // serveur, on le laisse dans les listes plutot que de le cacher.
+    }
+    // Ne garde pas en memoire les fichiers d'un brouillon qu'on abandonne.
+    delete useAttachmentStore().byEntity[`LeaveRequest:${id}`]
+  }
+
   /** Crée puis soumet immédiatement — équivalent de l'ancien submitLeave() du mock. */
-  async function createAndSubmit(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
+  async function createAndSubmit(payload: CreateLeaveRequestPayload, files: File[] = []): Promise<LeaveRequest> {
     error.value = null
     return withToast('Soumission de la demande en cours…', async () => {
       let created: LeaveRequest | undefined
       try {
         created = await create(payload)
+        await uploadJustificatifs(created.id, files)
         return await submit(created.id)
       } catch (err) {
         // La soumission peut echouer apres coup (ex: preavis insuffisant,
-        // solde insuffisant) — on ne laisse pas trainer le brouillon cree
-        // juste avant, l'utilisateur a demande une soumission directe, pas
-        // un brouillon.
-        if (created) {
-          await api.delete(`/leave-requests/${created.id}`).catch(() => {})
-          removeEverywhere(created.id)
-        }
+        // solde insuffisant, justificatif non envoye), on ne laisse pas
+        // trainer le brouillon cree juste avant, l'utilisateur a demande une
+        // soumission directe, pas un brouillon.
+        if (created) await discardDraft(created.id)
         error.value = getApiErrorMessage(err, 'Impossible de soumettre la demande de congé')
         throw err
       }
     }, () => error.value ?? 'Impossible de soumettre la demande de congé')
   }
 
-  async function saveDraft(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
+  async function saveDraft(payload: CreateLeaveRequestPayload, files: File[] = []): Promise<LeaveRequest> {
     error.value = null
     return withToast('Enregistrement du brouillon en cours…', async () => {
+      let created: LeaveRequest | undefined
       try {
-        return await create(payload)
+        created = await create(payload)
+        await uploadJustificatifs(created.id, files)
+        return created
       } catch (err) {
+        // Tout ou rien : si l'envoi du justificatif echoue, on n'garde pas un
+        // brouillon a moitie enregistre (un nouvel essai en creerait un
+        // second en double).
+        if (created) await discardDraft(created.id)
         error.value = getApiErrorMessage(err, "Impossible d'enregistrer le brouillon")
         throw err
       }
@@ -444,17 +474,23 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
     }
   }
 
+  // Toast d'erreur (comme submit) : le bouton "Régulariser" appelle cette
+  // fonction sans l'attendre, et le serveur peut maintenant refuser (justificatif
+  // obligatoire manquant, voir LeaveRequestService.regularize) : sans toast,
+  // ce refus resterait invisible pour l'utilisateur.
   async function regularize(id: string) {
     error.value = null
-    try {
-      const { data } = await api.patch<BackendLeaveRequest>(`/leave-requests/${id}/regularize`)
-      const mapped = mapLeaveRequest(data)
-      replaceEverywhere(mapped)
-      return mapped
-    } catch (err) {
-      error.value = getApiErrorMessage(err, 'Impossible de régulariser cette demande')
-      throw err
-    }
+    return withToast('Régularisation en cours…', async () => {
+      try {
+        const { data } = await api.patch<BackendLeaveRequest>(`/leave-requests/${id}/regularize`)
+        const mapped = mapLeaveRequest(data)
+        replaceEverywhere(mapped)
+        return mapped
+      } catch (err) {
+        error.value = getApiErrorMessage(err, 'Impossible de régulariser cette demande')
+        throw err
+      }
+    }, () => error.value ?? 'Impossible de régulariser cette demande')
   }
 
   return {

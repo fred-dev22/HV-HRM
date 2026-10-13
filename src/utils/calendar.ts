@@ -51,16 +51,39 @@ export function isWorkingDay(date: Date, calendar: CompanyCalendar): boolean {
   return !isHoliday(date, calendar).isHoliday
 }
 
-// Prochain jour ouvre suivant `dateStr` — utilise pour la date de reprise
-// affichee, aussi bien depuis calculateEndDate que depuis un choix explicite
-// de date de fin (voir AbsenceCreate.vue onEndDateChange).
-export function getResumeDate(dateStr: string, calendar: CompanyCalendar): string {
+// Jour de la semaine normalement travaille, SANS tenir compte des jours
+// feries (contrairement a isWorkingDay). Retour client du 29/09 : un ferie
+// ne doit jamais repousser la date de fin/reprise d'un conge, seulement
+// faire baisser le nombre de jours decomptes (voir calculateEndDate). Utilise
+// uniquement pour positionner la date de fin ; chargedWorkingDays/getResumeDate
+// continuent d'utiliser isWorkingDay (un ferie reste bien exclu du decompte,
+// et on ne peut evidemment pas reprendre le travail un jour ferie).
+export function isWeeklyWorkDay(date: Date, calendar: CompanyCalendar): boolean {
+  const dayKey = DAY_KEYS[date.getDay()] as keyof WorkingDays
+  return calendar.workingDays[dayKey].enabled
+}
+
+// Moment de reprise apres `dateStr` (dernier jour de l'absence) : un dernier
+// jour "am" (matinee seule consommee) rend l'apres-midi du meme jour si
+// c'est un jour ouvre, tout le reste (journee entiere consommee) rend le
+// prochain jour ouvre au complet. Retour client du 23/09 : avant, la reprise
+// etait toujours "lendemain matin", meme quand seule la matinee du dernier
+// jour etait utilisee (le beneficiaire aurait du reprendre l'apres-midi
+// meme, pas attendre le lendemain).
+export function getResumeDate(
+  dateStr: string,
+  endPeriod: 'full' | 'am' | 'pm',
+  calendar: CompanyCalendar,
+): { date: string; period: 'am' | 'pm' } {
+  if (endPeriod === 'am' && isWorkingDay(parseLocal(dateStr), calendar)) {
+    return { date: dateStr, period: 'pm' }
+  }
   const resumeDay = parseLocal(dateStr)
   resumeDay.setDate(resumeDay.getDate() + 1)
   while (!isWorkingDay(resumeDay, calendar)) {
     resumeDay.setDate(resumeDay.getDate() + 1)
   }
-  return fmt(resumeDay)
+  return { date: fmt(resumeDay), period: 'am' }
 }
 
 function sameDay(a: Date, b: Date): boolean {
@@ -68,12 +91,16 @@ function sameDay(a: Date, b: Date): boolean {
 }
 
 // Vrai si `date` est une absence complete au sens de la demande — seuls
-// startDate/endDate peuvent porter une demi-journee (period != 'full'),
-// tout jour strictement entre les deux est forcement une absence complete.
+// startDate/endDate peuvent porter une demi-journee, tout jour strictement
+// entre les deux est forcement une absence complete. Retour client du 23/09 :
+// au debut, "Matin" compte desormais la journee entiere (comme "Journee
+// entiere" avant elle, retiree des choix), seul "Apres-midi" ampute cette
+// premiere journee, d'ou l'asymetrie avec la fin, ou tout ce qui n'est pas
+// "full" (matin ou apres-midi) reste une demi-journee.
 function isFullyAbsentDay(
   date: Date, startDate: Date, startPeriod: string, endDate: Date, endPeriod: string,
 ): boolean {
-  if (sameDay(date, startDate) && startPeriod !== 'full') return false
+  if (sameDay(date, startDate) && startPeriod === 'pm') return false
   if (sameDay(date, endDate) && endPeriod !== 'full') return false
   return true
 }
@@ -135,47 +162,60 @@ export function calculateEndDate(
   endDate:           string
   endPeriod:         'full' | 'am' | 'pm'
   resumeDate:        string
+  resumePeriod:      'am' | 'pm'
   actualWorkingDays: number
   chargedDays:       number
 } {
-  // Decompte calendaire (LeaveType.countCalendarDays) : tout jour compte,
-  // isWorkingDay n'est jamais consulte — seule la notion de demi-journee de
-  // bord (startPeriod) subsiste.
-  const countsDay = (d: Date) => countCalendarDays || isWorkingDay(d, calendar)
+  // Decompte calendaire (LeaveType.countCalendarDays) : tout jour compte.
+  // Sinon, isWeeklyWorkDay (pas isWorkingDay) : un jour ferie occupe quand
+  // meme sa place dans le decompte des jours demandes (retour client du
+  // 29/09), sinon un ferie repousserait la date de fin/reprise au lieu de
+  // simplement faire baisser le nombre de jours reellement factures (voir
+  // chargedWorkingDays, qui lui continue d'exclure les feries du total).
+  const countsDay = (d: Date) => countCalendarDays || isWeeklyWorkDay(d, calendar)
 
-  let count          = startPeriod === 'full' ? 0 : 0.5
-  const increment    = startPeriod === 'full' ? 1 : 0.5
-  let current        = parseLocal(startDate)
-  let lastWorkingDay = parseLocal(startDate)
+  // Compte en demi-journees (unites de 0.5) plutot qu'en jours flottants :
+  // "Matin" au debut vaut une journee PLEINE (2 unites), "Apres-midi" une
+  // demi (1 unite), chaque jour compte ensuite fournit 2 unites jusqu'a
+  // epuisement de la demande. Retour client du 23/09 (Journee entiere
+  // retiree des choix de debut, seuls Matin/Apres-midi restent).
+  let remainingUnits  = Math.round(workingDays * 2)
+  const current        = parseLocal(startDate)
+  let lastWorkingDay    = new Date(current)
+  let lastDayUnits: 1 | 2 = 2
+  // Ce que le dernier jour compte pouvait fournir : 1 pour une premiere journee
+  // commencee l'apres-midi, 2 sinon.
+  let lastSupply: 1 | 2   = 2
+  let first             = true
 
-  if (countsDay(current)) {
-    count += increment
-    lastWorkingDay = new Date(current)
-  }
-
-  while (count < workingDays) {
-    current = new Date(current)
-    current.setDate(current.getDate() + 1)
+  while (remainingUnits > 0) {
     if (countsDay(current)) {
-      const remaining = workingDays - count
-      if (remaining <= 0.5) {
-        count += 0.5
-        lastWorkingDay = new Date(current)
-        break
-      }
-      count += 1
-      lastWorkingDay = new Date(current)
+      const supply = first && startPeriod === 'pm' ? 1 : 2
+      const use    = Math.min(remainingUnits, supply)
+      remainingUnits -= use
+      lastWorkingDay   = new Date(current)
+      lastDayUnits     = use as 1 | 2
+      lastSupply       = supply as 1 | 2
+      first            = false
     }
+    if (remainingUnits <= 0) break
+    current.setDate(current.getDate() + 1)
   }
 
-  const endPeriod = count % 1 === 0.5 ? 'am' : 'full'
+  // "am" = seule la matinee du dernier jour est absente (reprise l'apres-midi
+  // meme). Une premiere journee commencee l'apres-midi et consommee en entier
+  // (0.5 j) n'est PAS une matinee : l'absence va jusqu'a la fin de la journee,
+  // la reprise est le jour ouvre suivant (retour client du 13/10).
+  const endPeriod = lastDayUnits === 1 && lastSupply === 2 ? 'am' : 'full'
   const chargedDays = chargedWorkingDays(parseLocal(startDate), lastWorkingDay, startPeriod, endPeriod, calendar, isExpatriate, countCalendarDays)
+  const resume = getResumeDate(fmt(lastWorkingDay), endPeriod, calendar)
 
   return {
     endDate:           fmt(lastWorkingDay),
     endPeriod,
-    resumeDate:        getResumeDate(fmt(lastWorkingDay), calendar),
-    actualWorkingDays: count,
+    resumeDate:        resume.date,
+    resumePeriod:      resume.period,
+    actualWorkingDays: workingDays,
     chargedDays,
   }
 }

@@ -43,6 +43,7 @@ const form = reactive({
   color:            '#2563EB',
   countCalendarDays: false,
   blockIfInsufficientBalance: true,
+  countWeekendAfterFriday: true,
 })
 // Ciblage d'eligibilite (voir EligibilityFields.vue) : champs texte ('',
 // 'M'/'F', 'true'/'false', id d'entite) comme tout autre select optionnel de
@@ -91,6 +92,7 @@ function populate() {
       form.color            = lt.color
       form.countCalendarDays = lt.countCalendarDays ?? false
       form.blockIfInsufficientBalance = lt.blockIfInsufficientBalance ?? true
+      form.countWeekendAfterFriday = lt.countWeekendAfterFriday ?? true
       appliesToGenderText.value = lt.appliesToGender ?? ''
       appliesToExpatriateText.value = lt.appliesToExpatriate === undefined || lt.appliesToExpatriate === null ? '' : String(lt.appliesToExpatriate)
       organizationUnitIdText.value = lt.organizationUnitId ?? ''
@@ -99,7 +101,7 @@ function populate() {
     Object.assign(form, {
       name:'', code:'', daysPerYear:0, monthlyAccrual:false,
       noticeDays:0, documentRequired:false, documentDeadlineDays:undefined, workflowType:'Standard',
-      isActive:true, isSystem:false, color:'#2563EB', countCalendarDays:false, blockIfInsufficientBalance:true,
+      isActive:true, isSystem:false, color:'#2563EB', countCalendarDays:false, blockIfInsufficientBalance:true, countWeekendAfterFriday:true,
     })
     appliesToGenderText.value = ''
     appliesToExpatriateText.value = ''
@@ -138,6 +140,7 @@ async function handleSave() {
     color:            form.color,
     countCalendarDays: form.countCalendarDays,
     blockIfInsufficientBalance: form.blockIfInsufficientBalance,
+    countWeekendAfterFriday: form.countWeekendAfterFriday,
     appliesToGender:     appliesToGenderText.value ? (appliesToGenderText.value as 'M' | 'F') : undefined,
     appliesToExpatriate: appliesToExpatriateText.value === '' ? undefined : appliesToExpatriateText.value === 'true',
     organizationUnitId:  organizationUnitIdText.value || undefined,
@@ -199,6 +202,19 @@ async function handleSave() {
                 <p class="text-[11px] text-muted-foreground">
                   <template v-if="form.countCalendarDays">Tous les jours du calendrier comptent (week-ends et fériés inclus), ex: Convalescence Maladie.</template>
                   <template v-else>Seuls les jours ouvrés comptent (week-ends et fériés exclus) - comportement standard.</template>
+                </p>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <div class="flex items-center justify-between">
+                  <span :class="cls.fieldLabel">Week-end après un vendredi</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer" v-model="form.countWeekendAfterFriday" />
+                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
+                  </label>
+                </div>
+                <p class="text-[11px] text-muted-foreground">
+                  <template v-if="form.countWeekendAfterFriday">Un vendredi entièrement absent compte aussi le week-end suivant (employé local).</template>
+                  <template v-else>Le week-end n'est jamais décompté : seuls les jours ouvrés comptent (ex. Off récupération).</template>
                 </p>
               </div>
               <div class="flex flex-col gap-1.5">

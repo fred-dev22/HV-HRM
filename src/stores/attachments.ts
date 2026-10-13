@@ -7,6 +7,11 @@ import { withToast } from '../lib/withToast'
 // entites pouvant porter des pieces jointes.
 export type AttachmentEntityType = 'LeaveRequest' | 'MissionOrder' | 'ExpenseReport' | 'ExpenseLine'
 
+// Limite du serveur (POST /attachments) : verifiee avant l'envoi pour afficher
+// un message en francais plutot que la reponse brute de multer.
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+export const ATTACHMENT_TOO_LARGE_MESSAGE = 'Le fichier dépasse la taille maximale de 10 Mo'
+
 export interface Attachment {
   id: string
   entityType: AttachmentEntityType
@@ -76,10 +81,18 @@ export const useAttachmentStore = defineStore('attachments', () => {
     }
   }
 
-  async function upload(entityType: AttachmentEntityType, entityId: string, file: File): Promise<Attachment> {
+  // silent : pas de toast propre, quand l'envoi n'est qu'une etape d'une
+  // action plus large qui affiche deja le sien (ex: creation + envoi du
+  // justificatif + soumission d'une demande de conge).
+  async function upload(
+    entityType: AttachmentEntityType,
+    entityId: string,
+    file: File,
+    opts: { silent?: boolean } = {},
+  ): Promise<Attachment> {
     error.value = null
     uploading.value = true
-    return withToast('Envoi du fichier en cours…', async () => {
+    const run = async () => {
       try {
         const form = new FormData()
         form.append('EntityType', entityType)
@@ -96,7 +109,9 @@ export const useAttachmentStore = defineStore('attachments', () => {
       } finally {
         uploading.value = false
       }
-    }, () => error.value ?? "Impossible d'envoyer le fichier")
+    }
+    if (opts.silent) return run()
+    return withToast('Envoi du fichier en cours…', run, () => error.value ?? "Impossible d'envoyer le fichier")
   }
 
   async function remove(id: string, entityType: AttachmentEntityType, entityId: string) {

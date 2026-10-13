@@ -27,6 +27,8 @@ export interface ListColumn {
   sortable?: boolean
   align?: 'left' | 'center' | 'right'
   hideable?: boolean
+  /** Colonne proposee dans le menu "Colonnes" mais masquee tant que l'utilisateur ne la coche pas. */
+  defaultHidden?: boolean
   pinnable?: boolean
   width?: number | string
 }
@@ -133,15 +135,20 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onClickOutside))
 
 /* ── État d'affichage des colonnes (ordre / masquées / épinglées) ── */
 const order = ref<string[]>(props.columns.map(c => c.key))
-const hidden = ref<Set<string>>(new Set())
+const defaultHiddenKeys = () => props.columns.filter(c => c.defaultHidden).map(c => c.key)
+const hidden = ref<Set<string>>(new Set(defaultHiddenKeys()))
 const pinned = ref<Set<string>>(new Set())
 
 watch(
   () => props.columns.map(c => c.key).join('|'),
-  (keysStr) => {
+  (keysStr, oldStr) => {
     const keys = keysStr ? keysStr.split('|') : []
+    const before = new Set(oldStr ? oldStr.split('|') : [])
     order.value = keys
-    hidden.value = new Set([...hidden.value].filter(k => keys.includes(k)))
+    // Une colonne qui apparait (ex. un type de conge charge apres coup) est masquee
+    // d'emblee si elle le demande ; les choix deja faits sur les autres sont gardes.
+    const added = defaultHiddenKeys().filter(k => !before.has(k))
+    hidden.value = new Set([...[...hidden.value].filter(k => keys.includes(k)), ...added])
     pinned.value = new Set([...pinned.value].filter(k => keys.includes(k)))
   },
 )
@@ -185,7 +192,7 @@ function togglePin(key: string) {
 }
 function resetColumns() {
   order.value = props.columns.map(c => c.key)
-  hidden.value = new Set()
+  hidden.value = new Set(defaultHiddenKeys())
   pinned.value = new Set()
 }
 

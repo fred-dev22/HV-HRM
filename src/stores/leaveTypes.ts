@@ -36,6 +36,9 @@ export interface LeaveTypeConfig {
   // Solde insuffisant : true (defaut) = la soumission est bloquee ; false = la demande
   // part quand meme avec un avertissement pour le validateur.
   blockIfInsufficientBalance?: boolean
+  // Regle du week-end avale (employe local) : true (defaut) = un vendredi absent compte aussi le
+  // week-end suivant ; false = jours ouvres seulement (ex. Off recuperation).
+  countWeekendAfterFriday?: boolean
 }
 
 interface BackendLeaveType {
@@ -59,6 +62,7 @@ interface BackendLeaveType {
   OrganizationUnitId: string | null
   CountCalendarDays: boolean
   BlockIfInsufficientBalance?: boolean
+  CountWeekendAfterFriday?: boolean
 }
 
 const ICON_BY_CODE: Record<string, string> = {
@@ -95,6 +99,7 @@ function mapLeaveType(raw: BackendLeaveType): LeaveTypeConfig {
     organizationUnitId: raw.OrganizationUnitId ?? undefined,
     countCalendarDays: raw.CountCalendarDays,
     blockIfInsufficientBalance: raw.BlockIfInsufficientBalance ?? true,
+    countWeekendAfterFriday: raw.CountWeekendAfterFriday ?? true,
   }
 }
 
@@ -119,6 +124,7 @@ function toBackendPayload(payload: Partial<LeaveTypeConfig>) {
   if (payload.organizationUnitId !== undefined) body.OrganizationUnitId = payload.organizationUnitId
   if (payload.countCalendarDays !== undefined) body.CountCalendarDays = payload.countCalendarDays
   if (payload.blockIfInsufficientBalance !== undefined) body.BlockIfInsufficientBalance = payload.blockIfInsufficientBalance
+  if (payload.countWeekendAfterFriday !== undefined) body.CountWeekendAfterFriday = payload.countWeekendAfterFriday
   return body
 }
 

@@ -19,7 +19,8 @@ import { useLeaveRequestStore } from '../../stores/leaveRequests'
 import { useLeaveTypesStore } from '../../stores/leaveTypes'
 import { useLeaveTransactionStore } from '../../stores/leaveTransactions'
 import { useCalendarStore } from '../../stores/calendar'
-import { useAttachmentStore } from '../../stores/attachments'
+import { useAttachmentStore, MAX_ATTACHMENT_BYTES, ATTACHMENT_TOO_LARGE_MESSAGE } from '../../stores/attachments'
+import { useToastStore } from '../../stores/toast'
 import { useAuthStore } from '../../stores/auth'
 import { useEmployeeStore } from '../../stores/employees'
 import { confirmDialog } from '../../lib/confirm'
@@ -59,17 +60,8 @@ const APPROVED_LINEAGE: LeaveRequest['status'][] = [
   'Approved', 'Registered', 'Done', 'Regularized', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4',
 ]
 
-// Le préavis minimum n'est plus bloquant à la soumission (decision du
-// 01/08) — avertissement visible sur la fiche pour le validateur.
-function noticeWarning(l: LeaveRequest): string | null {
-  const type = leaveTypesStore.leaveTypes.find(t => t.id === l.leaveTypeId)
-  if (!type || type.noticeDays <= 0) return null
-  const submitted = new Date(l.createdAt); submitted.setHours(0, 0, 0, 0)
-  const start = new Date(l.startDate)
-  const diffDays = Math.ceil((start.getTime() - submitted.getTime()) / 86400000)
-  if (diffDays >= type.noticeDays) return null
-  return `Préavis de ${type.noticeDays} jour(s) non respecté (soumis ${diffDays} jour(s) avant le début)`
-}
+// Retour client du 23/09 : plus d'avertissement de préavis nulle part,
+// noticeWarning()/formNoticeWarning() supprimées (elles l'affichaient ici).
 
 const currentId = ref(props.requestId)
 watch(() => props.requestId, (v) => { currentId.value = v; isEditMode.value = false })
@@ -99,10 +91,10 @@ watch(() => [currentId.value, current.value?.status] as const, async ([id]) => {
   }
 }, { immediate: true })
 
-// Justificatif médical (congé maladie) — voir stores/attachments.ts (upload
-// vers SharePoint via /attachments). Réservé aux types de congé
-// WorkflowType='Medical' : c'est le seul cas où un document de preuve a du
-// sens (arrêt de travail), pas les congés annuels/RTT/etc.
+// Justificatif (pièce jointe de la demande), voir stores/attachments.ts
+// (upload vers SharePoint via /attachments). Disponible pour tous les types
+// depuis le 28/09 ; isMedicalLeave distingue juste le workflow médical, où
+// le document est exigé à la régularisation plutôt qu'à la soumission.
 const isMedicalLeave = computed(() => {
   if (!current.value) return false
   const type = leaveTypesStore.leaveTypes.find(t => t.id === current.value!.leaveTypeId)
@@ -116,6 +108,7 @@ async function onAttachmentSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   ;(e.target as HTMLInputElement).value = ''
   if (!file || !currentId.value) return
+  if (file.size > MAX_ATTACHMENT_BYTES) { useToastStore().error(ATTACHMENT_TOO_LARGE_MESSAGE); return }
   try {
     await attachmentStore.upload('LeaveRequest', currentId.value, file)
   } catch {
@@ -194,6 +187,34 @@ function cancelEdit() { isEditMode.value = false }
 const currentType = computed(() => leaveTypesStore.leaveTypes.find(t => t.id === form.value.leaveTypeId) ?? null)
 const isMedicalType = computed(() => currentType.value?.workflowType === 'Medical')
 
+// Justificatif (retour client du 28/09) : la section est visible pour tous les
+// types (avant, seulement le medical), facultative sauf si le type d'absence
+// l'exige. En modification, on suit le type en cours de saisie : changer de
+// type peut rendre le justificatif obligatoire.
+const justificatifType = computed(() => {
+  const typeId = isEditMode.value ? form.value.leaveTypeId : current.value?.leaveTypeId
+  return leaveTypesStore.leaveTypes.find(t => t.id === typeId) ?? null
+})
+const justificatifRequired = computed(() => !!justificatifType.value?.documentRequired)
+// Ajout/retrait possibles tant que la demande est modifiable (brouillon ou
+// retournee), et pour un type medical jusqu'a la regularisation (le
+// certificat arrive apres la declaration). Reserve au demandeur ou a celui qui
+// a saisi la demande ; le serveur refait la meme verification.
+const justificatifPhase = computed(() => {
+  const c = current.value
+  if (!c) return false
+  if (c.status === 'Draft' || c.status === 'Returned') return true
+  return isMedicalLeave.value && (c.status === 'Registered' || c.status === 'Done')
+})
+const canManageJustificatif = computed(() => {
+  const c = current.value
+  if (!c || !justificatifPhase.value) return false
+  return c.employeeId === auth.user?.id || c.createdById === auth.user?.id
+})
+// Le libelle "pour la regularisation" suit le type affiche (celui en cours de
+// saisie en modification), comme l'obligation elle-meme.
+const isMedicalJustificatif = computed(() => justificatifType.value?.workflowType === 'Medical')
+
 const formIsPastDate = computed(() => {
   if (!form.value.startDate) return false
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -210,7 +231,9 @@ const formWorkingDaysCount = computed(() => {
   const isExpatriate = employeeStore.getById(current.value?.employeeId ?? '')?.isExpatriate ?? false
   return getChargedDaysBetween(
     form.value.startDate, form.value.endDate, calendarStore.calendar,
-    form.value.startPeriod, form.value.endPeriod, isExpatriate, currentType.value?.countCalendarDays ?? false,
+    form.value.startPeriod, form.value.endPeriod,
+    isExpatriate || currentType.value?.countWeekendAfterFriday === false,
+    currentType.value?.countCalendarDays ?? false,
   )
 })
 
@@ -229,18 +252,6 @@ const formIsBalanceInsufficient = computed(() => {
   return formWorkingDaysCount.value > myBalance.value.balance
 })
 
-// Préavis : recalculé depuis form.startDate — current.createdAt (date de
-// soumission initiale) ne change pas en édition, seule la date de début
-// bouge, voir noticeWarning() ci-dessus pour l'équivalent lecture seule.
-const formNoticeWarning = computed(() => {
-  if (!current.value || !form.value.startDate || !currentType.value || currentType.value.noticeDays <= 0) return null
-  const submitted = new Date(current.value.createdAt); submitted.setHours(0, 0, 0, 0)
-  const p = form.value.startDate.split('-').map(Number)
-  const start = new Date(p[0] ?? 0, (p[1] ?? 1) - 1, p[2] ?? 1)
-  const diffDays = Math.ceil((start.getTime() - submitted.getTime()) / 86400000)
-  if (diffDays >= currentType.value.noticeDays) return null
-  return `Préavis de ${currentType.value.noticeDays} jour(s) non respecté (soumis ${diffDays} jour(s) avant le début)`
-})
 async function save() {
   if (!current.value || !form.value.leaveTypeId) return
   try {
@@ -307,7 +318,7 @@ async function deletePermanently() {
     @select-sidebar="selectSidebar"
   >
     <template #title-badges>
-      <StatusPill :status="current.status" />
+      <StatusPill :status="current.status" :end-date="current.endDate" />
     </template>
 
     <!-- Barre d'actions métier (mode lecture) -->
@@ -417,12 +428,6 @@ async function deletePermanently() {
             <div v-else :class="[readBox, 'min-h-[38px] h-auto py-2']">{{ current.reason || '-' }}</div>
           </div>
 
-          <!-- Préavis insuffisant : avertissement non bloquant. En édition,
-               recalculé en direct depuis form.startDate (voir formNoticeWarning). -->
-          <div v-if="isEditMode ? formNoticeWarning : noticeWarning(current)" class="flex items-center gap-2 text-[13px] text-warning bg-warning-bg rounded-md px-2.5 py-2 col-span-full">
-            <TriangleAlert class="w-4 h-4 shrink-0" /> {{ isEditMode ? formNoticeWarning : noticeWarning(current) }}
-          </div>
-
           <!-- Solde insuffisant : avertissement non bloquant, le validateur décide.
                En édition, recalculé en direct depuis le formulaire (form*) plutôt
                que depuis le flag figé du serveur (current.insufficientBalance),
@@ -440,16 +445,27 @@ async function deletePermanently() {
         <div v-if="saveError" class="text-xs text-danger bg-danger-bg px-3 py-2 rounded-md mt-3">{{ saveError }}</div>
         </FormSection>
 
-        <!-- Justificatif médical (congés maladie uniquement) -->
-        <FormSection v-if="isMedicalLeave" :title="`Justificatif médical (${attachments.length})`">
-          <input ref="attachmentInput" type="file" class="hidden" @change="onAttachmentSelected" />
-          <button
-            class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="attachmentStore.uploading"
-            @click="triggerAttachmentUpload"
-          >
-            <Upload class="w-3.5 h-3.5" /> {{ attachmentStore.uploading ? 'Envoi…' : 'Ajouter un justificatif' }}
-          </button>
+        <!-- Justificatif (pièce jointe) : tous les types, facultatif sauf si le
+             type d'absence l'exige (voir justificatifRequired). -->
+        <FormSection :title="`Justificatif (${attachments.length})`">
+          <!-- Seulement tant que le justificatif peut encore etre fourni : sur
+               une demande deja soumise/approuvee (dont celles anterieures a
+               la regle), "obligatoire pour soumettre" serait trompeur. -->
+          <div v-if="justificatifRequired && justificatifPhase" class="mb-2">
+            <span :class="attachments.length === 0 ? cls.hintChipWarning : cls.hintChipNeutral">
+              <Paperclip class="w-3 h-3" /> Obligatoire{{ isMedicalJustificatif ? ' pour la régularisation' : ' pour soumettre la demande' }}
+            </span>
+          </div>
+          <template v-if="canManageJustificatif">
+            <input ref="attachmentInput" type="file" class="hidden" accept=".pdf,image/*,.doc,.docx" @change="onAttachmentSelected" />
+            <button
+              class="inline-flex items-center gap-1 px-3 py-[5px] rounded-md bg-tint text-primary text-xs font-semibold cursor-pointer hover:bg-primary/20 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="attachmentStore.uploading"
+              @click="triggerAttachmentUpload"
+            >
+              <Upload class="w-3.5 h-3.5" /> {{ attachmentStore.uploading ? 'Envoi…' : 'Ajouter un justificatif' }}
+            </button>
+          </template>
           <div v-if="attachments.length === 0" class="text-[12px] text-muted-foreground italic">Aucun justificatif fourni</div>
           <ul v-else class="flex flex-col gap-1.5">
             <li v-for="a in attachments" :key="a.id" class="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-background border border-border text-[13px]">
@@ -459,7 +475,7 @@ async function deletePermanently() {
               <a :href="a.fileUrl" target="_blank" rel="noopener" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0" title="Ouvrir">
                 <Download class="w-3.5 h-3.5" />
               </a>
-              <button class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeAttachment(a.id)">
+              <button v-if="canManageJustificatif && a.createdBy === auth.user?.id" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeAttachment(a.id)">
                 <Trash2 class="w-3.5 h-3.5" />
               </button>
             </li>

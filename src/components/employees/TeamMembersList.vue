@@ -63,6 +63,7 @@ import { StatusPill, ListPageLayout } from '../index'
 import type { ListColumn } from '../shared/ListPageLayout.vue'
 import EmployeeCard from './EmployeeCard.vue'
 import * as L from '../../lib/listClasses'
+import { useLeaveTypesStore } from '../../stores/leaveTypes'
 import type { Employee } from '../../types'
 
 // Liste d'employes de l'equipe d'un manager (une instance par groupe).
@@ -75,7 +76,15 @@ const props = defineProps<{
   subtitle: string
   employees: Employee[]
   links: Record<string, string[]>
+  // Soldes par employe puis par type de conge : { idEmploye: { idType: solde } }.
+  balances?: Record<string, Record<string, number>>
 }>()
+
+// Un solde par type de conge actif : chaque type est une colonne proposee dans le
+// menu "Colonnes" (masquee par defaut), a cocher selon le besoin du manager.
+const leaveTypesStore = useLeaveTypesStore()
+if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll().catch(() => undefined)
+const BALANCE_PREFIX = 'balance:'
 
 const openCardId = ref<string | null>(null)
 function openCard(item: Employee) { openCardId.value = item.id }
@@ -92,9 +101,20 @@ const columns = computed<ListColumn[]>(() => [
   { key: 'jobTitle', label: 'Poste', sortable: true, width: 180 },
   { key: 'entityName', label: 'Entité', sortable: true, width: 160 },
   { key: 'validation', label: props.mode === 'entity' ? 'Validateur' : 'Je valide en tant que', width: 170 },
+  ...leaveTypesStore.activeTypes.map(t => ({
+    key: BALANCE_PREFIX + t.id,
+    label: `Solde ${t.name}`,
+    width: 150,
+    defaultHidden: true,
+  })),
   { key: 'contractType', label: 'Contrat', width: 110 },
   { key: 'status', label: 'Statut', width: 120 },
 ])
+
+function balanceLabel(employeeId: string, typeId: string): string {
+  const v = props.balances?.[employeeId]?.[typeId]
+  return v === undefined ? '-' : `${Number.isInteger(v) ? v : v.toFixed(1)} j`
+}
 
 const VALIDATION_LABELS: Record<string, string> = { Direct: 'Validateur direct', Pool: 'Membre du pool' }
 // Entite dirigee : on ne marque que ceux dont on valide aussi les demandes.
@@ -124,8 +144,13 @@ const filtered = computed(() => {
 })
 
 const totalCount = computed(() => filtered.value.length)
+// Les colonnes de solde se lisent directement sur la ligne (cle "balance:<idType>").
 const pageItems = computed(() => {
   const start = (page.value - 1) * pageSize.value
-  return filtered.value.slice(start, start + pageSize.value)
+  return filtered.value.slice(start, start + pageSize.value).map(e => {
+    const row: Record<string, unknown> = { ...e }
+    for (const t of leaveTypesStore.activeTypes) row[BALANCE_PREFIX + t.id] = balanceLabel(e.id, t.id)
+    return row as unknown as Employee
+  })
 })
 </script>

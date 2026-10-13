@@ -103,7 +103,7 @@
               </div>
               <div class="text-xs text-muted-foreground">{{ r.leaveTypeName }} · {{ formatDate(r.startDate) }} → {{ formatDate(r.endDate) }} · {{ r.daysCount }} jour{{ r.daysCount > 1 ? 's' : '' }}</div>
             </div>
-            <StatusPill :status="r.status" />
+            <StatusPill :status="r.status" :end-date="r.endDate" />
             <AbsenceWorkflowActions :leave="r" />
           </div>
         </div>
