@@ -25,7 +25,7 @@ import { useEmployeeStore } from '../../stores/employees'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useLeaveTypesStore } from '../../stores/leaveTypes'
 import { useAuthStore } from '../../stores/auth'
-import { calculateEndDate, isWorkingDay } from '../../utils/calendar'
+import { calculateEndDate, getWorkingDaysBetween, isWorkingDay } from '../../utils/calendar'
 import { isEligible } from '../../lib/eligibility'
 import type { LeaveBalance } from '../../types'
 
@@ -323,6 +323,30 @@ watch(
   },
 )
 
+// Date de fin saisie : on en deduit le nombre de jours (jours ouvres entre le debut
+// et la fin, periode de debut incluse), puis on recalcule date de fin exacte,
+// reprise et jours decomptes a partir de ce nombre de jours. Une date de fin
+// tombant un jour non ouvre est donc ramenee au dernier jour ouvre couvert.
+function onEndDateChange() {
+  if (calculating) return
+  if (!form.startDate || !form.endDate || form.endDate < form.startDate) return
+  calculating = true
+  try {
+    const countCalendarDays = currentType.value?.countCalendarDays ?? false
+    const days = getWorkingDaysBetween(form.startDate, form.endDate, effectiveCalendar.value, form.startPeriod, 'full', countCalendarDays)
+    form.workingDaysCount = days > 0 ? days : null
+    if (days <= 0) { resumeDate.value = ''; chargedDaysCount.value = null; return }
+    const result = calculateEndDate(form.startDate, days, effectiveCalendar.value, form.startPeriod, skipsWeekendRule.value, countCalendarDays)
+    form.endDate = result.endDate
+    form.endPeriod = result.endPeriod
+    resumeDate.value = result.resumeDate
+    resumePeriod.value = result.resumePeriod
+    chargedDaysCount.value = result.chargedDays
+  } finally {
+    calculating = false
+  }
+}
+
 function formatDateFR(dateStr: string): string {
   const MONTHS_FR = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc']
   const p = dateStr.split('-').map(Number)
@@ -482,6 +506,17 @@ function onClose() { if (!saving.value) emit('close') }
                 class="inline-flex items-center text-[11px] font-semibold rounded-md px-2 py-[3px] mt-1 w-fit"
                 :class="blocksOnBalance ? 'bg-danger-bg text-danger' : isBalanceInsufficient ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success'"
               >{{ form.workingDaysCount }} {{ currentType?.countCalendarDays ? 'j calendaires' : 'j ouvrables' }}<template v-if="chargedDaysCount && chargedDaysCount > form.workingDaysCount"> (+ week-end = {{ chargedDaysCount }} j décomptés)</template><template v-else-if="chargedDaysCount && chargedDaysCount < form.workingDaysCount"> (jour(s) férié(s) inclus = {{ chargedDaysCount }} j décomptés)</template></span>
+            </div>
+
+            <!-- Retour client du 14/10 : la date de fin redevient saisissable. Nombre
+                 de jours et date de fin se calculent l'un l'autre (voir
+                 onEndDateChange et le watcher de calcul ci-dessus). -->
+            <div :class="cls.field">
+              <label :class="cls.fieldLabel">Date de fin</label>
+              <input
+                type="date" v-model="form.endDate" :min="form.startDate || undefined"
+                :class="cls.fieldInput" @change="onEndDateChange"
+              />
             </div>
 
             <!-- Retour client du 23/09 : mention Matin/Après-midi ajoutée

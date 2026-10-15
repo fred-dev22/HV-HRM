@@ -24,7 +24,7 @@ import { useToastStore } from '../../stores/toast'
 import { useAuthStore } from '../../stores/auth'
 import { useEmployeeStore } from '../../stores/employees'
 import { confirmDialog } from '../../lib/confirm'
-import { getChargedDaysBetween } from '../../utils/calendar'
+import { calculateEndDate, getChargedDaysBetween, getWorkingDaysBetween } from '../../utils/calendar'
 import type { LeaveRequest } from '../../types'
 
 const props = defineProps<{
@@ -146,6 +146,9 @@ const form = ref({
   interimEmployeeId: '', reason: '',
 })
 const saveError = ref('')
+// Nombre de jours demandes (jours ouvres, hors week-end "avale"), saisissable : lie
+// a la date de fin (retour client du 14/10) - modifier l'un recalcule l'autre.
+const formDays = ref<number | null>(null)
 
 const leaveTypeItems = computed(() => leaveTypesStore.activeTypes.map(lt => ({ id: lt.id, label: lt.name })))
 // Meme regle qu'AbsenceCreate.vue (decision du 01/08) : pas de restriction
@@ -176,7 +179,31 @@ function enterEdit() {
   // refetch si deja en memoire pour la bonne personne, mais on ne le sait
   // pas d'avance donc on le rejoue a chaque entree en edition.
   calendarStore.fetchCalendar(current.value.employeeId)
+  formDays.value = daysFromDates()
   isEditMode.value = true
+}
+
+// Calendrier et regles du beneficiaire (utilises par les deux sens du calcul).
+function beneficiaryCountsWeekend(): boolean {
+  const isExpatriate = employeeStore.getById(current.value?.employeeId ?? '')?.isExpatriate ?? false
+  return isExpatriate || currentType.value?.countWeekendAfterFriday === false
+}
+function daysFromDates(): number | null {
+  const f = form.value
+  if (!f.startDate || !f.endDate || f.endDate < f.startDate) return null
+  const d = getWorkingDaysBetween(f.startDate, f.endDate, calendarStore.calendar, f.startPeriod, f.endPeriod, currentType.value?.countCalendarDays ?? false)
+  return d > 0 ? d : null
+}
+// Date de fin / periode de fin / periode de debut modifiees : le nombre de jours suit.
+function onDatesChange() { formDays.value = daysFromDates() }
+// Nombre de jours (ou date de debut) modifie : la date de fin suit.
+function onDaysChange() {
+  const f = form.value
+  const days = formDays.value
+  if (!f.startDate || !days || days <= 0) return
+  const r = calculateEndDate(f.startDate, days, calendarStore.calendar, f.startPeriod, beneficiaryCountsWeekend(), currentType.value?.countCalendarDays ?? false)
+  f.endDate = r.endDate
+  f.endPeriod = r.endPeriod
 }
 function cancelEdit() { isEditMode.value = false }
 
@@ -356,7 +383,7 @@ async function deletePermanently() {
           <!-- Date début -->
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Date de début</label>
-            <input v-if="isEditMode" type="date" v-model="form.startDate" :class="cls.fieldInput" />
+            <input v-if="isEditMode" type="date" v-model="form.startDate" :class="cls.fieldInput" @change="onDaysChange" />
             <div v-else :class="readBox">{{ formatDate(current.startDate) }}</div>
             <div v-if="isEditMode && formIsPastDate && !isMedicalType" :class="cls.fieldWarning"><TriangleAlert class="w-3.5 h-3.5 shrink-0" /> La date est dans le passé, confirmez-vous ?</div>
           </div>
@@ -365,9 +392,9 @@ async function deletePermanently() {
           <div :class="cls.field">
             <span :class="cls.fieldLabel">Période de début</span>
             <div v-if="isEditMode" :class="cls.radioGroup">
-              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="full" /><span>Journée entière</span></label>
-              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="am" /><span>Matin</span></label>
-              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="pm" /><span>Après-midi</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="full" @change="onDaysChange" /><span>Journée entière</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="am" @change="onDaysChange" /><span>Matin</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.startPeriod" value="pm" @change="onDaysChange" /><span>Après-midi</span></label>
             </div>
             <div v-else :class="readBox">{{ { full: 'Journée entière', am: 'Matin', pm: 'Après-midi' }[current.startPeriod] }}</div>
           </div>
@@ -375,7 +402,7 @@ async function deletePermanently() {
           <!-- Date fin -->
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Date de fin</label>
-            <input v-if="isEditMode" type="date" v-model="form.endDate" :min="form.startDate" :class="cls.fieldInput" />
+            <input v-if="isEditMode" type="date" v-model="form.endDate" :min="form.startDate" :class="cls.fieldInput" @change="onDatesChange" />
             <div v-else :class="readBox">{{ formatDate(current.endDate) }}</div>
           </div>
 
@@ -383,9 +410,9 @@ async function deletePermanently() {
           <div :class="cls.field">
             <span :class="cls.fieldLabel">Période de fin</span>
             <div v-if="isEditMode" :class="cls.radioGroup">
-              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="full" /><span>Journée entière</span></label>
-              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="am" /><span>Matin</span></label>
-              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="pm" /><span>Après-midi</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="full" @change="onDatesChange" /><span>Journée entière</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="am" @change="onDatesChange" /><span>Matin</span></label>
+              <label :class="cls.radioItem"><input type="radio" v-model="form.endPeriod" value="pm" @change="onDatesChange" /><span>Après-midi</span></label>
             </div>
             <div v-else :class="readBox">{{ { full: 'Journée entière', am: 'Matin', pm: 'Après-midi' }[current.endPeriod] }}</div>
           </div>
@@ -393,7 +420,12 @@ async function deletePermanently() {
           <!-- Jours ouvrés -->
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Jours ouvrés</label>
-            <div :class="readBox">{{ isEditMode ? formWorkingDaysCount : current.daysCount }} jour(s)</div>
+            <input
+              v-if="isEditMode" type="number" min="0.5" step="0.5"
+              v-model.number="formDays" :class="cls.fieldInput" placeholder="ex: 3.5" @input="onDaysChange"
+            />
+            <div v-else :class="readBox">{{ current.daysCount }} jour(s)</div>
+            <div v-if="isEditMode && formDays && formWorkingDaysCount !== formDays" class="text-[11px] text-muted-foreground mt-1">= {{ formWorkingDaysCount }} jour(s) décompté(s) du solde</div>
           </div>
 
           <!-- Référence -->

@@ -44,6 +44,7 @@ const form = reactive({
   countCalendarDays: false,
   blockIfInsufficientBalance: true,
   countWeekendAfterFriday: true,
+  autoAccrual: true,
 })
 // Ciblage d'eligibilite (voir EligibilityFields.vue) : champs texte ('',
 // 'M'/'F', 'true'/'false', id d'entite) comme tout autre select optionnel de
@@ -64,6 +65,55 @@ const errors = reactive({ name: '', code: '' })
 // vide (chaine vide via v-model.number) qui faisait echouer la validation
 // backend (DaysPerMonth optionnel mais pas accepte comme chaine vide).
 const monthlyAccrualDays = computed(() => Math.round((form.daysPerYear / 12) * 100) / 100)
+
+// Options (interrupteurs) du type, rassemblees dans un seul bloc. Chaque ligne
+// affiche un nom et une explication qui suit l'etat de l'option.
+type OptionKey = 'monthlyAccrual' | 'autoAccrual' | 'countCalendarDays' | 'countWeekendAfterFriday' | 'blockIfInsufficientBalance' | 'documentRequired'
+const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>(() => [
+  {
+    key: 'monthlyAccrual',
+    label: 'Accumulation mensuelle',
+    hint: form.monthlyAccrual
+      ? `${monthlyAccrualDays.value} j crédités chaque mois (${form.daysPerYear} j/an ÷ 12).`
+      : `Désactivée : les ${form.daysPerYear} j/an sont crédités en une fois (dotation annuelle).`,
+  },
+  {
+    key: 'autoAccrual',
+    label: 'Génération automatique des soldes',
+    hint: form.autoAccrual
+      ? 'Le système crédite ce type tout seul : génération planifiée (annuelle ou mensuelle) et nouvel employé.'
+      : "Le système ne crédite jamais ce type (ni génération planifiée, ni nouvel employé, ni création du type). Le solde reste à 0 tant que la RH ne l'alimente pas via « Ajuster un solde » (ex. maternité, paternité : accordé sur dossier).",
+  },
+  {
+    key: 'countCalendarDays',
+    label: 'Décompte calendaire',
+    hint: form.countCalendarDays
+      ? 'Tous les jours du calendrier comptent (week-ends et fériés inclus), ex : Convalescence Maladie.'
+      : 'Seuls les jours ouvrés comptent (week-ends et fériés exclus) : comportement standard.',
+  },
+  {
+    key: 'countWeekendAfterFriday',
+    label: 'Week-end après un vendredi',
+    hint: form.countWeekendAfterFriday
+      ? 'Un vendredi entièrement absent compte aussi le week-end suivant (employé local).'
+      : "Le week-end n'est jamais décompté : seuls les jours ouvrés comptent (ex. Off récupération).",
+  },
+  {
+    key: 'blockIfInsufficientBalance',
+    label: 'Bloquer si solde insuffisant',
+    hint: (form.blockIfInsufficientBalance
+      ? 'La demande ne peut pas être soumise si le solde ne couvre pas les jours demandés (le brouillon reste possible).'
+      : "La demande part quand même, le validateur voit l'avertissement de solde insuffisant.")
+      + ' Sans effet si le type n\'a pas de quota (jours par an = 0).',
+  },
+  {
+    key: 'documentRequired',
+    label: 'Justificatif obligatoire',
+    hint: form.documentRequired
+      ? 'Un justificatif doit être joint à la demande (délai de remise à régler ci-dessous).'
+      : 'Le justificatif est facultatif pour ce type.',
+  },
+])
 
 function autoCode() {
   if (!isEdit.value) {
@@ -93,6 +143,7 @@ function populate() {
       form.countCalendarDays = lt.countCalendarDays ?? false
       form.blockIfInsufficientBalance = lt.blockIfInsufficientBalance ?? true
       form.countWeekendAfterFriday = lt.countWeekendAfterFriday ?? true
+      form.autoAccrual = lt.autoAccrual ?? true
       appliesToGenderText.value = lt.appliesToGender ?? ''
       appliesToExpatriateText.value = lt.appliesToExpatriate === undefined || lt.appliesToExpatriate === null ? '' : String(lt.appliesToExpatriate)
       organizationUnitIdText.value = lt.organizationUnitId ?? ''
@@ -101,7 +152,7 @@ function populate() {
     Object.assign(form, {
       name:'', code:'', daysPerYear:0, monthlyAccrual:false,
       noticeDays:0, documentRequired:false, documentDeadlineDays:undefined, workflowType:'Standard',
-      isActive:true, isSystem:false, color:'#2563EB', countCalendarDays:false, blockIfInsufficientBalance:true, countWeekendAfterFriday:true,
+      isActive:true, isSystem:false, color:'#2563EB', countCalendarDays:false, blockIfInsufficientBalance:true, countWeekendAfterFriday:true, autoAccrual:true,
     })
     appliesToGenderText.value = ''
     appliesToExpatriateText.value = ''
@@ -141,6 +192,7 @@ async function handleSave() {
     countCalendarDays: form.countCalendarDays,
     blockIfInsufficientBalance: form.blockIfInsufficientBalance,
     countWeekendAfterFriday: form.countWeekendAfterFriday,
+    autoAccrual: form.autoAccrual,
     appliesToGender:     appliesToGenderText.value ? (appliesToGenderText.value as 'M' | 'F') : undefined,
     appliesToExpatriate: appliesToExpatriateText.value === '' ? undefined : appliesToExpatriateText.value === 'true',
     organizationUnitId:  organizationUnitIdText.value || undefined,
@@ -191,46 +243,6 @@ async function handleSave() {
                   <option value="Medical">Médical (enregistrement)</option>
                 </select>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <div class="flex items-center justify-between">
-                  <span :class="cls.fieldLabel">Décompte calendaire</span>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" v-model="form.countCalendarDays" />
-                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-muted-foreground">
-                  <template v-if="form.countCalendarDays">Tous les jours du calendrier comptent (week-ends et fériés inclus), ex: Convalescence Maladie.</template>
-                  <template v-else>Seuls les jours ouvrés comptent (week-ends et fériés exclus) - comportement standard.</template>
-                </p>
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <div class="flex items-center justify-between">
-                  <span :class="cls.fieldLabel">Week-end après un vendredi</span>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" v-model="form.countWeekendAfterFriday" />
-                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-muted-foreground">
-                  <template v-if="form.countWeekendAfterFriday">Un vendredi entièrement absent compte aussi le week-end suivant (employé local).</template>
-                  <template v-else>Le week-end n'est jamais décompté : seuls les jours ouvrés comptent (ex. Off récupération).</template>
-                </p>
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <div class="flex items-center justify-between">
-                  <span :class="cls.fieldLabel">Bloquer si solde insuffisant</span>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" v-model="form.blockIfInsufficientBalance" />
-                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-muted-foreground">
-                  <template v-if="form.blockIfInsufficientBalance">La demande ne peut pas être soumise si le solde ne couvre pas les jours demandés (le brouillon reste possible).</template>
-                  <template v-else>La demande part quand même, le validateur voit l'avertissement de solde insuffisant.</template>
-                  Sans effet si le type n'a pas de quota (jours par an = 0).
-                </p>
-              </div>
               <div :class="[cls.field, 'col-span-2 max-sm:col-span-1']">
                 <label :class="cls.fieldLabel">Couleur dans le calendrier</label>
                 <p class="text-[11px] text-muted-foreground -mt-0.5 mb-1.5">
@@ -278,35 +290,11 @@ async function handleSave() {
                 <label :class="cls.fieldLabel">Jours alloués / an</label>
                 <input type="number" min="0" v-model.number="form.daysPerYear" :class="cls.fieldInput" />
               </div>
-              <div class="flex flex-col gap-1.5">
-                <div class="flex items-center justify-between">
-                  <span :class="cls.fieldLabel">Accumulation mensuelle</span>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" v-model="form.monthlyAccrual" />
-                    <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
-                  </label>
-                </div>
-                <p class="text-[11px] text-muted-foreground">
-                  <template v-if="form.monthlyAccrual">{{ monthlyAccrualDays }} j crédités chaque mois ({{ form.daysPerYear }} j/an ÷ 12).</template>
-                  <template v-else>Sans cette option, les {{ form.daysPerYear }} j/an sont crédités en une fois (dotation annuelle).</template>
-                </p>
-              </div>
               <div :class="cls.field">
                 <label :class="cls.fieldLabel">Préavis minimum (jours)</label>
                 <input type="number" min="0" v-model.number="form.noticeDays" :class="cls.fieldInput" />
               </div>
-              <div class="flex items-center justify-between">
-                <span :class="cls.fieldLabel">Justificatif obligatoire</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" v-model="form.documentRequired" />
-                  <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
-                </label>
-              </div>
-              <div v-if="form.documentRequired" :class="cls.field">
-                <label :class="cls.fieldLabel">Délai de soumission du justificatif (jours)</label>
-                <input type="number" min="1" v-model.number="form.documentDeadlineDays" :class="cls.fieldInput" placeholder="ex: 2" />
-              </div>
-              <div v-if="!isEdit" class="col-span-2 flex items-start gap-2.5 bg-info-bg rounded-md px-3 py-2.5">
+              <div v-if="!isEdit && form.autoAccrual" class="col-span-2 flex items-start gap-2.5 bg-info-bg rounded-md px-3 py-2.5">
                 <input id="credit-existing" type="checkbox" class="accent-primary mt-0.5" v-model="creditExisting" />
                 <label for="credit-existing" class="text-[13px] text-foreground cursor-pointer">
                   Créditer les employés déjà actifs dès la création
@@ -316,6 +304,32 @@ async function handleSave() {
                   </span>
                 </label>
               </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Options du type de congé">
+            <p class="text-[11px] text-muted-foreground -mt-0.5 mb-3">
+              Activez ou désactivez chaque règle de ce type. L'effet de l'option est expliqué sous son nom (et au survol).
+            </p>
+            <div class="flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
+              <label
+                v-for="o in optionRows" :key="o.key"
+                class="flex items-start justify-between gap-4 px-4 py-3 cursor-pointer hover:bg-background/60"
+                :title="o.hint"
+              >
+                <span class="flex flex-col gap-0.5 min-w-0">
+                  <span class="text-[13px] font-semibold text-foreground">{{ o.label }}</span>
+                  <span class="text-[11px] text-muted-foreground">{{ o.hint }}</span>
+                </span>
+                <span class="relative inline-flex items-center shrink-0 mt-0.5">
+                  <input type="checkbox" class="sr-only peer" v-model="form[o.key]" />
+                  <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
+                </span>
+              </label>
+            </div>
+            <div v-if="form.documentRequired" :class="[cls.field, 'mt-4']">
+              <label :class="cls.fieldLabel">Délai de soumission du justificatif (jours)</label>
+              <input type="number" min="1" v-model.number="form.documentDeadlineDays" :class="cls.fieldInput" placeholder="ex: 2" />
             </div>
           </FormSection>
 

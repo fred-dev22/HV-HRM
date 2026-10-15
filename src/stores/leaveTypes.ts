@@ -39,6 +39,7 @@ export interface LeaveTypeConfig {
   // Regle du week-end avale (employe local) : true (defaut) = un vendredi absent compte aussi le
   // week-end suivant ; false = jours ouvres seulement (ex. Off recuperation).
   countWeekendAfterFriday?: boolean
+  autoAccrual?: boolean
 }
 
 interface BackendLeaveType {
@@ -63,6 +64,7 @@ interface BackendLeaveType {
   CountCalendarDays: boolean
   BlockIfInsufficientBalance?: boolean
   CountWeekendAfterFriday?: boolean
+  AutoAccrual?: boolean
 }
 
 const ICON_BY_CODE: Record<string, string> = {
@@ -100,6 +102,7 @@ function mapLeaveType(raw: BackendLeaveType): LeaveTypeConfig {
     countCalendarDays: raw.CountCalendarDays,
     blockIfInsufficientBalance: raw.BlockIfInsufficientBalance ?? true,
     countWeekendAfterFriday: raw.CountWeekendAfterFriday ?? true,
+    autoAccrual: raw.AutoAccrual ?? true,
   }
 }
 
@@ -125,6 +128,7 @@ function toBackendPayload(payload: Partial<LeaveTypeConfig>) {
   if (payload.countCalendarDays !== undefined) body.CountCalendarDays = payload.countCalendarDays
   if (payload.blockIfInsufficientBalance !== undefined) body.BlockIfInsufficientBalance = payload.blockIfInsufficientBalance
   if (payload.countWeekendAfterFriday !== undefined) body.CountWeekendAfterFriday = payload.countWeekendAfterFriday
+  if (payload.autoAccrual !== undefined) body.AutoAccrual = payload.autoAccrual
   return body
 }
 
