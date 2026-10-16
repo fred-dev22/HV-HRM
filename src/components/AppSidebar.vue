@@ -241,7 +241,9 @@ const myPendingCount = computed(() => leaveStore.mine.filter(l => MINE_PENDING.h
 
 const canSeeManagementSection = computed(() => auth.hasAnyPermission([
   'EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE', 'ENTITE_VOIR',
-  'RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES',
+  // Les droits du module Recrutement ne comptent que si le module est actif :
+  // sinon un compte qui n'a que celui-la verrait une section vide.
+  ...(RECRUITMENT_MODULE_ENABLED ? ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'] : []),
   ...(MISSIONS_EXPENSES_ENABLED ? ['MISSION_VOIR_TOUT', 'MISSION_VOIR_EQUIPE', 'FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'] : []),
 ]))
 const canSeeConfigSection = computed(() => auth.hasAnyPermission([
