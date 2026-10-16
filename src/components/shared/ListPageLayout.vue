@@ -55,6 +55,13 @@ const props = withDefaults(
     viewModes?: { value: string; label: string; icon: Component }[]
     /** Valeur du mode "liste" (table intégrée). Les autres modes utilisent le slot #custom-view */
     listMode?: string
+    /**
+     * Cle de memorisation des colonnes (ordre, masquees, epinglees) dans le navigateur.
+     * Fournie : les choix du menu "Colonnes" sont conserves d'une visite a l'autre
+     * (rechargement, deconnexion, nouvelle session). Absente : rien n'est memorise.
+     * Inclure l'identifiant de l'utilisateur pour que chacun garde ses colonnes.
+     */
+    storageKey?: string
   }>(),
   {
     rowKey: 'id',
@@ -134,22 +141,75 @@ onMounted(() => document.addEventListener('mousedown', onClickOutside))
 onBeforeUnmount(() => document.removeEventListener('mousedown', onClickOutside))
 
 /* ── État d'affichage des colonnes (ordre / masquées / épinglées) ── */
-const order = ref<string[]>(props.columns.map(c => c.key))
+// Memorisation : pour une colonne qui apparait apres coup (ex. un type de conge
+// charge plus tard), on retrouve ce que l'utilisateur en avait fait ; si elle
+// est inconnue de sa sauvegarde, la regle par defaut (defaultHidden) s'applique.
+interface SavedColumns { order: string[]; hidden: string[]; pinned: string[]; known: string[] }
+const STORAGE_PREFIX = 'list-columns:'
+function loadSaved(): SavedColumns | null {
+  if (!props.storageKey) return null
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + props.storageKey)
+    if (!raw) return null
+    const v = JSON.parse(raw) as Partial<SavedColumns>
+    return {
+      order: Array.isArray(v.order) ? v.order : [],
+      hidden: Array.isArray(v.hidden) ? v.hidden : [],
+      pinned: Array.isArray(v.pinned) ? v.pinned : [],
+      known: Array.isArray(v.known) ? v.known : [],
+    }
+  } catch {
+    return null
+  }
+}
+let saved: SavedColumns | null = loadSaved()
+
 const defaultHiddenKeys = () => props.columns.filter(c => c.defaultHidden).map(c => c.key)
-const hidden = ref<Set<string>>(new Set(defaultHiddenKeys()))
-const pinned = ref<Set<string>>(new Set())
+function isHiddenByState(c: ListColumn): boolean {
+  if (saved && saved.known.includes(c.key)) return saved.hidden.includes(c.key)
+  return !!c.defaultHidden
+}
+function orderFromSaved(keys: string[]): string[] {
+  if (!saved || saved.order.length === 0) return keys
+  const known = saved.order.filter(k => keys.includes(k))
+  return [...known, ...keys.filter(k => !known.includes(k))]
+}
+
+const order = ref<string[]>(orderFromSaved(props.columns.map(c => c.key)))
+const hidden = ref<Set<string>>(new Set(props.columns.filter(isHiddenByState).map(c => c.key)))
+const pinned = ref<Set<string>>(new Set(props.columns.map(c => c.key).filter(k => saved?.pinned.includes(k))))
+
+function persist() {
+  if (!props.storageKey) return
+  const present = new Set(props.columns.map(c => c.key))
+  // On garde ce qu'on savait des colonnes absentes pour l'instant (pas encore chargees).
+  const absent = (arr?: string[]) => (arr ?? []).filter(k => !present.has(k))
+  saved = {
+    order: order.value,
+    hidden: [...absent(saved?.hidden), ...hidden.value],
+    pinned: [...absent(saved?.pinned), ...pinned.value],
+    known: [...new Set([...(saved?.known ?? []), ...present])],
+  }
+  try {
+    localStorage.setItem(STORAGE_PREFIX + props.storageKey, JSON.stringify(saved))
+  } catch {
+    // stockage indisponible (navigation privee...) : l'affichage reste correct, sans memoire
+  }
+}
+watch([order, hidden, pinned], persist)
 
 watch(
   () => props.columns.map(c => c.key).join('|'),
   (keysStr, oldStr) => {
     const keys = keysStr ? keysStr.split('|') : []
     const before = new Set(oldStr ? oldStr.split('|') : [])
-    order.value = keys
-    // Une colonne qui apparait (ex. un type de conge charge apres coup) est masquee
-    // d'emblee si elle le demande ; les choix deja faits sur les autres sont gardes.
-    const added = defaultHiddenKeys().filter(k => !before.has(k))
+    order.value = orderFromSaved(keys)
+    // Une colonne deja presente garde l'etat choisi ; une colonne qui apparait
+    // retrouve sa sauvegarde, ou sa regle par defaut.
+    const added = props.columns.filter(c => !before.has(c.key) && isHiddenByState(c)).map(c => c.key)
     hidden.value = new Set([...[...hidden.value].filter(k => keys.includes(k)), ...added])
-    pinned.value = new Set([...pinned.value].filter(k => keys.includes(k)))
+    const addedPinned = keys.filter(k => !before.has(k) && saved?.pinned.includes(k))
+    pinned.value = new Set([...[...pinned.value].filter(k => keys.includes(k)), ...addedPinned])
   },
 )
 

@@ -20,7 +20,7 @@ interface BackendMissionExpenseLine {
 interface BackendDecision {
   Id: string
   StepOrder: number
-  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned'
+  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned' | 'Cancelled'
   Comment: string | null
   DecidedAt: string | null
   CreatedAt: string
@@ -151,7 +151,7 @@ function mapMissionOrder(raw: BackendMissionOrder): MissionOrder {
     linkedMission: raw.linkedMissionOrder ? mapLinkedMission(raw.linkedMissionOrder) : undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
-    validationHistory: raw.decisions ? raw.decisions.map(mapDecision) : undefined,
+    validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
   }
 }
 

@@ -12,6 +12,7 @@
     v-model:sort-dir="sortDir"
     v-model:page="page"
     v-model:page-size="pageSize"
+    :storage-key="columnsStorageKey"
     @open-card="openCard"
   >
     <template #cell-name="{ item }">
@@ -64,6 +65,7 @@ import type { ListColumn } from '../shared/ListPageLayout.vue'
 import EmployeeCard from './EmployeeCard.vue'
 import * as L from '../../lib/listClasses'
 import { useLeaveTypesStore } from '../../stores/leaveTypes'
+import { useAuthStore } from '../../stores/auth'
 import type { Employee } from '../../types'
 
 // Liste d'employes de l'equipe d'un manager (une instance par groupe).
@@ -83,6 +85,10 @@ const props = defineProps<{
 // Un solde par type de conge actif : chaque type est une colonne proposee dans le
 // menu "Colonnes" (masquee par defaut), a cocher selon le besoin du manager.
 const leaveTypesStore = useLeaveTypesStore()
+// Colonnes choisies (ex. soldes par type) memorisees par utilisateur et par groupe :
+// elles restent affichees au rechargement et a la prochaine connexion.
+const authStore = useAuthStore()
+const columnsStorageKey = computed(() => `team-members:${authStore.user?.id ?? 'anon'}:${props.mode}`)
 if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll().catch(() => undefined)
 const BALANCE_PREFIX = 'balance:'
 

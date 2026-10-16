@@ -10,7 +10,7 @@ interface BackendExpenseTypeRef { Id: string; Name: string }
 interface BackendDecision {
   Id: string
   StepOrder: number
-  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned'
+  Decision: 'Pending' | 'Approved' | 'Rejected' | 'Returned' | 'Cancelled'
   Comment: string | null
   DecidedAt: string | null
   CreatedAt: string
@@ -106,7 +106,7 @@ function mapExpenseReport(raw: BackendExpenseReport): ExpenseReport {
     submittedAt: raw.SubmittedAt ?? undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
-    validationHistory: raw.decisions ? raw.decisions.map(mapDecision) : undefined,
+    validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
   }
 }
 

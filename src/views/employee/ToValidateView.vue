@@ -37,7 +37,6 @@
     <template #cell-type="{ item }">
       <span class="inline-flex items-center gap-1 whitespace-nowrap">
         {{ item.leaveTypeName }}
-        <TriangleAlert v-if="noticeWarning(item)" class="w-3.5 h-3.5 text-warning shrink-0" :title="noticeWarning(item) ?? ''" />
         <TriangleAlert v-if="item.insufficientBalance" class="w-3.5 h-3.5 text-danger shrink-0" title="Solde insuffisant" />
       </span>
     </template>
@@ -82,9 +81,6 @@
           </div>
           <div v-if="item.reason" class="text-[12px]">
             <div class="text-muted-foreground text-[11px]">Motif</div>{{ item.reason }}
-          </div>
-          <div v-if="noticeWarning(item)" class="flex items-center gap-2 text-[12px] text-warning bg-warning-bg rounded-md px-2.5 py-2">
-            <TriangleAlert class="w-3.5 h-3.5 shrink-0" /> {{ noticeWarning(item) }}
           </div>
           <div v-if="item.insufficientBalance" class="flex items-center gap-2 text-[12px] text-danger bg-danger-bg rounded-md px-2.5 py-2">
             <TriangleAlert class="w-3.5 h-3.5 shrink-0" /> Solde insuffisant pour ce type de congé, à valider en connaissance de cause.
@@ -164,18 +160,10 @@ const ALL_SCOPES = ['absences', 'missions', 'expenses'] as const
 type Scope = typeof ALL_SCOPES[number]
 const VALID_SCOPES: readonly Scope[] = MISSIONS_EXPENSES_ENABLED ? ALL_SCOPES : ['absences']
 
-// Le préavis minimum n'est plus bloquant à la soumission (decision du
-// 01/08) — c'est ici, côté validateur, que l'avertissement doit apparaître
-// pour qu'il approuve ou refuse en connaissance de cause.
-function noticeWarning(item: LeaveRequest): string | null {
-  const type = leaveTypesStore.leaveTypes.find(t => t.id === item.leaveTypeId)
-  if (!type || type.noticeDays <= 0) return null
-  const submitted = new Date(item.createdAt); submitted.setHours(0, 0, 0, 0)
-  const start = new Date(item.startDate)
-  const diffDays = Math.ceil((start.getTime() - submitted.getTime()) / 86400000)
-  if (diffDays >= type.noticeDays) return null
-  return `Préavis de ${type.noticeDays} jour(s) non respecté (soumis ${diffDays} jour(s) avant le début)`
-}
+// Retour client du 23/09 : plus d'avertissement de préavis nulle part
+// (aucune page), le préavis minimum n'est de toute façon plus bloquant
+// depuis le 01/08 (noticeWarning() supprimée, elle affichait ce même
+// avertissement côté validateur).
 
 const initialScope = VALID_SCOPES.includes(route.query.scope as Scope)
   ? (route.query.scope as Scope)

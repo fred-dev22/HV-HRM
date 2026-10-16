@@ -90,5 +90,26 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
     }, () => error.value ?? "Impossible de mettre à jour ce solde")
   }
 
-  return { myBalances, allBalances, loading, error, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual }
+  // Fixe le solde a une valeur FINALE (retour client, weekly) : le serveur calcule
+  // l'ecart avec le solde du moment et le trace comme un ajustement manuel.
+  async function setBalance(employeeId: string, leaveTypeId: string, targetBalance: number, reason?: string) {
+    error.value = null
+    return withToast('Mise à jour du solde en cours…', async () => {
+      try {
+        const { data } = await api.post<{ balances: LeaveBalance[]; wasClamped: boolean; newBalance: number }>(
+          '/leave-transactions/set-balance',
+          { EmployeeId: employeeId, LeaveTypeId: leaveTypeId, Amount: targetBalance, Reason: reason || undefined },
+        )
+        const idx = allBalances.value.findIndex(b => b.employeeId === employeeId)
+        const current = allBalances.value[idx]
+        if (current) allBalances.value[idx] = { ...current, balances: data.balances }
+        return data
+      } catch (err) {
+        error.value = getApiErrorMessage(err, "Impossible de mettre à jour ce solde")
+        throw err
+      }
+    }, () => error.value ?? "Impossible de mettre à jour ce solde")
+  }
+
+  return { myBalances, allBalances, loading, error, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual, setBalance }
 })

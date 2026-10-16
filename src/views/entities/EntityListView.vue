@@ -1,4 +1,6 @@
 <template>
+  <div class="flex min-w-0 items-start">
+  <div ref="leftColRef" class="flex-1 min-w-0">
   <ListPageLayout
     title="Entités organisationnelles"
     :subtitle="`Structure hiérarchique de ${$brand.shortName}`"
@@ -130,16 +132,30 @@
     <EntityCreate v-if="showCreate" @close="showCreate = false" />
     <ImportWizardModal v-if="showImport" :open="showImport" :config="entityImportConfig" @close="showImport = false" @imported="store.fetchAll()" />
   </ListPageLayout>
+  </div>
+
+  <!-- Aperçu rapide (arbre / organigramme) : panneau en flux, largeur fixe,
+       voir commentaire sur quickPeekId plus bas -->
+  <EntityQuickPeek
+    v-if="quickPeekId"
+    :entity-id="quickPeekId"
+    class="w-[320px] min-w-[320px] shrink-0 border-l border-border"
+    :style="leftColHeight ? { height: leftColHeight + 'px' } : undefined"
+    @close="quickPeekId = null"
+    @view-full="onViewFullFromPeek"
+  />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, provide, type Component } from 'vue'
+import { ref, computed, watch, provide, onMounted, onBeforeUnmount, type Component } from 'vue'
 import {
   Plus, Upload, List, ListTree, Network, Building, Users, Check, Clock, Maximize2, Minimize2, Info,
 } from 'lucide-vue-next'
 import { StatusPill, ListPageLayout } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import EntityCard from '../../components/entities/EntityCard.vue'
+import EntityQuickPeek from '../../components/entities/EntityQuickPeek.vue'
 import EntityCreate from '../../components/entities/EntityCreate.vue'
 import EntityWorkflowActions from '../../components/entities/EntityWorkflowActions.vue'
 import OrgNode from './OrgNode.vue'
@@ -177,8 +193,41 @@ const entityImportConfig = computed(() => buildEntityImportConfig())
 const openCardId = ref<string | null>(null)
 function openCard(id: string) { openCardId.value = id }
 
-// Le clic sur un nœud (arbre/organigramme) ouvre la fiche modale
-provide('navigate-to-detail', (id: string) => openCard(id))
+// Aperçu rapide (retour client du 22/09) : cliquer une entité depuis
+// l'organigramme graphique ouvre d'abord ce panneau léger (responsable +
+// employés), pas directement la fiche complète. Retour client du 23/09 :
+// ne concerne QUE l'organigramme graphique, pas la vue arbre (OrgNode),
+// voir 'open-entity-card' plus bas.
+const quickPeekId = ref<string | null>(null)
+function onViewFullFromPeek(id: string) {
+  quickPeekId.value = null
+  openCard(id)
+}
+
+// Le clic sur un nœud de l'organigramme graphique ouvre l'aperçu rapide
+provide('navigate-to-detail', (id: string) => { quickPeekId.value = id })
+// Ferme l'aperçu rapide au clic ailleurs que sur un nœud (fond du canevas)
+provide('close-entity-peek', () => { quickPeekId.value = null })
+// Voir/Modifier dans la vue arbre (OrgNode.vue) ouvrent directement la
+// fiche complète, jamais l'aperçu rapide (retour client du 23/09).
+provide('open-entity-card', (id: string) => openCard(id))
+
+// Hauteur du panneau d'aperçu calée sur celle du contenu à gauche (arbre,
+// organigramme, liste...) : pas une valeur fixe devinée, la vraie hauteur
+// rendue de ce bloc, mesurée en direct. ResizeObserver posé à la main
+// (plutôt que useElementSize de vueuse, qui restait bloqué sur une
+// ancienne mesure après un changement de mode d'affichage).
+const leftColRef = ref<HTMLElement | null>(null)
+const leftColHeight = ref(0)
+let leftColObserver: ResizeObserver | null = null
+onMounted(() => {
+  if (!leftColRef.value) return
+  leftColObserver = new ResizeObserver((entries) => {
+    leftColHeight.value = entries[0]!.contentRect.height
+  })
+  leftColObserver.observe(leftColRef.value)
+})
+onBeforeUnmount(() => leftColObserver?.disconnect())
 
 /* ── Arbre (collapse) ───────────────────────────────────────── */
 const collapsedIds = ref<string[]>([])

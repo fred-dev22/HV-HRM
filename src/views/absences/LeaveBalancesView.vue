@@ -131,11 +131,40 @@
                   <option v-for="c in TYPE_COLS" :key="c.leaveTypeId" :value="c.leaveTypeId">{{ c.leaveTypeName }}</option>
                 </select>
               </div>
-              <div :class="fcls.field">
-                <label :class="fcls.fieldLabel">Jours *</label>
-                <input v-model.number="creditForm.amount" type="number" step="0.5" :class="fcls.fieldInput" placeholder="ex : 2 (positif = crédit, -2 = décrément)" />
-                <p class="text-[11px] text-muted-foreground mt-1">Positif pour créditer, négatif pour décrémenter (ex : correction d'une erreur de saisie). Le solde ne descend jamais sous 0.</p>
+              <!-- Solde actuel -> nouveau solde, avec l'ecart signe (+2 / -3), des que
+                   l'employe et le type sont choisis. -->
+              <div v-if="creditForm.employeeId && creditForm.leaveTypeId" class="rounded-xl border border-border bg-background p-4">
+                <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                  <div class="flex flex-col gap-1">
+                    <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Solde actuel</span>
+                    <div class="h-[46px] rounded-lg bg-card border border-border flex items-center px-3.5">
+                      <span class="text-xl font-bold text-foreground">{{ currentBalance }}</span>
+                      <span class="ml-1.5 text-[13px] text-muted-foreground">j</span>
+                    </div>
+                  </div>
+                  <ArrowRight class="w-5 h-5 text-muted-foreground mb-3.5" />
+                  <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-semibold uppercase tracking-wide text-primary" for="new-balance">Nouveau solde</label>
+                    <div class="h-[46px] rounded-lg bg-card border-2 border-primary/50 focus-within:border-primary flex items-center px-3.5 gap-1.5 transition-colors">
+                      <input
+                        id="new-balance" v-model.number="creditForm.finalBalance" type="number" step="0.5" min="0"
+                        class="w-full bg-transparent border-0 outline-none text-xl font-bold text-foreground p-0" placeholder="ex : 15" @input="onFinalInput"
+                      />
+                      <span class="text-[13px] text-muted-foreground">j</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <span class="text-[12px] text-muted-foreground">Écart appliqué</span>
+                  <span
+                    class="inline-flex items-center rounded-md px-2.5 py-1 text-[13px] font-bold"
+                    :class="creditForm.amount > 0 ? 'bg-success-bg text-success' : creditForm.amount < 0 ? 'bg-danger-bg text-danger' : 'bg-neutral-bg text-neutral'"
+                  >{{ deltaLabel }}</span>
+                </div>
               </div>
+              <p class="text-[11px] text-muted-foreground -mt-1.5">
+                Indiquez le solde final voulu : l'écart se calcule tout seul (ex. solde 18, nouveau solde 15 = écart -3). Le solde ne descend jamais sous 0.
+              </p>
               <div :class="fcls.field">
                 <label :class="fcls.fieldLabel">Motif <span :class="fcls.fieldOptional">(optionnel)</span></label>
                 <textarea v-model="creditForm.reason" :class="fcls.fieldTextarea" rows="2" placeholder="ex : régularisation oubli de génération de mai"></textarea>
@@ -177,7 +206,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { FileDown, Users, Sun, RefreshCw, Home, PlusCircle, Upload } from 'lucide-vue-next'
+import { FileDown, Users, Sun, RefreshCw, Home, PlusCircle, Upload, ArrowRight } from 'lucide-vue-next'
 import { UserAvatar, ListPageLayout } from '../../components'
 import CreateModalShell from '../../components/shared/CreateModalShell.vue'
 import FormSection from '../../components/ui/form-field/FormSection.vue'
@@ -211,24 +240,44 @@ onMounted(() => {
 // ── Crédit manuel ────────────────────────────────────────────
 const showCreditModal = ref(false)
 const creditError = ref('')
-const creditForm = reactive({ employeeId: '', leaveTypeId: '', amount: 1, reason: '' })
+const creditForm = reactive({ employeeId: '', leaveTypeId: '', amount: 0, finalBalance: null as number | null, reason: '' })
 
 function openCredit() {
-  Object.assign(creditForm, { employeeId: '', leaveTypeId: '', amount: 1, reason: '' })
+  Object.assign(creditForm, { employeeId: '', leaveTypeId: '', amount: 0, finalBalance: null, reason: '' })
   creditError.value = ''
   showCreditModal.value = true
 }
+// Solde actuel du couple employe / type choisi (0 s'il n'a pas encore de ligne).
+const currentBalance = computed(() => {
+  const emp = balanceStore.allBalances.find(e => e.employeeId === creditForm.employeeId)
+  return emp?.balances.find(b => b.leaveTypeId === creditForm.leaveTypeId)?.balance ?? 0
+})
+const round2 = (n: number) => Math.round(n * 100) / 100
+// Choix de l'employe ou du type : on repart du solde actuel (ecart 0).
+watch(() => [creditForm.employeeId, creditForm.leaveTypeId], () => {
+  creditForm.finalBalance = creditForm.employeeId && creditForm.leaveTypeId ? currentBalance.value : null
+  creditForm.amount = 0
+})
+function onFinalInput() {
+  const f = creditForm.finalBalance
+  creditForm.amount = typeof f === 'number' && !Number.isNaN(f) ? round2(f - currentBalance.value) : 0
+}
+// Ecart affiche avec son signe : +2 j, -3 j, 0 j.
+const deltaLabel = computed(() => {
+  const d = creditForm.amount
+  return `${d > 0 ? '+' : ''}${d} j`
+})
+
 async function submitCredit() {
   if (!creditForm.employeeId) { creditError.value = "L'employé est obligatoire"; return }
   if (!creditForm.leaveTypeId) { creditError.value = 'Le type de congé est obligatoire'; return }
-  if (!creditForm.amount) { creditError.value = 'Le nombre de jours ne peut pas être 0'; return }
+  const target = creditForm.finalBalance
+  if (target === null || Number.isNaN(Number(target))) { creditError.value = 'Le nouveau solde est obligatoire'; return }
+  if (target < 0) { creditError.value = 'Le solde ne peut pas être négatif'; return }
+  if (round2(target - currentBalance.value) === 0) { creditError.value = 'Le nouveau solde est identique au solde actuel'; return }
   creditError.value = ''
   try {
-    const result = await balanceStore.creditManual(creditForm.employeeId, creditForm.leaveTypeId, creditForm.amount, creditForm.reason || undefined)
-    if (result.wasClamped) {
-      creditError.value = `Décrément limité au solde disponible, ramené à 0 (au lieu de ${creditForm.amount}j demandé).`
-      return
-    }
+    await balanceStore.setBalance(creditForm.employeeId, creditForm.leaveTypeId, target, creditForm.reason || undefined)
     showCreditModal.value = false
   } catch {
     creditError.value = balanceStore.error ?? "L'ajustement a échoué. Veuillez réessayer."

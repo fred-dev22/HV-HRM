@@ -40,9 +40,13 @@
           <span class="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" :class="statusClass">{{ statusText }}</span>
         </div>
 
-        <!-- Actions -->
+        <!-- Actions : Voir/Modifier ouvrent toujours la fiche complète
+             directement (jamais l'aperçu rapide, réservé à l'organigramme
+             graphique, retour client du 23/09), et jamais la page
+             /edit séparée : "Modifier" ouvre la même fiche, l'édition se
+             fait dedans, comme partout ailleurs dans l'app. -->
         <div class="flex gap-1 shrink-0">
-          <button :class="actBtn" @click.stop="navigateToDetail(entity.id)">
+          <button :class="actBtn" @click.stop="openEntityCard(entity.id)">
             Voir →
           </button>
           <button
@@ -55,11 +59,11 @@
             :class="[actBtn, 'bg-success-bg text-success']"
             @click.stop="approveEntity"
           >Approuver</button>
-          <router-link
+          <button
             v-if="entity.status === 'Active'"
-            :to="{ name: 'hr-entity-edit', params: { id: entity.id } }"
             :class="actBtn"
-          >Modifier</router-link>
+            @click.stop="openEntityCard(entity.id)"
+          >Modifier</button>
         </div>
       </div>
     </div>
@@ -93,8 +97,12 @@ const router         = useRouter()
 const store          = useEntityStore()
 const collapsedIds   = inject<Ref<string[]>>('entity-collapsed')!
 const toggleCollapse = inject<(id: string) => void>('entity-toggle')!
-const navigateToDetail = inject<(id: string) => void>(
-  'navigate-to-detail',
+// Distinct de 'navigate-to-detail' (aperçu rapide, utilisé par
+// OrgChartView.vue/organigramme graphique uniquement) : la vue arbre garde
+// son comportement d'origine, Voir/Modifier ouvrent directement la fiche
+// complète (retour client du 23/09).
+const openEntityCard = inject<(id: string) => void>(
+  'open-entity-card',
   (id: string) => router.push({ name: 'hr-entity-detail', params: { id } })
 )
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch, ref } from 'vue'
-import { Check, Pipette } from 'lucide-vue-next'
+import { Check, Pipette, CalendarClock, RefreshCw, CalendarDays, CalendarOff, ShieldAlert, Paperclip } from 'lucide-vue-next'
+import type { Component } from 'vue'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import EligibilityFields from '../ui/form-field/EligibilityFields.vue'
@@ -69,9 +70,10 @@ const monthlyAccrualDays = computed(() => Math.round((form.daysPerYear / 12) * 1
 // Options (interrupteurs) du type, rassemblees dans un seul bloc. Chaque ligne
 // affiche un nom et une explication qui suit l'etat de l'option.
 type OptionKey = 'monthlyAccrual' | 'autoAccrual' | 'countCalendarDays' | 'countWeekendAfterFriday' | 'blockIfInsufficientBalance' | 'documentRequired'
-const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>(() => [
+const optionRows = computed<{ key: OptionKey; label: string; hint: string; icon: Component }[]>(() => [
   {
     key: 'monthlyAccrual',
+    icon: CalendarClock,
     label: 'Accumulation mensuelle',
     hint: form.monthlyAccrual
       ? `${monthlyAccrualDays.value} j crédités chaque mois (${form.daysPerYear} j/an ÷ 12).`
@@ -79,6 +81,7 @@ const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>((
   },
   {
     key: 'autoAccrual',
+    icon: RefreshCw,
     label: 'Génération automatique des soldes',
     hint: form.autoAccrual
       ? 'Le système crédite ce type tout seul : génération planifiée (annuelle ou mensuelle) et nouvel employé.'
@@ -86,6 +89,7 @@ const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>((
   },
   {
     key: 'countCalendarDays',
+    icon: CalendarDays,
     label: 'Décompte calendaire',
     hint: form.countCalendarDays
       ? 'Tous les jours du calendrier comptent (week-ends et fériés inclus), ex : Convalescence Maladie.'
@@ -93,6 +97,7 @@ const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>((
   },
   {
     key: 'countWeekendAfterFriday',
+    icon: CalendarOff,
     label: 'Week-end après un vendredi',
     hint: form.countWeekendAfterFriday
       ? 'Un vendredi entièrement absent compte aussi le week-end suivant (employé local).'
@@ -100,6 +105,7 @@ const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>((
   },
   {
     key: 'blockIfInsufficientBalance',
+    icon: ShieldAlert,
     label: 'Bloquer si solde insuffisant',
     hint: (form.blockIfInsufficientBalance
       ? 'La demande ne peut pas être soumise si le solde ne couvre pas les jours demandés (le brouillon reste possible).'
@@ -108,6 +114,7 @@ const optionRows = computed<{ key: OptionKey; label: string; hint: string }[]>((
   },
   {
     key: 'documentRequired',
+    icon: Paperclip,
     label: 'Justificatif obligatoire',
     hint: form.documentRequired
       ? 'Un justificatif doit être joint à la demande (délai de remise à régler ci-dessous).'
@@ -311,17 +318,30 @@ async function handleSave() {
             <p class="text-[11px] text-muted-foreground -mt-0.5 mb-3">
               Activez ou désactivez chaque règle de ce type. L'effet de l'option est expliqué sous son nom (et au survol).
             </p>
-            <div class="flex flex-col divide-y divide-border border border-border rounded-lg overflow-hidden">
+            <div class="flex flex-col gap-2.5">
               <label
                 v-for="o in optionRows" :key="o.key"
-                class="flex items-start justify-between gap-4 px-4 py-3 cursor-pointer hover:bg-background/60"
+                class="flex items-start gap-3.5 rounded-xl border px-4 py-3.5 cursor-pointer transition-colors"
+                :class="form[o.key] ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:bg-background/70'"
                 :title="o.hint"
               >
-                <span class="flex flex-col gap-0.5 min-w-0">
-                  <span class="text-[13px] font-semibold text-foreground">{{ o.label }}</span>
-                  <span class="text-[11px] text-muted-foreground">{{ o.hint }}</span>
+                <span
+                  class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                  :class="form[o.key] ? 'bg-primary/15 text-primary' : 'bg-background text-muted-foreground'"
+                >
+                  <component :is="o.icon" class="w-[18px] h-[18px]" />
                 </span>
-                <span class="relative inline-flex items-center shrink-0 mt-0.5">
+                <span class="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span class="flex items-center gap-2">
+                    <span class="text-[13px] font-semibold text-foreground">{{ o.label }}</span>
+                    <span
+                      class="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5"
+                      :class="form[o.key] ? 'bg-primary/15 text-primary' : 'bg-neutral-bg text-neutral'"
+                    >{{ form[o.key] ? 'Activé' : 'Désactivé' }}</span>
+                  </span>
+                  <span class="text-[12px] leading-snug text-muted-foreground">{{ o.hint }}</span>
+                </span>
+                <span class="relative inline-flex items-center shrink-0 mt-1">
                   <input type="checkbox" class="sr-only peer" v-model="form[o.key]" />
                   <span class="w-9 h-5 rounded-full bg-foreground/20 transition-colors peer-checked:bg-primary relative after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-3.5 after:h-3.5 after:bg-white after:rounded-full after:shadow after:transition-all peer-checked:after:left-[19px]"></span>
                 </span>

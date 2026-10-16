@@ -7,7 +7,7 @@
       </span>
     </div>
 
-    <div class="orgchart-body">
+    <div class="orgchart-body" @click="closeEntityPeek">
       <Vue3OrgChart v-if="store.orgChartEntities.length" :data="store.orgChartEntities">
         <template #node="{ item, children, open, toggleChildren }">
           <div
@@ -71,7 +71,7 @@ const store   = useEntityStore()
 const navStore = useNavigationStore()
 const router   = useRouter()
 
-// Quand rendu dans EntityListView, ouvre la fiche en MODAL via le provide ;
+// Quand rendu dans EntityListView, ouvre l'aperçu rapide via le provide ;
 // sinon, navigation vers la page de détail (fallback).
 const navigateToDetail = inject<((id: string) => void) | null>('navigate-to-detail', null)
 function onNodeClick(id: string) {
@@ -79,6 +79,12 @@ function onNodeClick(id: string) {
   navStore.setPreviousRoute({ name: 'hr-entities', query: { tab: 'orgchart' } })
   router.push({ name: 'hr-entity-detail', params: { id } })
 }
+
+// Referme l'aperçu rapide au clic ailleurs que sur un nœud (fond du
+// canevas), retour client du 23/09. Les clics sur un nœud font @click.stop
+// (voir template), donc ce handler, posé sur le conteneur, ne se déclenche
+// que pour un clic hors nœud.
+const closeEntityPeek = inject<() => void>('close-entity-peek', () => {})
 </script>
 
 <style scoped>

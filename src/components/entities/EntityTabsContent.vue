@@ -1,4 +1,6 @@
 <template>
+  <div class="flex min-w-0 items-start">
+  <div ref="leftColRef" class="flex-1 min-w-0">
   <!-- ── Barre d'onglets ── -->
   <div class="flex border border-border bg-card rounded-t-lg px-1 mb-4">
     <div
@@ -188,13 +190,26 @@
       </div>
     </div>
   </template>
+  </div>
+
+  <!-- Aperçu rapide (arbre / organigramme) : panneau en flux, largeur fixe,
+       voir commentaire sur quickPeekId plus bas -->
+  <EntityQuickPeek
+    v-if="quickPeekId"
+    :entity-id="quickPeekId"
+    class="w-[320px] min-w-[320px] shrink-0 border-l border-border"
+    :style="leftColHeight ? { height: leftColHeight + 'px' } : undefined"
+    @close="quickPeekId = null"
+    @view-full="onViewFullFromPeek"
+  />
+  </div>
 
   <!-- Fiche entité — voir commentaire sur openCardId plus bas -->
   <EntityCard v-if="openCardId !== null" :entities="store.entities" :entity-id="openCardId" @close="openCardId = null" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, provide, onMounted, watch, type Component } from 'vue'
+import { ref, computed, provide, onMounted, onBeforeUnmount, watch, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   ListTree, Network, List, Clock, Maximize2, Minimize2, Info, Search,
@@ -206,6 +221,7 @@ import OrgNode      from '../../views/entities/OrgNode.vue'
 import OrgChartView from '../OrgChartView.vue'
 import StatusPill   from '../ui/StatusPill.vue'
 import EntityCard   from './EntityCard.vue'
+import EntityQuickPeek from './EntityQuickPeek.vue'
 import * as L from '../../lib/listClasses'
 import type { EntityType } from '../../types'
 
@@ -262,8 +278,47 @@ onMounted(() => {
 const openCardId = ref<string | null>(null)
 function openCard(id: string) { openCardId.value = id }
 
-// Fournit l'ouverture de fiche aux OrgNodes / nœuds d'organigramme enfants
-provide('navigate-to-detail', (id: string) => openCard(id))
+// Aperçu rapide (retour client du 22/09) : cliquer une entité depuis
+// l'organigramme graphique ouvre d'abord ce panneau léger (responsable +
+// employés), pas directement la fiche complète. "Voir la fiche complète"
+// dans le panneau ouvre ensuite EntityCard, exactement comme avant. Retour
+// client du 23/09 : ne concerne QUE l'organigramme graphique (OrgChartView),
+// pas la vue arbre (OrgNode), voir 'open-entity-card' plus bas.
+const quickPeekId = ref<string | null>(null)
+function onViewFullFromPeek(id: string) {
+  quickPeekId.value = null
+  openCard(id)
+}
+
+// Fournit l'ouverture de l'aperçu rapide aux nœuds de l'organigramme
+// graphique (OrgChartView.vue n'a pas changé, il appelle toujours la même
+// fonction injectée).
+provide('navigate-to-detail', (id: string) => { quickPeekId.value = id })
+// Ferme l'aperçu rapide au clic ailleurs que sur un nœud dans l'organigramme
+// (fond du canevas), retour client du 23/09 : avant, rien ne le refermait
+// tant qu'on ne cliquait pas explicitement sur la croix.
+provide('close-entity-peek', () => { quickPeekId.value = null })
+// Voir/Modifier dans la vue arbre (OrgNode.vue) ouvrent directement la
+// fiche complète, jamais l'aperçu rapide (retour client du 23/09) : l'arbre
+// garde son comportement d'origine, distinct de l'organigramme graphique.
+provide('open-entity-card', (id: string) => openCard(id))
+
+// Hauteur du panneau d'aperçu calée sur celle du contenu à gauche (arbre,
+// organigramme, liste...) : pas une valeur fixe devinée, la vraie hauteur
+// rendue de ce bloc, mesurée en direct. ResizeObserver posé à la main
+// (plutôt que useElementSize de vueuse, qui restait bloqué sur une
+// ancienne mesure après un changement d'onglet dans ce composant).
+const leftColRef = ref<HTMLElement | null>(null)
+const leftColHeight = ref(0)
+let leftColObserver: ResizeObserver | null = null
+onMounted(() => {
+  if (!leftColRef.value) return
+  leftColObserver = new ResizeObserver((entries) => {
+    leftColHeight.value = entries[0]!.contentRect.height
+  })
+  leftColObserver.observe(leftColRef.value)
+})
+onBeforeUnmount(() => leftColObserver?.disconnect())
 
 // ── Provide pour OrgNode (collapse) ──────────────────────────
 const collapsedIds = ref<string[]>([])
