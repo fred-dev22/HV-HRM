@@ -11,6 +11,7 @@
 export let MISSIONS_EXPENSES_ENABLED = false
 export let RECRUITMENT_MODULE_ENABLED = false
 export let FORMATION_MODULE_ENABLED = false
+export let DEADLINES_MODULE_ENABLED = false
 export let PAYROLL_MODULE_ENABLED = false
 export let REPORTS_MODULE_ENABLED = false
 // Modules encore a l'etat de coquille vide (Paie, Rapports) : vrai si l'un des deux est actif.
@@ -23,6 +24,7 @@ export function applyEnabledModules(modules: readonly string[], features: { jobD
   MISSIONS_EXPENSES_ENABLED = on.has('missions_expenses')
   RECRUITMENT_MODULE_ENABLED = on.has('recruitment')
   FORMATION_MODULE_ENABLED = on.has('training')
+  DEADLINES_MODULE_ENABLED = on.has('deadlines')
   PAYROLL_MODULE_ENABLED = on.has('payroll')
   REPORTS_MODULE_ENABLED = on.has('reports')
   PLACEHOLDER_MODULES_ENABLED = PAYROLL_MODULE_ENABLED || REPORTS_MODULE_ENABLED

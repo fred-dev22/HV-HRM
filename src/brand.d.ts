@@ -5,6 +5,7 @@ declare module 'vue' {
   interface ComponentCustomProperties {
     $brand: BrandConfig
     $brandLogo: string
+    $brandLoginLogo: string
   }
 }
 

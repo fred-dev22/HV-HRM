@@ -9,7 +9,7 @@ import PublicApprovalView from '../views/PublicApprovalView.vue'
 import DashboardHR       from '../views/DashboardHR.vue'
 import DashboardEmployee from '../views/DashboardEmployee.vue'
 import CalendarView      from '../views/calendar/CalendarView.vue'
-import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED, FORMATION_MODULE_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED, FORMATION_MODULE_ENABLED, DEADLINES_MODULE_ENABLED } from '../config/features'
 
 const PH = () => import('../views/placeholders/PlaceholderView.vue')
 
@@ -417,6 +417,10 @@ router.beforeEach(async (to) => {
     }
 
     if (!RECRUITMENT_MODULE_ENABLED && (to.path.startsWith(RECRUITMENT_MODULE_PATH_PREFIX) || to.name === 'employee-internal-applications' || to.name === 'hr-needs')) {
+      return { path: auth.isHRSpace ? '/hr' : '/employee' }
+    }
+
+    if (!DEADLINES_MODULE_ENABLED && to.name === 'hr-deadlines') {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 

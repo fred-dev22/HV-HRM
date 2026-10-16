@@ -6,7 +6,8 @@ import { i18n } from './plugins/i18n'
 import { Vue3OrgChartPlugin } from 'vue3-org-chart'
 import { useAuthStore } from './stores/auth'
 import './assets/main.css'
-import { loadAppConfig, brand, logoUrl } from './config/appConfig'
+import './assets/themes/congelo.css'
+import { loadAppConfig, brand, logoUrl, loginLogoUrl } from './config/appConfig'
 
 const app = createApp(App)
 app.use(createPinia())
@@ -37,6 +38,7 @@ for (const lang of ['fr', 'en'] as const) {
 // Disponibles dans tous les templates : $brand.shortName, $brandLogo.
 app.config.globalProperties.$brand = brand
 app.config.globalProperties.$brandLogo = logoUrl()
+app.config.globalProperties.$brandLoginLogo = loginLogoUrl()
 
 await useAuthStore().restoreSession()
 

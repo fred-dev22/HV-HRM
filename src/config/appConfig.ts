@@ -19,6 +19,11 @@ export interface BrandConfig {
   hasLogo: boolean
   logoVersion?: string | null
   // Icone d'onglet dediee fournie par le client (sinon on utilise le logo).
+  // Theme de couleurs predefini (ex: "congelo") : voir src/assets/themes. Null = derive des couleurs.
+  theme?: string | null
+  // Logo des pages d'acces, avec le nom de la marque (sinon le logo).
+  hasLoginLogo?: boolean
+  loginLogoVersion?: string | null
   hasFavicon?: boolean
   faviconVersion?: string | null
 }
@@ -47,6 +52,13 @@ export function faviconUrl(): string {
   return `${apiBase}/config/favicon${v}`
 }
 
+// Logo des pages de connexion : celui avec le nom de la marque si le client en a un.
+export function loginLogoUrl(): string {
+  if (!brand.hasLoginLogo) return logoUrl()
+  const v = brand.loginLogoVersion ? `?v=${brand.loginLogoVersion}` : ''
+  return `${apiBase}/config/login-logo${v}`
+}
+
 export function logoUrl(): string {
   if (!brand.hasLogo) return ''
   const v = brand.logoVersion ? `?v=${brand.logoVersion}` : ''
@@ -68,6 +80,13 @@ function mix(hex: string, target: number, amount: number): string {
 // l'interface (fonds clairs, survols, bordures actives) en sont derivees.
 // Sans couleur renseignee, les valeurs neutres de main.css restent en place.
 export function applyBrandTheme(): void {
+  // Theme predefini : une feuille de style complete (src/assets/themes) definit TOUS
+  // les tokens de couleur, y compris les neutres ; rien n'est derive ni pose en ligne.
+  if (brand.theme) {
+    document.documentElement.dataset.theme = brand.theme
+    return
+  }
+  delete document.documentElement.dataset.theme
   const root = document.documentElement.style
   const set = (name: string, value: string) => root.setProperty(name, value)
 

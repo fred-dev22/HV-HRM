@@ -1,0 +1,81 @@
+/*
+ * Theme "congelo" : reprend a l'identique les couleurs de l'application Congelo
+ * deployee (vert #006B3C, rouge #C8102E, neutres teintes de vert). Active par
+ * "theme": "congelo" dans brand/client.json ; sans ce champ, rien de ceci ne
+ * s'applique. Genere a partir du design system de Congelo : ne pas retoucher ici
+ * une couleur sans la retoucher aussi la-bas.
+ */
+:root[data-theme='congelo'] {
+  --color-background: oklch(97.5% 0.005 155);
+  --color-foreground: oklch(15% 0.01 155);
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(11% 0.02 155);
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(11% 0.02 155);
+  --color-primary: #006b3c;
+  --color-primary-foreground: oklch(100% 0 0);
+  --color-secondary: oklch(89% 0.015 155);
+  --color-secondary-foreground: oklch(11% 0.02 155);
+  --color-muted: oklch(93% 0.01 155);
+  --color-muted-foreground: oklch(47% 0.015 155);
+  --color-accent: oklch(93% 0.01 155);
+  --color-accent-foreground: oklch(11% 0.02 155);
+  --color-destructive: #c8102e;
+  --color-destructive-foreground: oklch(100% 0 0);
+  --color-border: oklch(88% 0.01 155);
+  --color-input: oklch(88% 0.01 155);
+  --color-ring: #006b3c;
+  --color-header: #1a1a1a;
+  --color-header-foreground: oklch(100% 0 0);
+  --color-nav: oklch(100% 0 0);
+  --color-nav-foreground: oklch(11% 0.02 155);
+  --color-nav-hover: oklch(93% 0.01 155);
+  --color-nav-active: #006b3c;
+  --color-cue-blue: oklch(65% 0.25 240);
+  --color-cue-green: oklch(50% 0.18 145);
+  --color-cue-yellow: oklch(70% 0.2 85);
+  --color-cue-red: oklch(60% 0.22 25);
+  --color-cue-purple: oklch(55% 0.25 300);
+  --color-cue-orange: oklch(68% 0.23 55);
+  --color-success: #006b3c;
+  --color-success-bg: #e6f4ed;
+  --color-warning: #8a5a0a;
+  --color-warning-bg: #fef5e1;
+  --color-danger: #c8102e;
+  --color-danger-bg: #fdecea;
+  --color-info: #185fa5;
+  --color-info-bg: #e6f1fb;
+  --color-neutral: #6b6b68;
+  --color-neutral-bg: #f0f0ee;
+  --color-sidebar: oklch(100% 0 0);
+  --color-sidebar-foreground: oklch(11% 0.02 155);
+  --color-sidebar-primary: #006b3c;
+  --color-sidebar-primary-foreground: oklch(100% 0 0);
+  --color-sidebar-accent: #e6f4ed;
+  --color-sidebar-accent-foreground: #006b3c;
+  --color-sidebar-border: oklch(88% 0.01 155);
+  --color-sidebar-ring: #006b3c;
+  --color-chart-1: #006b3c;
+  --color-chart-2: oklch(65% 0.25 240);
+  --color-chart-3: oklch(70% 0.2 85);
+  --color-chart-4: oklch(68% 0.23 55);
+  --color-chart-5: oklch(55% 0.25 300);
+
+  /* Tokens propres au generique, calques sur ce que fait Congelo avec bg-primary/10 :
+     le fond des pages d'acces et les surfaces teintees sont la couleur principale a 10 %. */
+  --color-page: color-mix(in srgb, #006b3c 10%, oklch(97.5% 0.005 155));
+  --color-tint: color-mix(in srgb, #006b3c 10%, white);
+
+  /* Palette de marque brute (organigramme, avatars, onboarding) */
+  --brand-primary: #006b3c;
+  --brand-primary-dark: #00522e;
+  --brand-primary-light: #e6f4ed;
+  --brand-primary-mid: #cce9d9;
+  --brand-accent: #c8102e;
+  --brand-accent-light: #fdecea;
+  --brand-white: #ffffff;
+  --brand-direction-bg: #8b0000;
+  --brand-department-bg: #006b3c;
+  --brand-service-border: #006b3c;
+  --color-primary-light: #e6f4ed;
+}

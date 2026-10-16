@@ -52,7 +52,7 @@
           <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED && auth.hasAnyPermission(['FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'])"      :icon="Receipt"  :label="t('sidebar.expenses')"  :to="{ name: 'hr-expenses' }" />
           <SidebarItem v-if="auth.hasPermission('ENTITE_VOIR')"                                    :icon="Network"  :label="t('sidebar.org_chart')" :to="{ name: 'hr-org-chart' }" />
           <SidebarItem v-if="RECRUITMENT_MODULE_ENABLED && auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-needs' }" />
-          <SidebarItem v-if="auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
+          <SidebarItem v-if="DEADLINES_MODULE_ENABLED && auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
         </SidebarSection>
 
         <SidebarSection v-if="canSeeConfigSection" :label="t('sidebar.configuration')" data-tour="config">
@@ -216,7 +216,7 @@ import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
 import { useHrModules } from '../composables/useHrModules'
 import SkeletonLoader from './ui/SkeletonLoader.vue'
-import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED, DEADLINES_MODULE_ENABLED } from '../config/features'
 
 const { t }        = useI18n()
 const route        = useRoute()

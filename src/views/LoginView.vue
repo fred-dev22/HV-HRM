@@ -3,7 +3,7 @@
     <div class="bg-card rounded-xl p-10 w-full max-w-[420px] shadow-[0_2px_16px_rgba(0,0,0,0.08)] max-[480px]:p-6 max-[480px]:w-[90%] max-[480px]:my-4">
 
       <div class="flex justify-center mb-4">
-        <img v-if="$brandLogo" :src="$brandLogo" :alt="$brand.shortName" class="h-14 w-auto" />
+        <img v-if="$brandLoginLogo" :src="$brandLoginLogo" :alt="$brand.shortName" class="h-14 w-auto" />
       </div>
 
       <h1 class="text-[22px] font-bold text-foreground text-center mb-2">{{ t('login.title') }}</h1>
