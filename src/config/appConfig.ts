@@ -9,6 +9,8 @@ import { applyEnabledModules } from './features'
 export interface BrandConfig {
   name: string
   shortName: string
+  // Texte du bandeau du haut ; null = nom du produit (fichiers de langue).
+  productName: string | null
   primaryColor: string | null
   accentColor: string | null
   backgroundColor: string | null
@@ -23,6 +25,7 @@ const apiBase = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/
 export const brand = reactive<BrandConfig>({
   name: 'HRM',
   shortName: 'HRM',
+  productName: null,
   primaryColor: null,
   accentColor: null,
   backgroundColor: null,

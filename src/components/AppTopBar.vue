@@ -2,7 +2,7 @@
   <!-- ── BARRE 1 : TopBar (sombre) ── -->
   <div class="bg-header text-header-foreground h-11 px-5 flex items-center justify-between shrink-0 relative z-60">
     <div class="flex items-center">
-      <span class="text-[15px] font-semibold">{{ t('nav.app_name') }}</span>
+      <span class="text-[15px] font-semibold">{{ brand.productName || t('nav.app_name') }}</span>
     </div>
     <div class="flex items-center gap-2.5" v-if="!searchOpen">
       <button
@@ -136,6 +136,7 @@ import {
 import UserAvatar from './ui/UserAvatar.vue'
 import AboutModal from './AboutModal.vue'
 import { useAuthStore } from '../stores/auth'
+import { brand } from '../config/appConfig'
 import { useNotificationStore, type AppNotification } from '../stores/notifications'
 import { formatRelativeDateTime } from '../lib/date'
 import type { AuthUser } from '../types'
