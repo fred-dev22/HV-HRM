@@ -18,6 +18,9 @@ export interface BrandConfig {
   supportEmail: string | null
   hasLogo: boolean
   logoVersion?: string | null
+  // Icone d'onglet dediee fournie par le client (sinon on utilise le logo).
+  hasFavicon?: boolean
+  faviconVersion?: string | null
 }
 
 const apiBase = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/+$/, '')
@@ -36,6 +39,14 @@ export const brand = reactive<BrandConfig>({
 
 // Logo du client, servi par le backend. Chaine vide quand le client n'en a pas :
 // les templates masquent alors l'image (v-if="$brandLogo").
+// Icone de l'onglet : l'image carree dediee si le client en a fourni une, sinon le
+// logo (qui peut etre tout en largeur et alors mal lisible a 16 px).
+export function faviconUrl(): string {
+  if (!brand.hasFavicon) return logoUrl()
+  const v = brand.faviconVersion ? `?v=${brand.faviconVersion}` : ''
+  return `${apiBase}/config/favicon${v}`
+}
+
 export function logoUrl(): string {
   if (!brand.hasLogo) return ''
   const v = brand.logoVersion ? `?v=${brand.logoVersion}` : ''
@@ -105,18 +116,25 @@ export function applyBrandTheme(): void {
   }
 }
 
-// Le titre de l'onglet reste celui du produit ; seule l'icone vient du client,
-// et uniquement s'il a fourni un logo (aucune icone sinon).
+// Onglet du navigateur : le titre est celui de la marque quand elle en definit un
+// (productName), sinon celui du produit ; l'icone vient du client (favicon dedie,
+// ou son logo a defaut), et rien si le client n'a fourni ni l'un ni l'autre.
 export function applyBrandDocument(): void {
-  const icon = logoUrl()
+  if (brand.productName) document.title = brand.productName
+  const icon = faviconUrl()
   if (!icon) return
-  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-  if (!link) {
-    link = document.createElement('link')
-    link.rel = 'icon'
-    document.head.appendChild(link)
+  const setLink = (rel: string, sizes?: string) => {
+    let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`)
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = rel
+      document.head.appendChild(link)
+    }
+    if (sizes) link.setAttribute('sizes', sizes)
+    link.href = icon
   }
-  link.href = icon
+  setLink('icon')
+  setLink('apple-touch-icon', '180x180')
 }
 
 // ── Chargement de la configuration ──────────────────────────────────────────
