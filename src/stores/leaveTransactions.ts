@@ -8,8 +8,29 @@ export interface EmployeeLeaveBalances {
   employeeId:   string
   employeeNumber?: string
   employeeName: string
+  // Fournis par le backend pour afficher l'avatar sans charger les employes.
+  initials?:    string
+  paletteIndex?: number
   entityName:   string
   balances:     LeaveBalance[]
+}
+
+export interface BalancePageParams {
+  page: number
+  pageSize: number
+  search?: string
+  entity?: string
+  sort?: string
+  dir?: 'asc' | 'desc'
+}
+// Colonnes (types de conge presents chez au moins un employe eligible) et
+// total des soldes par type sur TOUTE l'entreprise : independants du filtre et
+// de la page.
+export interface BalanceColumn extends LeaveBalance { total: number }
+export interface BalancePage {
+  items: EmployeeLeaveBalances[]
+  total: number
+  meta: { tracked: number; columns: BalanceColumn[] }
 }
 
 // Le backend renvoie deja les champs en camelCase (voir
@@ -20,6 +41,10 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
   const allBalances = ref<EmployeeLeaveBalances[]>([])
   const loading     = ref(false)
   const error       = ref<string | null>(null)
+  // Incremente a chaque changement de soldes (ajustement, import, generation,
+  // temps reel) : les ecrans qui affichent une page de soldes la relisent.
+  const balancesVersion = ref(0)
+  const bumpBalances = () => { balancesVersion.value++ }
 
   async function fetchMyBalances() {
     loading.value = true
@@ -37,6 +62,13 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
 
   async function fetchBalancesFor(employeeId: string): Promise<LeaveBalance[]> {
     const { data } = await api.get<LeaveBalance[]>(`/leave-transactions/balance/${employeeId}`)
+    return data
+  }
+
+  // Une page de soldes (pagination, recherche, filtre entite, tri : serveur).
+  async function fetchBalancePage(params: BalancePageParams): Promise<BalancePage> {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+    const { data } = await api.get<BalancePage>('/leave-transactions/balance/page', { params: clean })
     return data
   }
 
@@ -59,6 +91,7 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
     return withToast('Génération des acquisitions en cours…', async () => {
       try {
         const { data } = await api.post<{ created: number; runAt: string }>('/leave-transactions/generate-accruals')
+        bumpBalances()
         return data
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de générer les acquisitions de congés")
@@ -82,6 +115,7 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
         const idx = allBalances.value.findIndex(b => b.employeeId === employeeId)
         const current = allBalances.value[idx]
         if (current) allBalances.value[idx] = { ...current, balances: data.balances }
+        bumpBalances()
         return data
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de mettre à jour ce solde")
@@ -103,6 +137,7 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
         const idx = allBalances.value.findIndex(b => b.employeeId === employeeId)
         const current = allBalances.value[idx]
         if (current) allBalances.value[idx] = { ...current, balances: data.balances }
+        bumpBalances()
         return data
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de mettre à jour ce solde")
@@ -111,5 +146,5 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
     }, () => error.value ?? "Impossible de mettre à jour ce solde")
   }
 
-  return { myBalances, allBalances, loading, error, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual, setBalance }
+  return { myBalances, allBalances, loading, error, balancesVersion, bumpBalances, fetchBalancePage, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual, setBalance }
 })

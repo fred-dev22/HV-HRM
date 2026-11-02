@@ -89,7 +89,7 @@
               {{ t('absence.tabs.pending', { count: pending.length }) }}
             </div>
             <div :class="[tabClass, tab === 'approved' && tabActive]" @click="tab = 'approved'">
-              {{ t('absence.tabs.approved', { count: approved.length }) }}
+              {{ t('absence.tabs.approved', { count: approvedCount }) }}
             </div>
           </div>
           <div v-for="r in activeRequests" :key="r.id" class="flex items-center gap-2.5 py-2 border-b border-border last:border-b-0">
@@ -150,7 +150,7 @@
               </table>
               <!-- Pagination soldes -->
               <div class="flex items-center gap-3 px-2.5 py-2 border-t border-border text-xs text-muted-foreground">
-                <span class="flex-1 whitespace-nowrap text-[11px]">{{ t('absence.employees_total', { count: employeeBalances.length }) }}</span>
+                <span class="flex-1 whitespace-nowrap text-[11px]">{{ t('absence.employees_total', { count: balTotal }) }}</span>
                 <div class="flex items-center gap-1.5 text-[11px] whitespace-nowrap">
                   {{ t('absence.per_page') }}
                   <select v-model.number="balPageSize" class="h-6 px-1.5 border border-border rounded text-[11px] text-foreground bg-card outline-none cursor-pointer focus:border-primary">
@@ -226,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -243,8 +243,10 @@ import { formatDate } from '../lib/date'
 import { useAuthStore } from '../stores/auth'
 import { useLeaveRequestStore } from '../stores/leaveRequests'
 import { useEntityStore } from '../stores/entities'
-import { useEmployeeStore } from '../stores/employees'
+import { avatarPalette } from '../stores/employees'
+import { useDashboardStore } from '../stores/dashboard'
 import { useLeaveTransactionStore } from '../stores/leaveTransactions'
+import type { BalancePage } from '../stores/leaveTransactions'
 import { useCalendarStore } from '../stores/calendar'
 import { isHoliday } from '../utils/calendar'
 import { isEligible } from '../lib/eligibility'
@@ -252,7 +254,7 @@ import { isEligible } from '../lib/eligibility'
 const auth        = useAuthStore()
 const leaves      = useLeaveRequestStore()
 const entityStore = useEntityStore()
-const employeeStore = useEmployeeStore()
+const dashboard     = useDashboardStore()
 const balanceStore = useLeaveTransactionStore()
 const calendarStore = useCalendarStore()
 const { t, locale } = useI18n()
@@ -273,8 +275,10 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="absences"]', title: "Demandes d'absence", description: "Suivez et validez les demandes de congé de votre équipe, et consultez les soldes." },
 ]
 if (entityStore.entities.length === 0) entityStore.fetchAll()
-if (leaves.all.length === 0) leaves.fetchAll()
-if (employeeStore.employees.length === 0) employeeStore.fetchAll()
+if (!leaves.recentWindow) leaves.fetchRecent(auth.hasPermission('CONGE_VOIR_TOUT')).catch(() => {})
+// Chiffres exacts calcules en base (aucune liste d'employes chargee ici).
+if (!dashboard.summary) dashboard.fetchSummary().catch(() => {})
+leaves.fetchRecentApproved().catch(() => {})
 // AbsenceWorkflowActions (ligne 104) n'affiche Approuver/Retourner/Refuser
 // que pour les demandes reellement a l'etape courante du validateur — voir
 // pendingForMe.some(...) dans ce composant. Sans ce fetch, un validateur
@@ -286,27 +290,20 @@ if (!calendarStore.calendar.id) calendarStore.fetchCalendar()
 if (calendarStore.holidays.length === 0) calendarStore.fetchHolidays(new Date().getFullYear())
 
 // ── KPIs ─────────────────────────────────────────────────────
-const todayIso = new Date().toISOString().slice(0, 10)
-const thisMonthKey = todayIso.slice(0, 7)
 
 // Squelette tant que les deux sources des KPI n'ont pas fini leur premier
 // chargement — évite le flash "0" avant que les vraies valeurs arrivent
 // (le flag `loading` ne redevient true que sur un fetch reellement lance,
 // voir "if (x.length === 0) fetch()" plus haut : pas de flash sur un retour
 // a cet ecran avec des donnees deja en cache).
-const kpiLoading = computed(() => employeeStore.loading || leaves.loading)
+const kpiLoading = computed(() => dashboard.loading)
 
-const activeEmployeesCount = computed(() => employeeStore.activeEmployees.length)
-const newHiresThisMonth = computed(() => employeeStore.employees.filter(e => e.hireDate?.slice(0, 7) === thisMonthKey).length)
+const activeEmployeesCount = computed(() => dashboard.summary?.employees?.active ?? 0)
+const newHiresThisMonth = computed(() => dashboard.summary?.employees?.newThisMonth ?? 0)
 
-const APPROVED_LIKE = new Set(['Approved', 'Registered', 'Done', 'Regularized'])
-const approvedThisMonthCount = computed(() => leaves.all.filter(l =>
-  APPROVED_LIKE.has(l.status) && (l.modifiedAt ?? l.createdAt)?.slice(0, 7) === thisMonthKey,
-).length)
+const approvedThisMonthCount = computed(() => dashboard.summary?.leaves?.approvedThisMonth ?? 0)
 
-const absentTodayCount = computed(() => leaves.all.filter(l =>
-  APPROVED_LIKE.has(l.status) && l.startDate <= todayIso && l.endDate >= todayIso,
-).length)
+const absentTodayCount = computed(() => dashboard.summary?.leaves?.absentToday ?? 0)
 
 // ── Classes du design system ─────────────────────────────────
 const kpiCard = 'bg-card border border-border rounded-lg px-3.5 py-3'
@@ -352,8 +349,10 @@ const today = new Date().toLocaleDateString(locale.value === 'fr' ? 'fr-FR' : 'e
 const tab = ref<'pending' | 'approved'>('pending')
 
 const PENDING_STATUSES = new Set(['Pending', 'InApprovalN1', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4'])
-const pending        = computed(() => leaves.all.filter(r => PENDING_STATUSES.has(r.status)))
-const approved       = computed(() => leaves.all.filter(r => r.status === 'Approved'))
+const pending        = computed(() => leaves.recentAll.filter(r => PENDING_STATUSES.has(r.status)))
+const approved       = computed(() => leaves.recentApproved)
+// Total reel des demandes approuvees (compte en base), pas seulement les 10 affichees.
+const approvedCount  = computed(() => dashboard.summary?.leaves?.approvedTotal ?? approved.value.length)
 const activeRequests = computed(() => tab.value === 'pending' ? pending.value : approved.value)
 
 // ── Soldes individuels ────────────────────────────────────────
@@ -367,38 +366,48 @@ function balSort(key: string) {
   else { balSortKey.value = key; balSortDir.value = 'asc' }
 }
 
-if (balanceStore.allBalances.length === 0) balanceStore.fetchAllBalances()
 
 // Colonnes derivees des types de conge reellement presents dans les soldes
 // (jamais de code fixe 'ANNUAL'/'RECOVERY'/... — le code d'un type de conge
 // est libre, choisi par le RH y compris depuis l'onboarding, donc rien ne
 // garantit que ces codes existent).
-const balCols = computed(() => (balanceStore.allBalances[0]?.balances ?? []).slice(0, 4).map(b => ({ leaveTypeId: b.leaveTypeId, leaveTypeName: b.leaveTypeName })))
+// Page de soldes demandee au serveur (tri sur le nom ou sur le solde d'un type,
+// 5 par page) : seuls les employes affiches sont charges.
+const balData = ref<BalancePage | null>(null)
+const balTotal = computed(() => balData.value?.total ?? 0)
+let balSeq = 0
+async function loadBalances() {
+  const seq = ++balSeq
+  try {
+    const data = await balanceStore.fetchBalancePage({
+      page: balPage.value, pageSize: balPageSize.value, sort: balSortKey.value, dir: balSortDir.value,
+    })
+    if (seq === balSeq) balData.value = data
+  } catch {
+    // le widget garde sa derniere page affichee
+  }
+}
+watch([balPage, balPageSize, balSortKey, balSortDir, () => balanceStore.balancesVersion], loadBalances, { immediate: true })
+watch([balPageSize, balSortKey, balSortDir], () => { balPage.value = 1 })
 
-const employeeBalances = computed(() => balanceStore.allBalances.map(b => {
-  const emp = employeeStore.getById(b.employeeId)
+const balCols = computed(() => (balData.value?.meta.columns ?? []).slice(0, 4).map(b => ({ leaveTypeId: b.leaveTypeId, leaveTypeName: b.leaveTypeName })))
+
+const employeeBalances = computed(() => (balData.value?.items ?? []).map(b => {
+  const avatar = b.paletteIndex !== undefined ? avatarPalette(b.paletteIndex) : undefined
   const balances: Record<string, number> = {}
   for (const bal of b.balances) balances[bal.leaveTypeId] = bal.balance
   return {
     name: b.employeeName,
-    initials: emp?.initials ?? '',
-    avatarColor: emp?.avatarBg ?? '#E2E8F0',
-    avatarTextColor: emp?.avatarText ?? '#475569',
+    initials: b.initials ?? '',
+    avatarColor: avatar?.bg ?? '#E2E8F0',
+    avatarTextColor: avatar?.text ?? '#475569',
     balances,
   }
 }))
 
-const sortedBalances = computed(() => {
-  const list = [...employeeBalances.value].sort((a, b) => {
-    const va = balSortKey.value === 'name' ? a.name : (a.balances[balSortKey.value] ?? 0)
-    const vb = balSortKey.value === 'name' ? b.name : (b.balances[balSortKey.value] ?? 0)
-    const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
-    return balSortDir.value === 'asc' ? cmp : -cmp
-  })
-  const start = (balPage.value - 1) * balPageSize.value
-  return list.slice(start, start + balPageSize.value)
-})
-const balTotalPages = computed(() => Math.max(1, Math.ceil(employeeBalances.value.length / balPageSize.value)))
+// Deja trie et pagine par le serveur.
+const sortedBalances = employeeBalances
+const balTotalPages = computed(() => Math.max(1, Math.ceil(balTotal.value / balPageSize.value)))
 
 // ── Calendrier dynamique ──────────────────────────────────────
 const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
@@ -406,6 +415,9 @@ const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const _now     = new Date()
 const calYear  = ref(_now.getFullYear())
 const calMonth = ref(_now.getMonth())
+// Le calendrier ne charge que le mois affiche (et ses voisins) : on prolonge la
+// fenetre de donnees quand on change de mois, au lieu de tout charger.
+watch([calYear, calMonth], () => { leaves.ensureRecentMonth(calYear.value, calMonth.value, auth.hasPermission('CONGE_VOIR_TOUT')).catch(() => {}) })
 
 const calTitle = computed(() =>
   new Date(calYear.value, calMonth.value, 1)
@@ -458,7 +470,7 @@ const calDays = computed((): CalDay[] => {
     // generique unique pour toute absence — voir showTooltip() plus bas qui
     // liste deja chaque demande avec sa propre couleur, cette cellule ne
     // montre qu'un aperçu (premiere demande trouvee ce jour-la).
-    const dayLeave = leaves.all.find(
+    const dayLeave = leaves.recentAll.find(
       l => l.status === 'Approved' && l.startDate <= dateStr && l.endDate >= dateStr
     )
     const holiday = isHoliday(new Date(y, m, d), effectiveCalendar.value)
@@ -487,7 +499,7 @@ const tooltipStyle = computed(() => ({
 
 function showTooltip(event: MouseEvent, day: CalDay) {
   const rect    = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  const matches = leaves.all.filter(
+  const matches = leaves.recentAll.filter(
     l => l.status === 'Approved' && l.startDate <= (day.dateStr ?? '') && l.endDate >= (day.dateStr ?? '')
   )
   const lines: { text: string; color: string }[] = []

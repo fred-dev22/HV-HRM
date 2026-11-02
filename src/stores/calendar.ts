@@ -28,6 +28,7 @@ interface BackendCalendar {
   Name: string
   IsDefault: boolean
   EmployeeCategoryId: string | null
+  EmployeeId?: string | null
   CreatedBy: string
   CreatedAt: string
   ModifiedBy: string | null
@@ -164,6 +165,9 @@ export const useCalendarStore = defineStore('calendar', () => {
   // updateWorkingDays() de creer un nouveau calendrier scope a cette
   // categorie au lieu de mettre a jour le calendrier global par defaut.
   const pendingCategoryId = ref<string | null>(null)
+  // Calendrier propre a UN employe (module Temps de travail) : meme principe que
+  // pendingCategoryId, cree a la premiere sauvegarde.
+  const pendingEmployeeId = ref<string | null>(null)
 
   const holidays = ref<Holiday[]>([])
 
@@ -254,6 +258,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     updatedAt.value    = formatUpdatedAt(data.ModifiedAt ?? data.CreatedAt)
     updatedBy.value    = resolveUpdatedBy(data)
     pendingCategoryId.value = null
+    pendingEmployeeId.value = null
     savedWorkingDays.value = cloneWorkingDays(workingDays.value)
   }
 
@@ -337,6 +342,7 @@ export const useCalendarStore = defineStore('calendar', () => {
       updatedAt.value = globalCalendar ? formatUpdatedAt(globalCalendar.ModifiedAt ?? globalCalendar.CreatedAt) : ''
       updatedBy.value = globalCalendar ? resolveUpdatedBy(globalCalendar) : ''
       pendingCategoryId.value = employeeCategoryId
+      pendingEmployeeId.value = null
       return false
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger le calendrier de cette catégorie')
@@ -344,6 +350,58 @@ export const useCalendarStore = defineStore('calendar', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // Calendrier propre a un employe (module Temps de travail). S'il n'en a pas,
+  // on part du calendrier qu'il suit aujourd'hui (categorie ou global) ; le
+  // calendrier dedie est cree a la premiere sauvegarde.
+  async function fetchCalendarByEmployee(employeeId: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    try {
+      const { data } = await api.get<BackendCalendar[]>('/calendars')
+      const existing = data.find((c) => c.EmployeeId === employeeId)
+      if (existing) {
+        applyCalendarResponse(existing)
+        return true
+      }
+      const { data: current } = await api.get<BackendCalendar>('/calendars/resolve', { params: { employeeId } })
+      calendarId.value = ''
+      calendarName.value = ''
+      isDefault.value = false
+      workingDays.value = mapWorkingDaysFromBackend(current.workDays)
+      savedWorkingDays.value = cloneWorkingDays(workingDays.value)
+      updatedAt.value = formatUpdatedAt(current.ModifiedAt ?? current.CreatedAt)
+      updatedBy.value = resolveUpdatedBy(current)
+      pendingCategoryId.value = null
+      pendingEmployeeId.value = employeeId
+      return false
+    } catch (err) {
+      error.value = getApiErrorMessage(err, "Impossible de charger le calendrier de cet employé")
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchConfiguredEmployeeCalendars(): Promise<{ id: string; employeeId: string }[]> {
+    const { data } = await api.get<BackendCalendar[]>('/calendars')
+    return data
+      .filter((c): c is BackendCalendar & { EmployeeId: string } => !!c.EmployeeId)
+      .map((c) => ({ id: c.Id, employeeId: c.EmployeeId }))
+  }
+
+  async function deleteEmployeeCalendar(id: string, employeeId: string) {
+    error.value = null
+    return withToast('Suppression en cours…', async () => {
+      try {
+        await api.delete(`/calendars/${id}`)
+        await fetchCalendarByEmployee(employeeId)
+      } catch (err) {
+        error.value = getApiErrorMessage(err, 'Impossible de supprimer ce calendrier')
+        throw err
+      }
+    }, () => error.value ?? 'Impossible de supprimer ce calendrier')
   }
 
   // Calendriers de categorie actuellement configures (EmployeeCategoryId
@@ -368,8 +426,9 @@ export const useCalendarStore = defineStore('calendar', () => {
         if (!calendarId.value) {
           const { data } = await api.post<BackendCalendar>('/calendars', {
             Name: newCalendarName || calendarName.value || 'Calendrier standard',
-            IsDefault: !pendingCategoryId.value,
+            IsDefault: !pendingCategoryId.value && !pendingEmployeeId.value,
             EmployeeCategoryId: pendingCategoryId.value ?? undefined,
+            EmployeeId: pendingEmployeeId.value ?? undefined,
             WorkDays: mapWorkingDaysToBackend(days),
           })
           applyCalendarResponse(data)
@@ -498,6 +557,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     calendarName,
     isDefault,
     pendingCategoryId,
+    pendingEmployeeId,
     isDirty,
     holidays,
     loading,
@@ -513,6 +573,9 @@ export const useCalendarStore = defineStore('calendar', () => {
     fetchDefaultCalendar,
     fetchCalendarByCategory,
     fetchConfiguredCategoryCalendars,
+    fetchCalendarByEmployee,
+    fetchConfiguredEmployeeCalendars,
+    deleteEmployeeCalendar,
     updateWorkingDays,
     updateWorkingHours,
     deleteCategoryCalendar,

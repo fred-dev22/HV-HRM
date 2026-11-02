@@ -9,7 +9,7 @@
     :search-placeholder="t('topbar.search_placeholder')"
     :scope-label="t('absence.scope_label')"
     :scope-options="filterPresets"
-    :loading="store.loading"
+    :loading="store.pageLoading"
     v-model:scope="activePreset"
     v-model:search-query="searchQuery"
     v-model:sort-key="sortKey"
@@ -129,13 +129,13 @@
     </template>
 
     <!-- Fiche (double-clic) + création -->
-    <AbsenceCard v-if="openCardId !== null" :leaves="filtered" :request-id="openCardId" @close="openCardId = null" />
+    <AbsenceCard v-if="openCardId !== null" :leaves="store.pageItems" :request-id="openCardId" @close="openCardId = null" />
     <AbsenceCreate v-if="showCreate" @close="showCreate = false" @created="reload" />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, CalendarOff } from 'lucide-vue-next'
 import { StatusPill, UserAvatar, ListPageLayout } from '../../components'
@@ -149,6 +149,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useLeaveRequestStore } from '../../stores/leaveRequests'
 import { useLeaveTypesStore } from '../../stores/leaveTypes'
 import type { LeaveRequest } from '../../types'
+import type { LeavePageParams } from '../../stores/leaveRequests'
 
 const auth            = useAuthStore()
 const store           = useLeaveRequestStore()
@@ -162,16 +163,13 @@ const { t }           = useI18n()
 // sur fetchAll() et ne voyait jamais les demandes de son equipe (Lot H #8).
 const canSeeAll  = computed(() => auth.hasPermission('CONGE_VOIR_TOUT'))
 const canSeeTeam = computed(() => auth.hasPermission('CONGE_VOIR_EQUIPE'))
-const sourceList = computed<LeaveRequest[]>(() => canSeeAll.value ? store.all : canSeeTeam.value ? store.team : store.mine)
+// Portee envoyee au serveur, qui la verifie (403 sinon).
+const scope = computed<LeavePageParams['scope']>(() => canSeeAll.value ? 'all' : canSeeTeam.value ? 'team' : 'mine')
 
-async function reload() {
-  if (canSeeAll.value) await store.fetchAll()
-  else if (canSeeTeam.value) await store.fetchTeam()
-  else await store.fetchMine()
-}
+// Relit la page courante (apres une creation, un import...).
+function reload() { return store.refreshPage() }
 
 onMounted(() => {
-  reload()
   if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
   // AbsenceWorkflowActions n'affiche Approuver/Retourner/Refuser que pour
   // les demandes presentes dans pendingForMe (etape courante = moi) — sans
@@ -180,6 +178,9 @@ onMounted(() => {
   // demandes actionnables.
   if (auth.hasPermission('CONGE_VALIDER')) store.fetchPendingForMe()
 })
+
+// Quitter l'ecran : la page n'est plus rafraichie par le temps reel.
+onBeforeUnmount(() => store.releasePage())
 
 const showCreate = ref(false)
 const openCardId = ref<string | null>(null)
@@ -221,55 +222,41 @@ watch(activePreset, (v) => { filterStatus.value = v; page.value = 1 })
 
 function resetFilters() {
   filterStatus.value = ''; filterType.value = ''; filterFrom.value = ''; filterTo.value = ''
-  searchQuery.value = ''; activePreset.value = ''; page.value = 1
+  searchQuery.value = ''; debouncedSearch.value = ''; activePreset.value = ''; page.value = 1
 }
 
-const PENDING_STATUSES = new Set(['Pending', 'InApprovalN1', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4'])
+/* ── Données : pagination, recherche, filtres et tri sont faits par le serveur ── */
+// Colonne -> cle de tri comprise par le serveur ('dates' n'est pas triable).
+const sortKeyMap: Record<string, string> = { employee: 'employee', type: 'type', days: 'days', submitted: 'submitted', status: 'status' }
 
-// "Consomme" : demande approuvee dont la date de fin est passee (retour client du
-// 13/10). "Approuve" ne garde alors que les approuvees a venir ou en cours.
-function isConsumed(l: { status: string; endDate: string }): boolean {
-  const d = new Date()
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return l.status === 'Approved' && l.endDate.slice(0, 10) < today
-}
-function matchesStatusFilter(l: { status: string; endDate: string }): boolean {
-  const f = filterStatus.value
-  if (!f) return true
-  if (f === 'Pending') return PENDING_STATUSES.has(l.status)
-  if (f === 'Consumed') return isConsumed(l)
-  if (f === 'Approved') return l.status === 'Approved' && !isConsumed(l)
-  return l.status === f
-}
-
-/* ── Données ────────────────────────────────────────────────── */
-const filtered = computed(() => {
-  let list = sourceList.value.filter(l => {
-    if (!matchesStatusFilter(l)) return false
-    if (filterType.value   && l.leaveTypeId !== filterType.value) return false
-    if (filterFrom.value   && l.startDate < filterFrom.value)  return false
-    if (filterTo.value     && l.endDate   > filterTo.value)    return false
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      if (!l.employeeName.toLowerCase().includes(q) && !l.leaveTypeName.toLowerCase().includes(q)) return false
-    }
-    return true
-  })
-  if (sortKey.value) {
-    const field = sortFieldMap[sortKey.value] ?? sortKey.value
-    list = [...list].sort((a, b) => {
-      const va = (a as any)[field] ?? ''; const vb = (b as any)[field] ?? ''
-      const cmp = String(va).localeCompare(String(vb))
-      return sortDir.value === 'asc' ? cmp : -cmp
-    })
-  }
-  return list
+// Recherche : on attend la fin de la frappe avant d'interroger le serveur.
+const debouncedSearch = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, (v) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { debouncedSearch.value = v }, 300)
 })
+onBeforeUnmount(() => clearTimeout(searchTimer))
 
-const totalCount   = computed(() => filtered.value.length)
-const pendingCount = computed(() => filtered.value.filter(l => PENDING_STATUSES.has(l.status)).length)
-const pageItems    = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return filtered.value.slice(start, start + pageSize.value)
-})
+// Tout changement de filtre, de recherche, de tri ou de taille de page
+// ramene a la premiere page.
+watch([debouncedSearch, filterStatus, filterType, filterFrom, filterTo, sortKey, sortDir, pageSize], () => { page.value = 1 })
+
+const params = computed<LeavePageParams>(() => ({
+  scope: scope.value,
+  page: page.value,
+  pageSize: pageSize.value,
+  search: debouncedSearch.value,
+  sort: sortKeyMap[sortKey.value] ?? '',
+  dir: sortDir.value,
+  status: filterStatus.value,
+  type: filterType.value,
+  from: filterFrom.value,
+  to: filterTo.value,
+}))
+watch(params, (p) => { store.fetchPage(p).catch(() => {}) }, { immediate: true })
+
+const totalCount   = computed(() => store.pageTotal)
+const pendingCount = computed(() => store.pagePending)
+const pageItems    = computed(() => store.pageItems)
 </script>

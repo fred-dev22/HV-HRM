@@ -55,6 +55,9 @@
                 <button :class="[scopeBtn, scope === 'category' && scopeActive]" @click="selectCategoryScope">
                   <Tag class="w-3.5 h-3.5" /> Par catégorie
                 </button>
+                <button :class="[scopeBtn, scope === 'employee' && scopeActive]" @click="selectEmployeeScope">
+                  <User class="w-3.5 h-3.5" /> Par employé
+                </button>
                 <select
                   v-if="scope === 'category'"
                   v-model="selectedCategoryId"
@@ -68,16 +71,41 @@
                     {{ c.name }} {{ categoryHasDedicatedCalendar(c.id) ? '(calendrier dédié)' : '(suit le calendrier global)' }}
                   </option>
                 </select>
+                <select
+                  v-if="scope === 'employee'"
+                  v-model="selectedEmployeeId"
+                  :class="cls.fieldSelect"
+                  class="!w-auto !h-9 max-w-[320px]"
+                  @change="onEmployeeChange"
+                >
+                  <option v-for="e in employeeOptions" :key="e.id" :value="e.id">
+                    {{ e.name }} ({{ e.code }}) {{ employeeHasDedicatedCalendar(e.id) ? '- calendrier dédié' : '' }}
+                  </option>
+                </select>
               </div>
 
               <!-- Portée actuelle — mise en évidence explicite du choix actif -->
               <div class="flex items-center gap-2 mt-2.5 px-3.5 py-2 rounded-lg text-[12.5px] font-medium"
                    :class="scope === 'global' ? 'bg-success-bg text-success border border-success/30' : 'bg-tint text-primary border border-primary/30'">
-                <component :is="scope === 'global' ? Globe : Tag" class="w-4 h-4 shrink-0" />
+                <component :is="scope === 'global' ? Globe : scope === 'employee' ? User : Tag" class="w-4 h-4 shrink-0" />
                 <span v-if="scope === 'global'">Portée actuelle : <strong>Calendrier global</strong> (s'applique à tous les employés sans calendrier dédié)</span>
+                <span v-else-if="scope === 'employee'">Portée actuelle : employé <strong>{{ selectedEmployeeName }}</strong> ({{ currentEmployeeDedicatedId ? 'calendrier dédié' : 'suit encore son calendrier de catégorie ou le global' }})</span>
                 <span v-else-if="selectedCategoryId">Portée actuelle : catégorie <strong>{{ selectedCategoryName }}</strong> ({{ currentCategoryDedicatedId ? 'calendrier dédié' : 'suit encore le calendrier global' }})</span>
                 <span v-else-if="categoryStore.loading">Chargement des catégories…</span>
                 <span v-else>Aucune catégorie configurée. Créez-en une dans Classification pour lui définir un calendrier dédié.</span>
+              </div>
+
+              <div v-if="scope === 'employee' && selectedEmployeeId" class="flex items-center gap-2 mt-2 px-3.5 py-2.5 rounded-lg bg-background border border-border text-[12.5px] text-foreground">
+                <Info class="w-4 h-4 text-muted-foreground shrink-0" />
+                <template v-if="currentEmployeeDedicatedId">
+                  <span class="flex-1">Ce calendrier s'applique uniquement à <strong>{{ selectedEmployeeName }}</strong> et prime sur celui de sa catégorie (utilisé par le module Temps de travail).</span>
+                  <button class="text-[12px] font-medium text-danger underline shrink-0 bg-transparent border-0 cursor-pointer" @click="deleteEmployeeCalendar">
+                    Supprimer ce calendrier dédié
+                  </button>
+                </template>
+                <span v-else class="flex-1">
+                  Aucun calendrier dédié pour <strong>{{ selectedEmployeeName }}</strong>. Modifiez les jours ci-dessous puis enregistrez pour créer un calendrier propre à cet employé.
+                </span>
               </div>
 
               <div v-if="scope === 'category' && selectedCategoryId" class="flex items-center gap-2 mt-2 px-3.5 py-2.5 rounded-lg bg-background border border-border text-[12.5px] text-foreground">
@@ -388,11 +416,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, type Component } from 'vue'
+import { ref, reactive, computed, watch, type Component } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   ClockArrowDown, Clock, CalendarDays, ListChecks, Upload, Plus,
-  Pencil, Trash2, Lock, Info, RefreshCw, Save, Globe, Tag,
+  Pencil, Trash2, Lock, Info, RefreshCw, Save, Globe, Tag, User,
 } from 'lucide-vue-next'
 import LeaveTypeFormModal from '../../components/configuration/LeaveTypeFormModal.vue'
 import WorkingDaysConfig  from '../../components/calendar/WorkingDaysConfig.vue'
@@ -412,6 +440,7 @@ import { useLeaveTransactionStore } from '../../stores/leaveTransactions'
 import { useCompanySettingsStore }  from '../../stores/companySettings'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useEntityStore } from '../../stores/entities'
+import { useEmployeeStore } from '../../stores/employees'
 import type { Holiday } from '../../types'
 
 const calendarStore   = useCalendarStore()
@@ -435,7 +464,7 @@ const leaveTypeImportConfig = computed(() => buildLeaveTypeImportConfig())
 // Le choix est persisté côté serveur (CompanySettings.CalendarConfigScope),
 // pas en localStorage — un réglage de config doit survivre au changement de
 // navigateur/poste, pas rester coincé sur le poste de l'admin qui l'a fait.
-const scope = ref<'global' | 'category'>('global')
+const scope = ref<'global' | 'category' | 'employee'>('global')
 const selectedCategoryId = ref('')
 const configuredCategoryCalendars = ref<{ id: string; employeeCategoryId: string }[]>([])
 
@@ -546,6 +575,70 @@ async function deleteDedicatedCalendar() {
   }
 }
 
+
+// ── Portée "employé" (module Temps de travail) : un calendrier propre à un
+// employé, prioritaire sur celui de sa catégorie. Non persistée côté serveur
+// (CompanySettings ne retient que global/catégorie) : on revient sur global
+// ou catégorie au rechargement.
+const selectedEmployeeId = ref('')
+const configuredEmployeeCalendars = ref<{ id: string; employeeId: string }[]>([])
+const employeeStore = useEmployeeStore()
+const employeeOptions = computed(() =>
+  [...employeeStore.directory].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+)
+let lastConfirmedEmployeeId = ''
+
+function refreshConfiguredEmployeeCalendars() {
+  calendarStore.fetchConfiguredEmployeeCalendars().then((list) => { configuredEmployeeCalendars.value = list }).catch(() => {})
+}
+function employeeHasDedicatedCalendar(employeeId: string): boolean {
+  return configuredEmployeeCalendars.value.some(c => c.employeeId === employeeId)
+}
+const currentEmployeeDedicatedId = computed(() =>
+  configuredEmployeeCalendars.value.find(c => c.employeeId === selectedEmployeeId.value)?.id ?? null,
+)
+const selectedEmployeeName = computed(() =>
+  employeeOptions.value.find(e => e.id === selectedEmployeeId.value)?.name ?? '',
+)
+
+async function selectEmployeeScope() {
+  if (scope.value === 'employee') return
+  if (!(await confirmDiscardIfDirty())) return
+  if (employeeStore.directory.length === 0) await employeeStore.fetchDirectory().catch(() => {})
+  refreshConfiguredEmployeeCalendars()
+  scope.value = 'employee'
+  if (!selectedEmployeeId.value && employeeOptions.value[0]) selectedEmployeeId.value = employeeOptions.value[0].id
+  lastConfirmedEmployeeId = selectedEmployeeId.value
+  if (selectedEmployeeId.value) await calendarStore.fetchCalendarByEmployee(selectedEmployeeId.value)
+}
+// L'annuaire peut arriver apres le clic sur "Par employé" : on prend alors le
+// premier employé dès qu'il est là, sinon le sélecteur reste vide.
+watch(employeeOptions, async (list) => {
+  if (scope.value !== 'employee' || selectedEmployeeId.value || list.length === 0) return
+  selectedEmployeeId.value = list[0]!.id
+  lastConfirmedEmployeeId = selectedEmployeeId.value
+  await calendarStore.fetchCalendarByEmployee(selectedEmployeeId.value)
+})
+async function onEmployeeChange() {
+  if (!(await confirmDiscardIfDirty())) {
+    selectedEmployeeId.value = lastConfirmedEmployeeId
+    return
+  }
+  lastConfirmedEmployeeId = selectedEmployeeId.value
+  if (selectedEmployeeId.value) await calendarStore.fetchCalendarByEmployee(selectedEmployeeId.value)
+}
+async function deleteEmployeeCalendar() {
+  const id = currentEmployeeDedicatedId.value
+  if (!id || !selectedEmployeeId.value) return
+  if (!(await confirmDialog(`Supprimer le calendrier dédié à "${selectedEmployeeName.value}" ? Il suivra de nouveau le calendrier de sa catégorie ou le global.`))) return
+  try {
+    await calendarStore.deleteEmployeeCalendar(id, selectedEmployeeId.value)
+    refreshConfiguredEmployeeCalendars()
+  } catch {
+    // calendarStore.error porte le message pour l'UI (toast)
+  }
+}
+
 // ── Génération des acquisitions (cron) ─────────────────────────
 // dayJustChanged : changer le jour d'exécution réactive le bouton manuel
 // même si une génération a déjà eu lieu ce mois-ci (voir generateDisabled
@@ -608,9 +701,12 @@ async function saveWorkingDays() {
   try {
     const newName = scope.value === 'category' && !currentCategoryDedicatedId.value
       ? `Calendrier · ${selectedCategoryName.value}`
-      : undefined
+      : scope.value === 'employee' && !currentEmployeeDedicatedId.value
+        ? `Calendrier · ${selectedEmployeeName.value}`
+        : undefined
     await calendarStore.updateWorkingDays(calendarStore.calendar.workingDays, newName)
     if (scope.value === 'category') refreshConfiguredCategoryCalendars()
+    if (scope.value === 'employee') refreshConfiguredEmployeeCalendars()
   } catch {
     // calendarStore.error porte le message pour l'UI (toast)
   } finally {

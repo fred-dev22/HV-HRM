@@ -17,6 +17,9 @@ const PALETTE = [
 ]
 
 function p(i: number) { return PALETTE[i % PALETTE.length]! }
+// Meme palette pour les ecrans qui n'ont pas la liste des employes en memoire
+// (ex : widget des soldes du tableau de bord).
+export function avatarPalette(i: number) { return p(i) }
 
 const CONTRACT_TYPE_TO_BACKEND: Record<ContractType, string> = {
   CDI: 'Permanent', CDD: 'FixedTerm', Stage: 'Internship', Freelance: 'Freelance',
@@ -31,6 +34,19 @@ const STATUS_TO_BACKEND: Record<EmployeeStatus, string> = {
 }
 const STATUS_FROM_BACKEND: Record<string, EmployeeStatus> = {
   Active: 'active', OnTrial: 'trial', OnLeave: 'onleave', Inactive: 'inactive',
+}
+
+export interface EmployeePageMeta { total: number; active: number; trial: number; validators: number }
+export interface EmployeePageParams {
+  page: number
+  pageSize: number
+  search?: string
+  sort?: string
+  dir?: 'asc' | 'desc'
+  status?: string
+  entity?: string
+  category?: string
+  contract?: string
 }
 
 // ── Backend <-> frontend mapping ────────────────────────────────
@@ -198,6 +214,18 @@ function toBackendPayload(payload: Partial<Employee>): Record<string, unknown> {
 
 export const useEmployeeStore = defineStore('employees', () => {
   const employees = ref<Employee[]>([])
+  // Vrai une fois la liste COMPLETE chargee par un ecran : le temps reel ne la
+  // relit alors que dans ce cas (sinon un evenement rechargerait tous les employes).
+  const allLoaded = ref(false)
+  // Page courante de l'ecran Employes (recherche, filtres et tri faits par le
+  // serveur sur TOUS les employes) + compteurs de l'en-tete, toujours calcules
+  // sur l'ensemble (jamais sur la page ou le filtre).
+  const pageItems = ref<Employee[]>([])
+  const pageTotal = ref(0)
+  const pageMeta = ref<EmployeePageMeta | null>(null)
+  const pageLoading = ref(false)
+  let lastPageParams: EmployeePageParams | null = null
+  let pageSeq = 0
   // Annuaire léger (fetchDirectory), tenu à part de `employees` : fetchAll/
   // fetchTeam/fetchDirectory partageaient auparavant le même tableau, donc
   // le dernier appelé écrasait les autres — un écran de liste chargé avec
@@ -271,6 +299,7 @@ export const useEmployeeStore = defineStore('employees', () => {
       await ensurePositionsLoaded()
       const { data } = await api.get<BackendEmployee[]>('/employees')
       employees.value = data.map(mapEmployee)
+      allLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
       throw err
@@ -350,6 +379,35 @@ export const useEmployeeStore = defineStore('employees', () => {
     }
   }
 
+  async function fetchPage(params: EmployeePageParams) {
+    lastPageParams = params
+    const seq = ++pageSeq
+    pageLoading.value = true
+    try {
+      const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+      const { data } = await api.get<{ items: (BackendEmployee & { PaletteIndex?: number })[]; total: number; meta: EmployeePageMeta }>('/employees/page', { params: clean })
+      if (seq !== pageSeq) return
+      pageItems.value = data.items.map(r => mapEmployee(r, r.PaletteIndex ?? 0))
+      pageTotal.value = data.total
+      pageMeta.value = data.meta
+    } catch (err) {
+      if (seq === pageSeq) error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
+      throw err
+    } finally {
+      if (seq === pageSeq) pageLoading.value = false
+    }
+  }
+  // Rafraichit la page affichee (temps reel, creation/modification) — sans effet
+  // si l'ecran liste n'est pas ouvert.
+  function refreshPage() {
+    return lastPageParams ? fetchPage(lastPageParams).catch(() => {}) : Promise.resolve()
+  }
+  function releasePage() { lastPageParams = null }
+  function replaceInPage(mapped: Employee) {
+    const i = pageItems.value.findIndex(e => e.id === mapped.id)
+    if (i !== -1) pageItems.value[i] = { ...mapped, avatarBg: pageItems.value[i]!.avatarBg, avatarText: pageItems.value[i]!.avatarText }
+  }
+
   async function createEmployee(payload: Omit<Employee, 'id' | 'code' | 'name' | 'initials' | 'avatarBg' | 'avatarText' | 'validatorPermissions'> & { code?: string }) {
     error.value = null
     return withToast("Création de l'employé en cours…", async () => {
@@ -358,6 +416,7 @@ export const useEmployeeStore = defineStore('employees', () => {
         const { data } = await api.post<BackendEmployee>('/employees', body)
         const mapped = mapEmployee(data, employees.value.length)
         employees.value.push(mapped)
+        refreshPage()
         return mapped
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de créer l'employé")
@@ -375,6 +434,8 @@ export const useEmployeeStore = defineStore('employees', () => {
         const paletteIndex = idx !== -1 ? idx : employees.value.length
         const mapped = mapEmployee(data, paletteIndex)
         if (idx !== -1) employees.value[idx] = mapped
+        replaceInPage(mapped)
+        refreshPage()
         return mapped
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de mettre à jour l'employé")
@@ -393,6 +454,8 @@ export const useEmployeeStore = defineStore('employees', () => {
         const { data } = await api.delete<BackendEmployee>(`/employees/${id}`)
         const idx = employees.value.findIndex(e => e.id === id)
         if (idx !== -1) employees.value[idx] = mapEmployee(data, idx)
+        replaceInPage(mapEmployee(data, 0))
+        refreshPage()
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de désactiver l'employé")
         throw err
@@ -411,6 +474,8 @@ export const useEmployeeStore = defineStore('employees', () => {
         const { data } = await api.patch<BackendEmployee>(`/employees/${id}`, { Status: 'Active' })
         const idx = employees.value.findIndex(e => e.id === id)
         if (idx !== -1) employees.value[idx] = mapEmployee(data, idx)
+        replaceInPage(mapEmployee(data, 0))
+        refreshPage()
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de réactiver l'employé")
         throw err
@@ -429,6 +494,8 @@ export const useEmployeeStore = defineStore('employees', () => {
       try {
         await api.delete(`/employees/${id}/permanent`)
         employees.value = employees.value.filter(e => e.id !== id)
+        pageItems.value = pageItems.value.filter(e => e.id !== id)
+        refreshPage()
       } catch (err) {
         error.value = getApiErrorMessage(err, "Impossible de supprimer l'employé")
         throw err
@@ -442,6 +509,8 @@ export const useEmployeeStore = defineStore('employees', () => {
   function markHasAccount(employeeId: string, userId: string) {
     const idx = employees.value.findIndex(e => e.id === employeeId)
     if (idx !== -1) employees.value[idx] = { ...employees.value[idx]!, hasAccount: true, userId }
+    const pi = pageItems.value.findIndex(e => e.id === employeeId)
+    if (pi !== -1) pageItems.value[pi] = { ...pageItems.value[pi]!, hasAccount: true, userId }
   }
 
   // Recale validatorPermissions d'un employé après un grant/revoke de
@@ -452,7 +521,7 @@ export const useEmployeeStore = defineStore('employees', () => {
   const VALIDATOR_CODES = ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER']
   function applyEffectivePermissions(employeeId: string, effectiveCodes: string[]) {
     const next = VALIDATOR_CODES.filter(c => effectiveCodes.includes(c))
-    for (const list of [employees.value, team.value, collaborators.value]) {
+    for (const list of [employees.value, team.value, collaborators.value, pageItems.value]) {
       const idx = list.findIndex(e => e.id === employeeId)
       if (idx !== -1) list[idx] = { ...list[idx]!, validatorPermissions: next }
     }
@@ -460,7 +529,8 @@ export const useEmployeeStore = defineStore('employees', () => {
 
   return {
     employees, directory, team, collaborators, collaboratorLinks, collaboratorBalances, loading, error,
-    activeEmployees, trialEmployees, validatorEmployees, fetchNextNumber,
+    pageItems, pageTotal, pageMeta, pageLoading, fetchPage, refreshPage, releasePage,
+    allLoaded, activeEmployees, trialEmployees, validatorEmployees, fetchNextNumber,
     getById, getByEntityId, fetchAll, fetchTeam, fetchCollaborators, fetchDirectory, fetchOne, createEmployee, updateEmployee, deactivateEmployee, reactivateEmployee, deleteEmployeePermanently, markHasAccount, applyEffectivePermissions,
   }
 })

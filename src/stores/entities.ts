@@ -27,6 +27,10 @@ interface BackendOrganizationUnit {
   CreatedAt: string
   ModifiedBy: string | null
   ModifiedAt: string | null
+  // Calcules en base par le backend (liste et arbre des entites) : permettent
+  // d'afficher effectif et responsable sans charger tous les employes.
+  EmployeeCount?: number
+  ManagerFullName?: string | null
   children?: BackendOrganizationUnit[]
 }
 
@@ -50,8 +54,8 @@ function mapEntity(raw: BackendOrganizationUnit): Entity {
     modifiedBy: raw.ModifiedBy,
     modifiedAt: raw.ModifiedAt,
     legalIdentifier: raw.LegalIdentifier ?? undefined,
-    responsibleName: manager?.name,
-    headcount:       employees.length,
+    responsibleName: raw.ManagerFullName ?? manager?.name,
+    headcount:       raw.EmployeeCount ?? employees.length,
     children: raw.children ? raw.children.map(mapEntity) : undefined,
     leaveApprovalMode: raw.LeaveApprovalMode,
   }
@@ -140,12 +144,9 @@ export const useEntityStore = defineStore('entities', {
       this.loading = true
       this.error = null
       try {
-        // mapEntity lit useEmployeeStore() de façon synchrone (headcount,
-        // responsableName) — s'assurer qu'elle est chargée avant, sinon ces
-        // deux champs restent à 0/vide pour toute la durée de vie de cette
-        // liste (pas de lien réactif entre les deux stores après coup).
-        const empStore = useEmployeeStore()
-        if (empStore.employees.length === 0) await empStore.fetchAll()
+        // L'effectif et le nom du responsable viennent du backend
+        // (EmployeeCount, ManagerFullName) : plus besoin de charger tous les
+        // employes ici.
         const { data } = await api.get<BackendOrganizationUnit[]>('/organization-units')
         this.entities = data.map(mapEntity)
       } catch (err) {
@@ -160,8 +161,6 @@ export const useEntityStore = defineStore('entities', {
       this.loading = true
       this.error = null
       try {
-        const empStore = useEmployeeStore()
-        if (empStore.employees.length === 0) await empStore.fetchAll()
         const { data } = await api.get<BackendOrganizationUnit[]>('/organization-units/tree')
         return data.map(mapEntity)
       } catch (err) {

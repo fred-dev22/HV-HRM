@@ -8,7 +8,7 @@
     :total-text="`${totalCount} employé(s)`"
     row-key="employeeId"
     search-placeholder="Rechercher un employé…"
-    :loading="balanceStore.loading"
+    :loading="loadingPage"
     v-model:search-query="search"
     v-model:page="page"
     v-model:page-size="pageSize"
@@ -26,7 +26,7 @@
     <!-- KPIs -->
     <template #above-table>
       <div class="grid grid-cols-4 gap-3 mb-4 max-[1100px]:grid-cols-2 max-md:grid-cols-2">
-        <div :class="kpiCard"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ balanceStore.allBalances.length }}</div><div :class="kpiLabel">Employés suivis</div></div></div>
+        <div :class="kpiCard"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ trackedCount }}</div><div :class="kpiLabel">Employés suivis</div></div></div>
         <div v-for="(c, i) in kpiTypeCols" :key="c.leaveTypeId" :class="kpiCard">
           <div :class="[kpiIcon, KPI_STYLES[i]!.bg]"><component :is="KPI_STYLES[i]!.icon" class="w-[18px] h-[18px]" :class="KPI_STYLES[i]!.text" /></div>
           <div><div :class="kpiVal">{{ totalForType(c.leaveTypeId) }}j</div><div :class="kpiLabel">{{ c.leaveTypeName }} restants</div></div>
@@ -176,7 +176,7 @@
     </template>
   </CreateModalShell>
 
-  <ImportWizardModal v-if="showImport" :open="showImport" :config="leaveBalanceImportConfig" @close="showImport = false" @imported="balanceStore.fetchAllBalances()" />
+  <ImportWizardModal v-if="showImport" :open="showImport" :config="leaveBalanceImportConfig" @close="showImport = false" @imported="balanceStore.bumpBalances()" />
 
   <!-- Export configurable : colonnes, ordre, titres, valeur fixe, format,
        modeles. Demande client (import Sage paie : Matricule / Code / Solde). -->
@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { FileDown, Users, Sun, RefreshCw, Home, PlusCircle, Upload, ArrowRight } from 'lucide-vue-next'
 import { UserAvatar, ListPageLayout } from '../../components'
 import CreateModalShell from '../../components/shared/CreateModalShell.vue'
@@ -219,7 +219,7 @@ import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import * as L from '../../lib/listClasses'
 import * as fcls from '../../lib/formClasses'
 import { useLeaveTransactionStore } from '../../stores/leaveTransactions'
-import type { EmployeeLeaveBalances } from '../../stores/leaveTransactions'
+import type { EmployeeLeaveBalances, BalancePage, BalancePageParams } from '../../stores/leaveTransactions'
 import { useEntityStore }  from '../../stores/entities'
 import type { LeaveBalance } from '../../types'
 
@@ -233,7 +233,6 @@ const showImport = ref(false)
 const leaveBalanceImportConfig = computed(() => buildLeaveBalanceImportConfig())
 
 onMounted(() => {
-  balanceStore.fetchAllBalances()
   if (entityStore.entities.length === 0) entityStore.fetchAll()
 })
 
@@ -243,6 +242,8 @@ const creditError = ref('')
 const creditForm = reactive({ employeeId: '', leaveTypeId: '', amount: 0, finalBalance: null as number | null, reason: '' })
 
 function openCredit() {
+  // La liste complete (employes + soldes) n'est chargee qu'a l'ouverture de cette fenetre.
+  if (balanceStore.allBalances.length === 0) balanceStore.fetchAllBalances().catch(() => {})
   Object.assign(creditForm, { employeeId: '', leaveTypeId: '', amount: 0, finalBalance: null, reason: '' })
   creditError.value = ''
   showCreditModal.value = true
@@ -288,8 +289,10 @@ async function submitCredit() {
 const showExport = ref(false)
 const exportEntity = ref('')
 
-function openExport() {
+async function openExport() {
   exportEntity.value = filterEntity.value
+  // L'export porte sur tous les employes : on charge la liste complete a la demande.
+  await balanceStore.fetchAllBalances().catch(() => {})
   showExport.value = true
 }
 
@@ -368,15 +371,7 @@ const kpiLabel = 'text-[11px] text-muted-foreground mt-0.5'
 // éligible — même pour les employés qui l'étaient. cellFor() affiche déjà
 // "—" pour un employé sans entrée pour une colonne donnée, donc il suffit
 // que la colonne existe quelque part.
-const TYPE_COLS = computed(() => {
-  const seen = new Map<string, LeaveBalance>()
-  for (const emp of balanceStore.allBalances) {
-    for (const b of emp.balances) {
-      if (!seen.has(b.leaveTypeId)) seen.set(b.leaveTypeId, b)
-    }
-  }
-  return [...seen.values()]
-})
+const TYPE_COLS = computed(() => pageData.value?.meta.columns ?? [])
 
 // Les 3 cartes KPI reprennent les 3 premiers types réels (par leaveTypeId,
 // jamais par code) — un code fixe ('ANNUAL'/'RECOVERY'/'REMOTE') ne
@@ -393,8 +388,9 @@ function cellSlot(leaveTypeId: string) { return `cell-${leaveTypeId}` }
 function cellFor(item: EmployeeLeaveBalances, leaveTypeId: string): LeaveBalance | undefined {
   return item.balances.find(b => b.leaveTypeId === leaveTypeId)
 }
+// Total sur TOUTE l'entreprise (calcule en base), pas sur la page affichee.
 function totalForType(leaveTypeId: string): number {
-  return balanceStore.allBalances.reduce((sum, e) => sum + (e.balances.find(b => b.leaveTypeId === leaveTypeId)?.balance ?? 0), 0)
+  return pageData.value?.meta.columns.find(c => c.leaveTypeId === leaveTypeId)?.total ?? 0
 }
 
 const search       = ref('')
@@ -404,7 +400,7 @@ const page         = ref(1)
 const pageSize     = ref(10)
 
 watch([search, filterEntity, filterType, pageSize], () => { page.value = 1 })
-function resetFilters() { search.value = ''; filterEntity.value = ''; filterType.value = ''; page.value = 1 }
+function resetFilters() { search.value = ''; debouncedSearch.value = ''; filterEntity.value = ''; filterType.value = ''; page.value = 1 }
 
 const columns = computed<ListColumn[]>(() => {
   const cols = filterType.value ? TYPE_COLS.value.filter(c => c.leaveTypeId === filterType.value) : TYPE_COLS.value
@@ -414,21 +410,39 @@ const columns = computed<ListColumn[]>(() => {
   ]
 })
 
-const filteredBalances = computed(() => {
-  let list = balanceStore.allBalances
-  if (filterEntity.value) list = list.filter(r => r.entityName === filterEntity.value)
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    list = list.filter(r => r.employeeName.toLowerCase().includes(q))
-  }
-  return list
-})
+/* ── Données : pagination, recherche et filtre entite sont faits par le serveur ── */
+const pageData = ref<BalancePage | null>(null)
+const loadingPage = ref(false)
+let pageSeq = 0
+const trackedCount = computed(() => pageData.value?.meta.tracked ?? 0)
 
-const totalCount = computed(() => filteredBalances.value.length)
-const pageItems  = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return filteredBalances.value.slice(start, start + pageSize.value)
+const debouncedSearch = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(search, (v) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { debouncedSearch.value = v }, 300)
 })
+onBeforeUnmount(() => clearTimeout(searchTimer))
+watch([debouncedSearch, filterEntity], () => { page.value = 1 })
+
+async function loadPage() {
+  const seq = ++pageSeq
+  loadingPage.value = true
+  const params: BalancePageParams = { page: page.value, pageSize: pageSize.value, search: debouncedSearch.value, entity: filterEntity.value }
+  try {
+    const data = await balanceStore.fetchBalancePage(params)
+    if (seq === pageSeq) pageData.value = data
+  } catch {
+    // le toast d'erreur reseau est gere par l'intercepteur ; la page precedente reste affichee
+  } finally {
+    if (seq === pageSeq) loadingPage.value = false
+  }
+}
+// A chaque changement de page, de filtre ou de soldes (ajustement, import, temps reel).
+watch([page, pageSize, debouncedSearch, filterEntity, () => balanceStore.balancesVersion], loadPage, { immediate: true })
+
+const totalCount = computed(() => pageData.value?.total ?? 0)
+const pageItems  = computed(() => pageData.value?.items ?? [])
 
 function barStyle(b: LeaveBalance) {
   if (!b || b.daysPerYear === 0) return {}

@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Plus, List, Plane, Calendar, Check, ChevronLeft, ChevronRight } from 'lucide-vue-next'
@@ -131,7 +131,7 @@ const calendarStore    = useCalendarStore()
 const { t, locale }  = useI18n()
 const router = useRouter()
 
-if (leaves.mine.length === 0) leaves.fetchMine()
+if (!leaves.recentWindow) leaves.fetchRecent(false).catch(() => {})
 if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
 // Toujours rafraîchi (pas de garde "si vide") : le solde peut changer suite
 // à une approbation décidée par un tiers pendant que ce tableau de bord
@@ -154,7 +154,7 @@ const cardTitle = 'flex items-center gap-1.5 text-sm font-semibold'
 const legClass = 'flex items-center gap-1.5 text-[11px] text-muted-foreground'
 const calNavBtn = 'border border-border rounded w-[22px] h-[22px] flex items-center justify-center cursor-pointer text-muted-foreground transition-colors hover:bg-background hover:text-foreground'
 
-const myRequests = computed(() => leaves.mine.slice(0, 5))
+const myRequests = computed(() => leaves.recentMine.slice(0, 5))
 
 // Une fois Approved/Registered, seul le RH/manager peut encore annuler
 // administrativement — plus le demandeur lui-même (voir AbsenceWorkflowActions.vue).
@@ -203,6 +203,7 @@ const effectiveCalendar = computed(() => {
 const _now     = new Date()
 const calYear  = ref(_now.getFullYear())
 const calMonth = ref(_now.getMonth())
+watch([calYear, calMonth], () => { leaves.ensureRecentMonth(calYear.value, calMonth.value, false).catch(() => {}) })
 
 const calTitle = computed(() =>
   new Date(calYear.value, calMonth.value, 1)
@@ -239,7 +240,7 @@ const calDays = computed((): CalDay[] => {
     const dateStr = `${y}-${mm}-${dd}`
     // Couleur du type de congé (definie a sa creation) plutot qu'une couleur
     // generique unique pour toute absence.
-    const dayLeave = leaves.mine.find(
+    const dayLeave = leaves.recentMine.find(
       l => MINE_APPROVED_LIKE.has(l.status) && l.startDate <= dateStr && l.endDate >= dateStr
     )
     const holiday = isHoliday(new Date(y, m, d), effectiveCalendar.value)

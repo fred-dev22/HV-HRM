@@ -55,6 +55,12 @@
           <SidebarItem v-if="DEADLINES_MODULE_ENABLED && auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
         </SidebarSection>
 
+        <SidebarSection v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'])" :label="t('sidebar.time_section')">
+          <SidebarItem v-if="auth.hasPermission('TEMPS_ACCES')"   :icon="Clock3"         :label="t('sidebar.time_admin')"      :to="{ name: 'hr-time' }" />
+          <SidebarItem v-if="auth.hasAnyPermission(['TEMPS_SAISIR', 'TEMPS_ACCES'])" :icon="Clock" :label="t('sidebar.my_time')" :to="{ name: 'hr-time-mine' }" />
+          <SidebarItem v-if="auth.hasAnyPermission(['TEMPS_VALIDER', 'TEMPS_ACCES'])" :icon="ClipboardCheck" :label="t('sidebar.time_validation')" :to="{ name: 'hr-time-validation' }" />
+        </SidebarSection>
+
         <SidebarSection v-if="canSeeConfigSection" :label="t('sidebar.configuration')" data-tour="config">
           <SidebarItem v-if="auth.hasPermission('CONFIG_CALENDRIER')"     :icon="CalendarDays" :label="t('sidebar.config_calendar')" :to="{ name: 'hr-config-calendar' }" />
           <SidebarItem v-if="auth.hasAnyPermission(['CONFIG_METIERS_POSTES', 'CONFIG_CATEGORIES_EMPLOYE'])" :icon="Tags" :label="t('sidebar.classification')" :to="{ name: 'hr-config-classification' }" />
@@ -168,6 +174,7 @@
         <SidebarItem :icon="CalendarOff" :label="t('sidebar.absence_requests')" :to="{ name: 'employee-absences' }" :badge="myPendingCount" />
         <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED" :icon="Plane"   :label="t('sidebar.my_missions')"      :to="{ name: 'employee-missions' }" />
         <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED" :icon="Receipt" :label="t('sidebar.expenses')"         :to="{ name: 'employee-expenses' }" />
+        <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(['TEMPS_SAISIR', 'TEMPS_ACCES'])" :icon="Clock3" :label="t('sidebar.my_time')" :to="{ name: 'employee-time' }" />
       </SidebarSection>
 
       <!-- Visibilite d'une candidature interne (mobilite) proposee par un
@@ -187,6 +194,7 @@
             :badge="pendingCount"
             :badge-orange="true"
           />
+          <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasPermission('TEMPS_VALIDER')" :icon="Clock3" :label="t('sidebar.time_validation')" :to="{ name: 'employee-time-validation' }" />
           <SidebarItem v-if="auth.hasPermission('EMPLOYE_VOIR_EQUIPE')" :icon="Users" :label="t('sidebar.members')" :to="{ name: 'employee-team' }" />
         </SidebarSection>
       </template>
@@ -216,7 +224,7 @@ import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
 import { useHrModules } from '../composables/useHrModules'
 import SkeletonLoader from './ui/SkeletonLoader.vue'
-import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED, DEADLINES_MODULE_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, RECRUITMENT_MODULE_ENABLED, JOB_DISTRIBUTION_UI_ENABLED, DEADLINES_MODULE_ENABLED, TIME_MODULE_ENABLED } from '../config/features'
 
 const { t }        = useI18n()
 const route        = useRoute()
@@ -233,11 +241,11 @@ const expenseStore = useExpenseStore()
 if (auth.hasPermission('CONGE_VALIDER') && leaveStore.pendingForMe.length === 0) leaveStore.fetchPendingForMe()
 if (MISSIONS_EXPENSES_ENABLED && auth.hasPermission('MISSION_VALIDER') && missionStore.pendingForMe.length === 0) missionStore.fetchPendingForMe()
 if (MISSIONS_EXPENSES_ENABLED && auth.hasPermission('FRAIS_VALIDER') && expenseStore.pendingForMe.length === 0) expenseStore.fetchPendingForMe()
-if (leaveStore.mine.length === 0) leaveStore.fetchMine()
+if (!leaveStore.recentWindow) leaveStore.fetchRecent(auth.hasPermission('CONGE_VOIR_TOUT')).catch(() => {})
 
 const MINE_PENDING = new Set(['Pending', 'InApprovalN1', 'InApprovalN2', 'InApprovalN3', 'InApprovalN4'])
 const pendingCount   = computed(() => leaveStore.pendingForMe.length + missionStore.pendingForMe.length + expenseStore.pendingForMe.length)
-const myPendingCount = computed(() => leaveStore.mine.filter(l => MINE_PENDING.has(l.status)).length)
+const myPendingCount = computed(() => leaveStore.recentMine.filter(l => MINE_PENDING.has(l.status)).length)
 
 const canSeeManagementSection = computed(() => auth.hasAnyPermission([
   'EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE', 'ENTITE_VOIR',

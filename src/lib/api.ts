@@ -18,6 +18,24 @@ export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
+// Deux lectures identiques lancees en meme temps (ex : la barre laterale et le
+// tableau de bord demandent toutes deux les demandes a valider) ne font plus
+// qu'UN appel reseau : le second appelant reutilise la reponse en cours. Rien
+// n'est garde une fois la reponse arrivee, donc aucune donnee perimee. Les
+// telechargements (blob) et appels annulables restent hors du mecanisme.
+const inFlightGets = new Map<string, Promise<unknown>>()
+const rawGet = api.get.bind(api)
+api.get = ((url: string, config?: Parameters<typeof rawGet>[1]) => {
+  if (config?.signal || config?.responseType) return rawGet(url, config)
+  const key = `${getStoredToken() ?? ''}|${url}|${JSON.stringify(config?.params ?? null)}`
+  let pending = inFlightGets.get(key)
+  if (!pending) {
+    pending = rawGet(url, config).finally(() => inFlightGets.delete(key))
+    inFlightGets.set(key, pending)
+  }
+  return pending
+}) as typeof api.get
+
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
   if (token) {

@@ -46,6 +46,8 @@ const emit = defineEmits<{ close: []; 'view-full': [id: string] }>()
 
 const entityStore = useEntityStore()
 const employeeStore = useEmployeeStore()
+// Le responsable et les membres viennent de la liste des employes : ce composant la charge lui-meme (avant, c'est le tableau de bord qui la chargeait pour tout le monde).
+if (employeeStore.employees.length === 0) employeeStore.fetchAll().catch(() => {})
 
 const entity = computed(() => entityStore.getEntityById(props.entityId))
 const responsible = computed(() => (entity.value?.managerId ? employeeStore.getById(entity.value.managerId) : undefined))

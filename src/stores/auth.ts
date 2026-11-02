@@ -56,6 +56,16 @@ interface EffectivePermissionsResponse {
   permissions: string[]
 }
 
+// Renvoyee par POST /auth/login et GET /auth/session : tout ce qu'il faut pour
+// afficher l'appli en UN aller-retour (avant : permissions, employe et unite
+// = 3 appels enchaines, soit plusieurs secondes sur un serveur distant).
+interface SessionResponse {
+  categoryName: string
+  permissions: string[]
+  employee: BackendEmployee
+  organizationUnitName: string | null
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user        = ref<AuthUser | null>(null)
   const isLoggedIn  = ref(false)
@@ -94,6 +104,10 @@ export const useAuthStore = defineStore('auth', () => {
       entityName = undefined
     }
 
+    return toAuthUser(employee, entityName, categoryNameValue)
+  }
+
+  function toAuthUser(employee: BackendEmployee, entityName: string | undefined, categoryNameValue: string): AuthUser {
     return {
       id:         employee.Id,
       name:       employee.FullName,
@@ -106,6 +120,11 @@ export const useAuthStore = defineStore('auth', () => {
       isExpatriate: employee.IsExpatriate,
       isSystem:     employee.IsSystem,
     }
+  }
+
+  function applySession(session: SessionResponse) {
+    permissions.value = session.permissions
+    user.value = toAuthUser(session.employee, session.organizationUnitName ?? undefined, session.categoryName)
   }
 
   // Toujours relues depuis l'API (jamais figées dans le JWT) — voir backend
@@ -163,14 +182,19 @@ export const useAuthStore = defineStore('auth', () => {
   // ── Actions ──────────────────────────────────────────────────
   async function login(email: string, password: string) {
     resetOtherStores()
-    const { data } = await api.post<{ accessToken: string }>('/auth/login', { email, password })
+    const { data } = await api.post<{ accessToken: string; session?: SessionResponse }>('/auth/login', { email, password })
     setStoredToken(data.accessToken)
     try {
       const payload = decodeJwt(data.accessToken)
       categoryName.value = payload.categoryName
       mustChangePassword.value = payload.mustChangePassword
-      await fetchPermissions(payload.sub)
-      user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
+      if (data.session) {
+        applySession(data.session)
+      } else {
+        // Ancien backend (sans session dans la reponse) : chaine d'appels historique.
+        await fetchPermissions(payload.sub)
+        user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
+      }
       isLoggedIn.value = true
       tryConnectRealtime()
     } catch (err) {
@@ -213,8 +237,15 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       categoryName.value = payload.categoryName
       mustChangePassword.value = payload.mustChangePassword
-      await fetchPermissions(payload.sub)
-      user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
+      try {
+        const { data: session } = await api.get<SessionResponse>('/auth/session')
+        applySession(session)
+      } catch (err) {
+        // Ancien backend sans /auth/session : chaine d'appels historique.
+        if ((err as { response?: { status?: number } }).response?.status !== 404) throw err
+        await fetchPermissions(payload.sub)
+        user.value = await buildAuthUser(payload.employeeId, payload.categoryName)
+      }
       isLoggedIn.value = true
       tryConnectRealtime()
     } catch {

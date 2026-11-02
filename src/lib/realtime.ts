@@ -2,6 +2,8 @@ import { connectSocket, disconnectSocket } from './socket'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore, type BackendNotification } from '../stores/notifications'
 import { useLeaveRequestStore } from '../stores/leaveRequests'
+import { useDashboardStore } from '../stores/dashboard'
+import { useLeaveTransactionStore } from '../stores/leaveTransactions'
 import { useMissionStore } from '../stores/missions'
 import { useExpenseStore } from '../stores/expenses'
 import { useEmployeeStore } from '../stores/employees'
@@ -45,8 +47,34 @@ function refreshWorkflowStore(
   if (auth.hasPermission(perms.all)) store.fetchAll()
 }
 
+// Conges : ne relit les listes COMPLETES (mine/all) que si un ecran de liste
+// les a deja chargees. Les donnees bornees du tableau de bord (fenetre de
+// dates) sont toujours rafraichies : leur volume ne depend pas de
+// l'historique, alors qu'un fetchAll() complet a chaque evenement temps reel
+// grossirait avec les annees de demandes.
+function refreshLeaveStore(store: ReturnType<typeof useLeaveRequestStore>) {
+  const auth = useAuthStore()
+  const perms = PERMISSIONS.leave!
+  if (store.mineLoaded) store.fetchMine()
+  if (auth.hasPermission(perms.validate)) store.fetchPendingForMe()
+  if (auth.hasPermission(perms.team) && store.teamLoaded) store.fetchTeam()
+  if (store.allLoaded && auth.hasPermission(perms.all)) store.fetchAll()
+  if (store.recentWindow) store.fetchRecent(auth.hasPermission(perms.all), store.recentWindow)
+  store.refreshPage()
+  // Une decision sur une demande change des soldes : les ecrans qui affichent
+  // une page de soldes la relisent.
+  useLeaveTransactionStore().bumpBalances()
+  // Chiffres du tableau de bord (comptes en base) et dernieres approbations :
+  // seulement si l'ecran a deja ete ouvert.
+  const dashboard = useDashboardStore()
+  if (dashboard.summary) {
+    dashboard.fetchSummary().catch(() => {})
+    store.fetchRecentApproved().catch(() => {})
+  }
+}
+
 function refreshDomain(domain: DataDomain) {
-  if (domain === 'leave')    refreshWorkflowStore('leave', useLeaveRequestStore())
+  if (domain === 'leave')    refreshLeaveStore(useLeaveRequestStore())
   if (domain === 'mission')  refreshWorkflowStore('mission', useMissionStore())
   if (domain === 'expense')  refreshWorkflowStore('expense', useExpenseStore())
   if (domain === 'employee') {
@@ -55,7 +83,13 @@ function refreshDomain(domain: DataDomain) {
     // branchement, TeamView.vue (EMPLOYE_VOIR_EQUIPE) ne recevait jamais de
     // mise a jour en direct, seul EMPLOYE_VOIR_TOUT etait couvert (Lot H #10).
     if (auth.hasPermission('EMPLOYE_VOIR_EQUIPE')) useEmployeeStore().fetchTeam()
-    if (auth.hasPermission('EMPLOYE_VOIR_TOUT')) useEmployeeStore().fetchAll()
+    const employeeStore = useEmployeeStore()
+    if (auth.hasPermission('EMPLOYE_VOIR_TOUT') && employeeStore.allLoaded) employeeStore.fetchAll()
+    // Chiffres du tableau de bord (effectifs) : seulement si l'ecran a ete ouvert.
+    const dashboard = useDashboardStore()
+    if (dashboard.summary) dashboard.fetchSummary().catch(() => {})
+    // Ecran Employes ouvert : sa page est relue (recherche/filtres conserves).
+    employeeStore.refreshPage()
     // Les places restantes d'un poste derivent des employes titulaires :
     // sans ce rafraichissement, le formulaire et l'alerte "effectif > places"
     // des expressions de besoin ignoraient un employe cree/desactive/supprime

@@ -124,10 +124,43 @@ function toBackendCreatePayload(p: CreateLeaveRequestPayload) {
   }
 }
 
+export interface LeavePageParams {
+  scope: 'all' | 'team' | 'mine'
+  page: number
+  pageSize: number
+  search?: string
+  sort?: string
+  dir?: 'asc' | 'desc'
+  status?: string
+  type?: string
+  from?: string
+  to?: string
+}
+
 export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   const mine          = ref<LeaveRequest[]>([])
   const team          = ref<LeaveRequest[]>([])
   const all           = ref<LeaveRequest[]>([])
+  // Donnees BORNEES pour tout ce qui se charge a la connexion (tableau de
+  // bord, barre laterale, temps reel) : demandes en cours de validation +
+  // celles qui chevauchent une fenetre de dates. Leur volume ne grossit pas
+  // avec les annees, contrairement a all/mine (listes completes, chargees
+  // seulement par les ecrans de liste).
+  const recentAll     = ref<LeaveRequest[]>([])
+  const recentMine    = ref<LeaveRequest[]>([])
+  const recentWindow  = ref<{ from: string; to: string } | null>(null)
+  const recentApproved = ref<LeaveRequest[]>([])
+  const mineLoaded    = ref(false)
+  const allLoaded     = ref(false)
+  const teamLoaded    = ref(false)
+  // Page courante de l'ecran "Demandes d'absence" (pagination, recherche,
+  // filtres et tri faits par le serveur sur TOUTES les demandes).
+  const pageItems     = ref<LeaveRequest[]>([])
+  const pageTotal     = ref(0)
+  const pagePending   = ref(0)
+  const pageLoading   = ref(false)
+  let lastPageParams: LeavePageParams | null = null
+  let pageSeq = 0
   const pendingForMe  = ref<LeaveRequest[]>([])
   const validatedByMe = ref<LeaveRequest[]>([])
   const loading       = ref(false)
@@ -139,6 +172,7 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/mine')
       mine.value = data.map(mapLeaveRequest)
+      mineLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger vos demandes de congé')
       throw err
@@ -153,6 +187,7 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/team')
       team.value = data.map(mapLeaveRequest)
+      teamLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible de charger les demandes de l'équipe")
       throw err
@@ -167,12 +202,99 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests')
       all.value = data.map(mapLeaveRequest)
+      allLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les demandes de congé')
       throw err
     } finally {
       loading.value = false
     }
+  }
+
+  // Fenetre par defaut : le mois en cours seulement (le calendrier du tableau
+  // de bord n'affiche qu'un mois a la fois ; les autres mois se chargent a la
+  // navigation, voir ensureRecentMonth).
+  function defaultWindow(): { from: string; to: string } {
+    const now = new Date()
+    return monthRange(now.getFullYear(), now.getMonth(), now.getFullYear(), now.getMonth())
+  }
+  function monthRange(y1: number, m1: number, y2: number, m2: number) {
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { from: iso(new Date(y1, m1, 1)), to: iso(new Date(y2, m2 + 1, 0)) }
+  }
+
+  function mergeById(current: LeaveRequest[], incoming: LeaveRequest[]): LeaveRequest[] {
+    const byId = new Map(current.map((l) => [l.id, l]))
+    for (const l of incoming) byId.set(l.id, l)
+    return [...byId.values()]
+  }
+
+  // withAll : vrai pour un compte qui voit toutes les demandes (CONGE_VOIR_TOUT).
+  async function fetchRecent(withAll: boolean, window = defaultWindow()) {
+    const params = { from: window.from, to: window.to }
+    loading.value = true
+    try {
+      const [mineRes, allRes] = await Promise.all([
+        api.get<BackendLeaveRequest[]>('/leave-requests/mine', { params }),
+        withAll ? api.get<BackendLeaveRequest[]>('/leave-requests', { params }) : Promise.resolve(null),
+      ])
+      recentMine.value = mineRes.data.map(mapLeaveRequest)
+      if (allRes) recentAll.value = allRes.data.map(mapLeaveRequest)
+      recentWindow.value = window
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Le calendrier change de mois : on ne charge que ce qui manque, en
+  // prolongeant la fenetre deja chargee (navigation mois par mois).
+  async function ensureRecentMonth(year: number, month: number, withAll: boolean) {
+    const w = recentWindow.value
+    if (!w) return
+    const m = monthRange(year, month, year, month)
+    if (m.from >= w.from && m.to <= w.to) return
+    const params = { from: m.from, to: m.to }
+    const [mineRes, allRes] = await Promise.all([
+      api.get<BackendLeaveRequest[]>('/leave-requests/mine', { params }),
+      withAll ? api.get<BackendLeaveRequest[]>('/leave-requests', { params }) : Promise.resolve(null),
+    ])
+    recentMine.value = mergeById(recentMine.value, mineRes.data.map(mapLeaveRequest))
+    if (allRes) recentAll.value = mergeById(recentAll.value, allRes.data.map(mapLeaveRequest))
+    recentWindow.value = { from: m.from < w.from ? m.from : w.from, to: m.to > w.to ? m.to : w.to }
+  }
+
+  // Page de l'ecran liste. Les reponses arrivent parfois dans le desordre
+  // (frappe rapide dans la recherche) : seule la derniere requete compte.
+  async function fetchPage(params: LeavePageParams) {
+    lastPageParams = params
+    const seq = ++pageSeq
+    pageLoading.value = true
+    try {
+      const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+      const { data } = await api.get<{ items: BackendLeaveRequest[]; total: number; meta?: { pending: number } }>('/leave-requests/page', { params: clean })
+      if (seq !== pageSeq) return
+      pageItems.value = data.items.map(mapLeaveRequest)
+      pageTotal.value = data.total
+      pagePending.value = data.meta?.pending ?? 0
+    } catch (err) {
+      if (seq === pageSeq) error.value = getApiErrorMessage(err, 'Impossible de charger les demandes de congé')
+      throw err
+    } finally {
+      if (seq === pageSeq) pageLoading.value = false
+    }
+  }
+  // Rafraichit la page affichee (temps reel, action de workflow) — sans effet
+  // si l'ecran liste n'est pas ouvert.
+  function refreshPage() {
+    return lastPageParams ? fetchPage(lastPageParams).catch(() => {}) : Promise.resolve()
+  }
+  function releasePage() { lastPageParams = null }
+
+  // Les dernieres demandes approuvees (onglet "Recents approuves"), toutes
+  // periodes confondues, sans charger l'historique.
+  async function fetchRecentApproved() {
+    const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/recently-approved', { params: { limit: 10 } })
+    recentApproved.value = data.map(mapLeaveRequest)
   }
 
   async function fetchPendingForMe() {
@@ -217,13 +339,13 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   // chargées (mine/team/all/pendingForMe) — évite un refetch complet après
   // chaque action de workflow.
   function replaceEverywhere(updated: LeaveRequest) {
-    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe, pageItems, recentAll, recentMine, recentApproved]) {
       const idx = list.value.findIndex(l => l.id === updated.id)
       if (idx !== -1) list.value[idx] = updated
     }
   }
   function removeEverywhere(id: string) {
-    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe, pageItems, recentAll, recentMine, recentApproved]) {
       list.value = list.value.filter(l => l.id !== id)
     }
   }
@@ -494,8 +616,9 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   }
 
   return {
-    mine, team, all, pendingForMe, validatedByMe, loading, error,
-    fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchValidatedByMe, fetchOne,
+    mine, team, all, recentAll, recentMine, recentWindow, mineLoaded, allLoaded, teamLoaded, pendingForMe, validatedByMe, loading, error,
+    pageItems, pageTotal, pagePending, pageLoading, fetchPage, refreshPage, releasePage,
+    recentApproved, fetchRecentApproved, fetchRecent, ensureRecentMonth, fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchValidatedByMe, fetchOne,
     create, submit, createAndSubmit, saveDraft, update, remove, deletePermanently,
     approve, reject, returnLeave, cancel, markDone, regularize,
   }

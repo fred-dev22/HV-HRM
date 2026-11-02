@@ -3,13 +3,7 @@ import { useAuthStore }       from '../stores/auth'
 import { useCompanySettingsStore } from '../stores/companySettings'
 import { useNavigationStore } from '../stores/navigation'
 import LoginView          from '../views/LoginView.vue'
-import ForgotPasswordView from '../views/ForgotPasswordView.vue'
-import ResetPasswordView  from '../views/ResetPasswordView.vue'
-import PublicApprovalView from '../views/PublicApprovalView.vue'
-import DashboardHR       from '../views/DashboardHR.vue'
-import DashboardEmployee from '../views/DashboardEmployee.vue'
-import CalendarView      from '../views/calendar/CalendarView.vue'
-import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED, FORMATION_MODULE_ENABLED, DEADLINES_MODULE_ENABLED } from '../config/features'
+import { MISSIONS_EXPENSES_ENABLED, PLACEHOLDER_MODULES_ENABLED, RECRUITMENT_MODULE_ENABLED, FORMATION_MODULE_ENABLED, DEADLINES_MODULE_ENABLED, TIME_MODULE_ENABLED } from '../config/features'
 
 const PH = () => import('../views/placeholders/PlaceholderView.vue')
 
@@ -95,19 +89,24 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'employee-to-validate': ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER'],
   'employee-team':        'EMPLOYE_VOIR_EQUIPE',
   'hr-deadlines':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
+  'hr-time':                  'TEMPS_ACCES',
+  'hr-time-mine':             ['TEMPS_SAISIR', 'TEMPS_ACCES'],
+  'hr-time-validation':       ['TEMPS_VALIDER', 'TEMPS_ACCES'],
+  'employee-time':            ['TEMPS_SAISIR', 'TEMPS_ACCES'],
+  'employee-time-validation': ['TEMPS_VALIDER', 'TEMPS_ACCES'],
 }
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'login', component: LoginView },
-    { path: '/forgot-password', name: 'forgot-password', component: ForgotPasswordView },
-    { path: '/reset-password', name: 'reset-password', component: ResetPasswordView },
+    { path: '/forgot-password', name: 'forgot-password', component: () => import('../views/ForgotPasswordView.vue') },
+    { path: '/reset-password', name: 'reset-password', component: () => import('../views/ResetPasswordView.vue') },
     // Validation par email (clic direct depuis la boite mail, sans connexion)
     // — voir PublicApprovalView.vue / backend PublicApprovalModule. Route en
     // anglais comme demande (toutes les routes frontend doivent l'etre a
     // terme, voir Lot K).
-    { path: '/approval/:token', name: 'public-approval', component: PublicApprovalView },
+    { path: '/approval/:token', name: 'public-approval', component: () => import('../views/PublicApprovalView.vue') },
 
     // Reponse a une invitation d'entretien (RSVP) via jeton opaque, sans
     // connexion — clic direct depuis le mail. Le chemin /entretien-rsvp/:token
@@ -125,8 +124,8 @@ const router = createRouter({
     { path: '/careers/:id',         name: 'public-careers-offer',       component: () => import('../views/recruitment/PublicJobApplicationView.vue') },
 
     // ── Dashboards ──────────────────────────────────────────────
-    { path: '/hr',       name: 'hr-dashboard',       component: DashboardHR,       meta: { requiresAuth: true, layout: 'dashboard' } },
-    { path: '/employee', name: 'employee-dashboard', component: DashboardEmployee, meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/hr',       name: 'hr-dashboard',       component: () => import('../views/DashboardHR.vue'),       meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/employee', name: 'employee-dashboard', component: () => import('../views/DashboardEmployee.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
 
     // ── Onboarding ───────────────────────────────────────────────
     // Pas de requiresAuth — vérification manuelle dans le composant pour éviter les boucles
@@ -190,11 +189,27 @@ const router = createRouter({
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
 
+    // ── Temps de travail (module 'time') ──────────────────────────
+    { path: '/hr/time', name: 'hr-time',
+      component: () => import('../views/time/TimeAdminView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+
+    // Memes ecrans cote RH : un compte de l'espace RH ne peut pas ouvrir /employee/*.
+    { path: '/hr/time/mine', name: 'hr-time-mine',
+      component: () => import('../views/time/TimeEntriesView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+    { path: '/hr/time/validation', name: 'hr-time-validation',
+      component: () => import('../views/time/TimeValidationView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+
     // ── Configuration ─────────────────────────────────────────────
     { path: '/hr/config', redirect: '/hr/config/calendar' },
     {
       path: '/hr/config/calendar', name: 'hr-config-calendar',
-      component: CalendarView,
+      component: () => import('../views/calendar/CalendarView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
     { path: '/hr/config/leave-types', name: 'hr-config-leave-types', redirect: '/hr/config/calendar' },
@@ -318,6 +333,8 @@ const router = createRouter({
     },
     { path: '/employee/missions', name: 'employee-missions', component: () => import('../views/missions/MissionListView.vue'),  meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/employee/expenses', name: 'employee-expenses', component: () => import('../views/expenses/ExpenseListView.vue'),   meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/employee/time', name: 'employee-time', component: () => import('../views/time/TimeEntriesView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/employee/time-validation', name: 'employee-time-validation', component: () => import('../views/time/TimeValidationView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
     {
       path: '/employee/to-validate', name: 'employee-to-validate',
       component: () => import('../views/employee/ToValidateView.vue'),
@@ -421,6 +438,10 @@ router.beforeEach(async (to) => {
     }
 
     if (!DEADLINES_MODULE_ENABLED && to.name === 'hr-deadlines') {
+      return { path: auth.isHRSpace ? '/hr' : '/employee' }
+    }
+
+    if (!TIME_MODULE_ENABLED && (to.name === 'hr-time' || to.name === 'hr-time-mine' || to.name === 'hr-time-validation' || to.name === 'employee-time' || to.name === 'employee-time-validation')) {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 

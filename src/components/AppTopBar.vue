@@ -41,7 +41,7 @@
               Tout marquer lu
             </button>
           </div>
-          <div class="max-h-96 overflow-y-auto">
+          <div class="max-h-96 overflow-y-auto" @scroll.passive="onNotifScroll">
             <div
               v-for="n in notifStore.notifications"
               :key="n.id"
@@ -190,7 +190,13 @@ const showAbout      = ref(false)
 function toggleDropdown(name: 'user' | 'notif') {
   const opening = activeDropdown.value !== name
   activeDropdown.value = opening ? name : null
-  if (opening && name === 'notif') notifStore.fetchAll()
+  if (opening && name === 'notif') notifStore.ensureLoaded()
+}
+
+// Defilement vers le bas de la liste : page suivante (20 par 20).
+function onNotifScroll(e: Event) {
+  const el = e.target as HTMLElement
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) notifStore.fetchMore()
 }
 
 function handleNotifClick(n: AppNotification) {
@@ -224,7 +230,7 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onKeydown)
-  notifStore.fetchAll()
+  notifStore.fetchUnreadCount()
 })
 onUnmounted(() => { document.removeEventListener('click', onDocClick); document.removeEventListener('keydown', onKeydown) })
 </script>

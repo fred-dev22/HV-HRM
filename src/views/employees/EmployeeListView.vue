@@ -1,8 +1,8 @@
 <template>
   <ListPageLayout
     :title="t('employee.title')"
-    :subtitle="t('employee.sub_title', { count: store.employees.length })"
-    :loading="store.loading"
+    :subtitle="t('employee.sub_title', { count: store.pageMeta?.total ?? 0 })"
+    :loading="store.pageLoading"
     :columns="columns"
     :items="pageItems"
     :total="totalCount"
@@ -39,10 +39,10 @@
     <!-- KPIs -->
     <template #above-table>
       <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-md:grid-cols-2">
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.employees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_total') }}</div></div></div>
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><UserCheck class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.activeEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_active') }}</div></div></div>
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-tint"><Clock class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.trialEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_trial') }}</div></div></div>
-        <div :class="kpiItem"><div :class="kpiIcon" class="bg-warning-bg"><ShieldCheck class="w-[18px] h-[18px] text-warning" /></div><div><div :class="kpiVal">{{ store.validatorEmployees.length }}</div><div :class="kpiLbl">{{ t('employee.kpi_managers') }}</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><Users class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.pageMeta?.total ?? 0 }}</div><div :class="kpiLbl">{{ t('employee.kpi_total') }}</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-success-bg"><UserCheck class="w-[18px] h-[18px] text-success" /></div><div><div :class="kpiVal">{{ store.pageMeta?.active ?? 0 }}</div><div :class="kpiLbl">{{ t('employee.kpi_active') }}</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-tint"><Clock class="w-[18px] h-[18px] text-primary" /></div><div><div :class="kpiVal">{{ store.pageMeta?.trial ?? 0 }}</div><div :class="kpiLbl">{{ t('employee.kpi_trial') }}</div></div></div>
+        <div :class="kpiItem"><div :class="kpiIcon" class="bg-warning-bg"><ShieldCheck class="w-[18px] h-[18px] text-warning" /></div><div><div :class="kpiVal">{{ store.pageMeta?.validators ?? 0 }}</div><div :class="kpiLbl">{{ t('employee.kpi_managers') }}</div></div></div>
       </div>
     </template>
 
@@ -123,15 +123,15 @@
       <p class="text-[13px]">{{ t('employee.empty') }}</p>
     </template>
 
-    <EmployeeCard v-if="openCardId !== null" :employees="filtered" :employee-id="openCardId" @close="openCardId = null" />
+    <EmployeeCard v-if="openCardId !== null" :employees="store.pageItems" :employee-id="openCardId" @close="openCardId = null" />
     <EmployeeCreate v-if="showCreate" @close="showCreate = false" />
-    <ImportWizardModal v-if="showImport" :open="showImport" :config="employeeImportConfig" @close="showImport = false" @imported="store.fetchAll()" />
-    <ImportWizardModal v-if="showValidatorImport" :open="showValidatorImport" :config="directValidatorImportConfig" @close="showValidatorImport = false" @imported="store.fetchAll()" />
+    <ImportWizardModal v-if="showImport" :open="showImport" :config="employeeImportConfig" @close="showImport = false" @imported="store.refreshPage()" />
+    <ImportWizardModal v-if="showValidatorImport" :open="showValidatorImport" :config="directValidatorImportConfig" @close="showValidatorImport = false" @imported="store.refreshPage()" />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UserPlus, Upload, Users, UserCheck, Clock, ShieldCheck, UserRoundCog } from 'lucide-vue-next'
 import { StatusPill, ListPageLayout } from '../../components'
@@ -149,7 +149,8 @@ import { useEntityStore } from '../../stores/entities'
 import { useAuthStore } from '../../stores/auth'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { usePositionStore } from '../../stores/positions'
-import type { Employee, EmployeeStatus } from '../../types'
+import type { Employee } from '../../types'
+import type { EmployeePageParams } from '../../stores/employees'
 
 const { t } = useI18n()
 const store = useEmployeeStore()
@@ -161,23 +162,20 @@ if (categoryStore.categories.length === 0) categoryStore.fetchAll()
 // "Poste" de l'assistant d'import reste vide tant que l'utilisateur n'a pas
 // déjà visité cet écran dans la session.
 const positionStore = usePositionStore()
-if (positionStore.positions.length === 0) positionStore.fetchAll()
 const openCardId = ref<string | null>(null)
 function openCard(item: Employee) { openCardId.value = item.id }
 const { applyDeepLink } = useDeepLinkOpen(openCardId)
-// Séquencé (pas en parallèle) : mapEmployee lit entityStore de façon
-// synchrone pour entityName — sans cet ordre, une première visite avec les
-// deux stores vides peut résoudre le nom d'entité en blanc. Le fetch employés
-// n'est PAS gardé par "déjà peuplé" : entityStore.fetchAll() peut avoir
-// peuplé employees comme effet de bord (pour le headcount des entités) sans
-// résoudre entityName — on doit re-mapper une fois les entités disponibles.
+// Les noms d'entite et de poste sont resolus a la lecture de chaque page :
+// entites et postes sont donc charges AVANT la premiere page (voir `ready`).
+const ready = ref(false)
 ;(async () => {
-  if (entityStore.entities.length === 0) await entityStore.fetchAll()
-  await store.fetchAll()
-  // Lien direct `?open=<id>` (fiche employe depuis le module Recrutement, les
-  // rappels d'echeance...) : a appliquer une fois la liste chargee.
-  applyDeepLink()
+  await Promise.all([
+    entityStore.entities.length === 0 ? entityStore.fetchAll().catch(() => {}) : Promise.resolve(),
+    positionStore.positions.length === 0 ? positionStore.fetchAll().catch(() => {}) : Promise.resolve(),
+  ])
+  ready.value = true
 })()
+onBeforeUnmount(() => store.releasePage())
 
 const quickBtn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer bg-background text-muted-foreground hover:text-foreground'
 
@@ -226,44 +224,42 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const page = ref(1)
 const pageSize = ref(15)
 
-watch([activeScope, fEntity, fCategory, fContract, searchQuery, pageSize], () => { page.value = 1 })
-
 function resetFilters() {
-  fEntity.value = ''; fCategory.value = ''; fContract.value = ''; searchQuery.value = ''; activeScope.value = ''; page.value = 1
+  fEntity.value = ''; fCategory.value = ''; fContract.value = ''; searchQuery.value = ''; debouncedSearch.value = ''; activeScope.value = ''; page.value = 1
 }
 
-const sortFieldMap: Record<string, keyof Employee> = { code: 'code', employee: 'name', jobTitle: 'jobTitle', entityName: 'entityName', hireDate: 'hireDate' }
-
-const filtered = computed(() => {
-  let rows = store.employees.filter(e => {
-    // "Tous" inclut désormais les employés désactivés — sinon impossible de
-    // les retrouver pour les réactiver sans déjà savoir filtrer sur
-    // "Inactif". La suppression définitive (Lot I, IsDeleted) est le
-    // véritable mécanisme qui fait disparaître un employé partout : elle est
-    // déjà appliquée côté API (findAll), pas besoin de la dupliquer ici.
-    if (activeScope.value && e.status !== (activeScope.value as EmployeeStatus)) return false
-    if (fEntity.value && e.entityId !== fEntity.value) return false
-    if (fCategory.value && e.employeeCategoryId !== fCategory.value) return false
-    if (fContract.value && e.contractType !== fContract.value) return false
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      if (!e.name.toLowerCase().includes(q) && !e.code.toLowerCase().includes(q) && !e.jobTitle.toLowerCase().includes(q)) return false
-    }
-    return true
-  })
-  if (sortKey.value && sortFieldMap[sortKey.value]) {
-    const f = sortFieldMap[sortKey.value]!
-    rows = [...rows].sort((a, b) => {
-      const cmp = String(a[f] ?? '').localeCompare(String(b[f] ?? ''))
-      return sortDir.value === 'asc' ? cmp : -cmp
-    })
-  }
-  return rows
+// Recherche : on attend la fin de la frappe avant d'interroger le serveur.
+const debouncedSearch = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, (v) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { debouncedSearch.value = v }, 300)
 })
+onBeforeUnmount(() => clearTimeout(searchTimer))
 
-const totalCount = computed(() => filtered.value.length)
-const pageItems = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return filtered.value.slice(start, start + pageSize.value)
-})
+// Tout changement de filtre, de recherche, de tri ou de taille de page
+// ramene a la premiere page.
+watch([activeScope, fEntity, fCategory, fContract, debouncedSearch, sortKey, sortDir, pageSize], () => { page.value = 1 })
+
+// Colonne -> cle de tri comprise par le serveur (Categorie/Contrat/Statut ne se trient pas).
+const sortKeyMap: Record<string, string> = { code: 'code', employee: 'employee', jobTitle: 'jobTitle', entityName: 'entityName', hireDate: 'hireDate' }
+const STATUS_TO_BACKEND: Record<string, string> = { active: 'Active', trial: 'OnTrial', onleave: 'OnLeave', inactive: 'Inactive' }
+const CONTRACT_TO_BACKEND: Record<string, string> = { CDI: 'Permanent', CDD: 'FixedTerm', Stage: 'Internship', Freelance: 'Freelance', Apprenti: 'Apprenticeship', Alternant: 'WorkStudy' }
+
+const params = computed<EmployeePageParams>(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  search: debouncedSearch.value,
+  sort: sortKeyMap[sortKey.value] ?? '',
+  dir: sortDir.value,
+  status: STATUS_TO_BACKEND[activeScope.value] ?? '',
+  entity: fEntity.value,
+  category: fCategory.value,
+  contract: CONTRACT_TO_BACKEND[fContract.value] ?? '',
+}))
+// Premiere lecture une fois entites et postes charges, puis a chaque changement.
+watch([params, ready], () => { if (ready.value) store.fetchPage(params.value).catch(() => {}) }, { immediate: true })
+
+const totalCount = computed(() => store.pageTotal)
+const pageItems = computed(() => store.pageItems)
 </script>
