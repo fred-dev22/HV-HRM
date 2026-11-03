@@ -53,12 +53,7 @@
           <SidebarItem v-if="auth.hasPermission('ENTITE_VOIR')"                                    :icon="Network"  :label="t('sidebar.org_chart')" :to="{ name: 'hr-org-chart' }" />
           <SidebarItem v-if="RECRUITMENT_MODULE_ENABLED && auth.hasAnyPermission(['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'])" :icon="FilePlus" :label="t('sidebar.hiring_needs')" :to="{ name: 'hr-needs' }" />
           <SidebarItem v-if="DEADLINES_MODULE_ENABLED && auth.hasAnyPermission(['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'])" :icon="CalendarClock" :label="t('sidebar.hr_deadlines')" :to="{ name: 'hr-deadlines' }" />
-        </SidebarSection>
-
-        <SidebarSection v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'])" :label="t('sidebar.time_section')">
-          <SidebarItem v-if="auth.hasPermission('TEMPS_ACCES')"   :icon="Clock3"         :label="t('sidebar.time_admin')"      :to="{ name: 'hr-time' }" />
-          <SidebarItem v-if="auth.hasAnyPermission(['TEMPS_SAISIR', 'TEMPS_ACCES'])" :icon="Clock" :label="t('sidebar.my_time')" :to="{ name: 'hr-time-mine' }" />
-          <SidebarItem v-if="auth.hasAnyPermission(['TEMPS_VALIDER', 'TEMPS_ACCES'])" :icon="ClipboardCheck" :label="t('sidebar.time_validation')" :to="{ name: 'hr-time-validation' }" />
+          <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(TIME_PERMISSIONS)" :icon="Clock3" :label="t('sidebar.time_work')" :to="{ name: 'hr-time' }" />
         </SidebarSection>
 
         <SidebarSection v-if="canSeeConfigSection" :label="t('sidebar.configuration')" data-tour="config">
@@ -174,7 +169,7 @@
         <SidebarItem :icon="CalendarOff" :label="t('sidebar.absence_requests')" :to="{ name: 'employee-absences' }" :badge="myPendingCount" />
         <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED" :icon="Plane"   :label="t('sidebar.my_missions')"      :to="{ name: 'employee-missions' }" />
         <SidebarItem v-if="MISSIONS_EXPENSES_ENABLED" :icon="Receipt" :label="t('sidebar.expenses')"         :to="{ name: 'employee-expenses' }" />
-        <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(['TEMPS_SAISIR', 'TEMPS_ACCES'])" :icon="Clock3" :label="t('sidebar.my_time')" :to="{ name: 'employee-time' }" />
+        <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasAnyPermission(TIME_PERMISSIONS)" :icon="Clock3" :label="t('sidebar.time_work')" :to="{ name: 'employee-time' }" />
       </SidebarSection>
 
       <!-- Visibilite d'une candidature interne (mobilite) proposee par un
@@ -194,7 +189,6 @@
             :badge="pendingCount"
             :badge-orange="true"
           />
-          <SidebarItem v-if="TIME_MODULE_ENABLED && auth.hasPermission('TEMPS_VALIDER')" :icon="Clock3" :label="t('sidebar.time_validation')" :to="{ name: 'employee-time-validation' }" />
           <SidebarItem v-if="auth.hasPermission('EMPLOYE_VOIR_EQUIPE')" :icon="Users" :label="t('sidebar.members')" :to="{ name: 'employee-team' }" />
         </SidebarSection>
       </template>
@@ -247,8 +241,11 @@ const MINE_PENDING = new Set(['Pending', 'InApprovalN1', 'InApprovalN2', 'InAppr
 const pendingCount   = computed(() => leaveStore.pendingForMe.length + missionStore.pendingForMe.length + expenseStore.pendingForMe.length)
 const myPendingCount = computed(() => leaveStore.recentMine.filter(l => MINE_PENDING.has(l.status)).length)
 
+const TIME_PERMISSIONS = ['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER']
+
 const canSeeManagementSection = computed(() => auth.hasAnyPermission([
   'EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE', 'ENTITE_VOIR',
+  ...(TIME_MODULE_ENABLED ? TIME_PERMISSIONS : []),
   // Les droits du module Recrutement ne comptent que si le module est actif :
   // sinon un compte qui n'a que celui-la verrait une section vide.
   ...(RECRUITMENT_MODULE_ENABLED ? ['RECRUTEMENT_BESOIN_VOIR', 'RECRUTEMENT_ACCES'] : []),

@@ -89,11 +89,8 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'employee-to-validate': ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER'],
   'employee-team':        'EMPLOYE_VOIR_EQUIPE',
   'hr-deadlines':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
-  'hr-time':                  'TEMPS_ACCES',
-  'hr-time-mine':             ['TEMPS_SAISIR', 'TEMPS_ACCES'],
-  'hr-time-validation':       ['TEMPS_VALIDER', 'TEMPS_ACCES'],
-  'employee-time':            ['TEMPS_SAISIR', 'TEMPS_ACCES'],
-  'employee-time-validation': ['TEMPS_VALIDER', 'TEMPS_ACCES'],
+  'hr-time':                  ['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'],
+  'employee-time':            ['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'],
 }
 
 const router = createRouter({
@@ -190,20 +187,14 @@ const router = createRouter({
     },
 
     // ── Temps de travail (module 'time') ──────────────────────────
+    // Une seule page a onglets (Pointage et heures supp., Mes saisies, Saisies
+    // a valider) ; les anciennes adresses ouvrent le bon onglet.
     { path: '/hr/time', name: 'hr-time',
-      component: () => import('../views/time/TimeAdminView.vue'),
+      component: () => import('../views/time/TimeWorkView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
-
-    // Memes ecrans cote RH : un compte de l'espace RH ne peut pas ouvrir /employee/*.
-    { path: '/hr/time/mine', name: 'hr-time-mine',
-      component: () => import('../views/time/TimeEntriesView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
-    },
-    { path: '/hr/time/validation', name: 'hr-time-validation',
-      component: () => import('../views/time/TimeValidationView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
-    },
+    { path: '/hr/time/mine', redirect: { path: '/hr/time', query: { tab: 'mine' } } },
+    { path: '/hr/time/validation', redirect: { path: '/hr/time', query: { tab: 'validation' } } },
 
     // ── Configuration ─────────────────────────────────────────────
     { path: '/hr/config', redirect: '/hr/config/calendar' },
@@ -333,8 +324,8 @@ const router = createRouter({
     },
     { path: '/employee/missions', name: 'employee-missions', component: () => import('../views/missions/MissionListView.vue'),  meta: { requiresAuth: true, layout: 'dashboard' } },
     { path: '/employee/expenses', name: 'employee-expenses', component: () => import('../views/expenses/ExpenseListView.vue'),   meta: { requiresAuth: true, layout: 'dashboard' } },
-    { path: '/employee/time', name: 'employee-time', component: () => import('../views/time/TimeEntriesView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
-    { path: '/employee/time-validation', name: 'employee-time-validation', component: () => import('../views/time/TimeValidationView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/employee/time', name: 'employee-time', component: () => import('../views/time/TimeWorkView.vue'), meta: { requiresAuth: true, layout: 'dashboard' } },
+    { path: '/employee/time-validation', redirect: { path: '/employee/time', query: { tab: 'validation' } } },
     {
       path: '/employee/to-validate', name: 'employee-to-validate',
       component: () => import('../views/employee/ToValidateView.vue'),
@@ -441,7 +432,7 @@ router.beforeEach(async (to) => {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 
-    if (!TIME_MODULE_ENABLED && (to.name === 'hr-time' || to.name === 'hr-time-mine' || to.name === 'hr-time-validation' || to.name === 'employee-time' || to.name === 'employee-time-validation')) {
+    if (!TIME_MODULE_ENABLED && (to.name === 'hr-time' || to.name === 'employee-time')) {
       return { path: auth.isHRSpace ? '/hr' : '/employee' }
     }
 

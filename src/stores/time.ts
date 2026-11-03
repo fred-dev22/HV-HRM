@@ -37,6 +37,54 @@ export interface TimeEntry {
   status: TimeEntryStatus
   rejectionReason: string | null
   comments: string | null
+  // Heure de debut / de fin saisies (ISO), null si seule la duree a ete declaree.
+  clockIn: string | null
+  clockOut: string | null
+  submittedByName: string
+  validatedByName: string | null
+  createdAt: string
+}
+
+export interface TimeEntryHistoryItem { id: string; action: string; actorId: string; comment: string | null; createdAt: string }
+
+export interface TimeEntryQuery {
+  Status?: string
+  EntryType?: string
+  From?: string
+  To?: string
+  Search?: string
+  Page?: number
+  Limit?: number
+}
+export interface TimeEntryPage { items: TimeEntry[]; total: number; hours: number }
+export interface TimeEntriesSummary { total: number; pending: number; approved: number; rejected: number; cancelled: number; hours: number }
+
+export interface TimeTypeCode { id: string; code: string; description: string | null; locked: boolean }
+export interface TimeType { id: string; name: string; description: string | null; sageTypeCode: number | null; codes: TimeTypeCode[] }
+
+export interface TimesheetRow {
+  employeeId: string
+  employeeNumber: string
+  name: string
+  required: number
+  worked: number
+  overtime: number
+  absence: number
+  paidOvertime: number
+  presenceRate: number | null
+}
+export interface TimesheetSummary {
+  items: TimesheetRow[]
+  total: number
+  meta: { period: { from: string; to: string }; totals: { required: number; worked: number; overtime: number; absence: number; paidOvertime: number } }
+}
+
+export interface FolderListing {
+  path: string
+  parent: string | null
+  folders: { name: string; path: string }[]
+  xlsxCount: number
+  shortcuts: { name: string; path: string }[]
 }
 
 export interface MorphoConfig {
@@ -103,6 +151,11 @@ const mapEntry = (r: any): TimeEntry => ({
   status: r.Status,
   rejectionReason: r.RejectionReason,
   comments: r.Comments,
+  clockIn: r.FirstClockIn ?? null,
+  clockOut: r.LastClockOut ?? null,
+  submittedByName: r.submittedBy?.FullName ?? '',
+  validatedByName: r.validatedBy?.FullName ?? null,
+  createdAt: r.CreatedAt,
 })
 const mapImport = (r: any): MorphoImport => ({
   id: r.Id,
@@ -142,8 +195,28 @@ export const useTimeStore = defineStore('time', {
         this.loading = false
       }
     },
-    async create(payload: { Date: string; Hours: number; EntryType: TimeEntryType; Comments?: string; EmployeeId?: string }) {
+    // Une page de saisies. kind : mine (les miennes), all (RH), pending (a valider), processed (traitees).
+    async fetchEntriesPage(kind: 'mine' | 'all' | 'pending' | 'processed', q: TimeEntryQuery): Promise<TimeEntryPage> {
+      const path = kind === 'all' ? '/time/entries' : `/time/entries/${kind}`
+      const clean = Object.fromEntries(Object.entries(q).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+      const { data } = await api.get(path, { params: clean })
+      return { items: data.data.map(mapEntry), total: data.total, hours: Number(data.hours ?? 0) }
+    },
+    // Compteurs du bandeau "Resume" : calcules en base sur toutes les saisies du perimetre.
+    async fetchEntriesSummary(q: TimeEntryQuery): Promise<TimeEntriesSummary> {
+      const clean = Object.fromEntries(Object.entries(q).filter(([k, v]) => k !== 'Page' && k !== 'Limit' && k !== 'Status' && v !== '' && v !== undefined))
+      const { data } = await api.get<TimeEntriesSummary>('/time/entries/summary', { params: clean })
+      return data
+    },
+    async create(payload: { Date: string; EntryType: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string; EmployeeId?: string }) {
       await api.post('/time/entries', payload)
+    },
+    async updateEntry(id: string, payload: { Date?: string; EntryType?: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string }) {
+      await api.patch(`/time/entries/${id}`, payload)
+    },
+    async fetchHistory(id: string): Promise<TimeEntryHistoryItem[]> {
+      const { data } = await api.get(`/time/entries/${id}/history`)
+      return data.map((h: any) => ({ id: h.Id, action: h.Action, actorId: h.ActorId, comment: h.Comment, createdAt: h.CreatedAt }))
     },
     async cancel(id: string) {
       await api.delete(`/time/entries/${id}`)
@@ -188,6 +261,11 @@ export const useTimeStore = defineStore('time', {
       const { data } = await api.get('/time/morpho/config')
       this.config = { folderPath: data.FolderPath ?? '', cronSchedule: data.CronSchedule ?? '', isScheduleActive: !!data.IsScheduleActive }
     },
+    // Dossiers du serveur (choix du dossier d'import) ; chemin vide = lecteurs.
+    async browseFolder(path: string): Promise<FolderListing> {
+      const { data } = await api.get<FolderListing>('/time/morpho/browse', { params: { path: path || undefined } })
+      return data
+    },
     async saveConfig(c: MorphoConfig) {
       await api.put('/time/morpho/config', {
         FolderPath: c.folderPath,
@@ -214,6 +292,16 @@ export const useTimeStore = defineStore('time', {
     },
     async rematch() {
       const { data } = await api.post<{ matched: number; stillUnmatched: number }>('/time/morpho/rematch')
+      return data
+    },
+    // Calcul T4 : heures travaillees et prevues de chaque jour de la periode.
+    async calculateDaily(from: string, to: string) {
+      const { data } = await api.post<{ calculated: number; skipped: number }>('/time/calculation/daily-hours', { From: from, To: to })
+      return data
+    },
+    // Calcul T5 : heures supplementaires, panier et permanence (lignes de paie).
+    async calculateOvertime(from: string, to: string, method: 'daily' | 'weekly') {
+      const { data } = await api.post<{ calculated: number; excludedCadres: number }>('/time/calculation/overtime', { From: from, To: to, Method: method })
       return data
     },
     async calculate(from: string, to: string, method: 'daily' | 'weekly') {
@@ -252,6 +340,34 @@ export const useTimeStore = defineStore('time', {
     },
     async saveSetting(key: string, value: number) {
       await api.patch(`/time/settings/${key}`, { Value: value })
+    },
+
+    // ── Types et codes de presence, tarifs ──
+    async fetchTypes(): Promise<TimeType[]> {
+      const { data } = await api.get<TimeType[]>('/time/settings/types')
+      return data
+    },
+    async updateType(id: string, payload: { Name?: string; Description?: string; SageTypeCode?: number }) {
+      await api.patch(`/time/settings/types/${id}`, payload)
+    },
+    async createCode(typeId: string, payload: { Code: string; Description?: string }) {
+      await api.post(`/time/settings/types/${typeId}/codes`, payload)
+    },
+    async updateCode(id: string, payload: { Code?: string; Description?: string }) {
+      await api.patch(`/time/settings/codes/${id}`, payload)
+    },
+    async deleteCode(id: string) {
+      await api.delete(`/time/settings/codes/${id}`)
+    },
+    async saveRate(dayType: string, amount: number) {
+      await api.patch(`/time/settings/permanence-rates/${dayType}`, { Amount: amount })
+    },
+
+    // ── Feuilles de temps de plusieurs employes ──
+    async fetchTimesheetSummary(kind: 'global' | 'team', q: { From: string; To: string; Search?: string; Page?: number; PageSize?: number }): Promise<TimesheetSummary> {
+      const clean = Object.fromEntries(Object.entries(q).filter(([, v]) => v !== '' && v !== undefined))
+      const { data } = await api.get<TimesheetSummary>(`/time/timesheet/${kind}`, { params: clean })
+      return data
     },
   },
 })

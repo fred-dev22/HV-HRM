@@ -49,6 +49,8 @@ const props = withDefaults(
     searchPlaceholder?: string
     loading?: boolean
     hidePagination?: boolean
+    /** Integre dans un onglet d'une autre page : ni marge de page, ni titre (les actions d'en-tete restent). */
+    embedded?: boolean
     scopeLabel?: string
     scopeOptions?: { value: string; label: string }[]
     /** Modes d'affichage (liste / hiérarchique / organigramme…) → boutons de bascule dans la toolbar */
@@ -332,14 +334,19 @@ const sep = 'w-px h-5 bg-border shrink-0'
 </script>
 
 <template>
-  <div class="px-7 py-6">
+  <div :class="embedded ? '' : 'px-7 py-6'">
 
     <!-- En-tête de page -->
-    <div :class="L.pageHeader">
+    <div v-if="!embedded" :class="L.pageHeader">
       <div>
         <div :class="L.pageTitle">{{ title }}</div>
         <div v-if="subtitle" :class="L.pageSub">{{ subtitle }}</div>
       </div>
+      <slot name="header-actions" />
+    </div>
+    <div v-else-if="subtitle || slots['header-actions']" class="flex items-center justify-between gap-3 mb-3.5">
+      <div v-if="subtitle" :class="L.pageSub">{{ subtitle }}</div>
+      <div v-else></div>
       <slot name="header-actions" />
     </div>
 
