@@ -37,7 +37,7 @@
         <button :class="L.actReject" :disabled="busy" @click="rejecting = item"><X class="w-3.5 h-3.5" /> Rejeter</button>
       </template>
       <button :class="quickBtn" @click="openCard(item)">Détails</button>
-      <button v-if="isHr && (item.status === 'Pending' || item.status === 'Rejected')" :class="quickBtn" @click="openCard(item, true)">Modifier</button>
+      <button v-if="item.status === 'Pending' && item.entryType !== 'panier' && item.entryType !== 'permanence'" :class="quickBtn" @click="openCard(item, true)">Ajuster les heures</button>
     </template>
 
     <!-- Filtres -->

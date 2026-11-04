@@ -51,19 +51,20 @@
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Type de saisie</label>
-              <select v-if="isEditMode" v-model="form.entryType" :class="cls.fieldSelect">
+              <select v-if="isEditMode && !allowDecision" v-model="form.entryType" :class="cls.fieldSelect">
                 <option v-for="(label, key) in ENTRY_TYPE_LABELS" :key="key" :value="key">{{ label }}</option>
               </select>
               <div v-else :class="readBox">{{ current.entryType ? ENTRY_TYPE_LABELS[current.entryType] : '-' }}</div>
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Date</label>
-              <input v-if="isEditMode" v-model="form.date" type="date" :class="cls.fieldInput" />
+              <input v-if="isEditMode && !allowDecision" v-model="form.date" type="date" :class="cls.fieldInput" />
               <div v-else :class="readBox">{{ formatDate(current.date) }}</div>
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Durée</label>
-              <div :class="readBox">{{ formatHours(isEditMode && needsTimes && formDuration > 0 ? formDuration : current.hours) }}</div>
+              <input v-if="isEditMode && allowDecision && !current.clockIn && needsTimes" v-model.number="form.hours" type="number" min="0.25" max="24" step="0.25" :class="cls.fieldInput" />
+              <div v-else :class="readBox">{{ formatHours(isEditMode && needsTimes && formDuration > 0 ? formDuration : current.hours) }}</div>
             </div>
           </div>
         </FormSection>
@@ -95,9 +96,17 @@
           </div>
           <div :class="cls.field" class="mt-4">
             <label :class="cls.fieldLabel">Commentaire</label>
-            <textarea v-if="isEditMode" v-model="form.comments" :class="cls.fieldTextarea" rows="3" maxlength="500"></textarea>
+            <textarea v-if="isEditMode && !allowDecision" v-model="form.comments" :class="cls.fieldTextarea" rows="3" maxlength="500"></textarea>
             <div v-else :class="readBox" class="!h-auto min-h-[38px] py-2">{{ current.comments || '-' }}</div>
           </div>
+        </FormSection>
+
+        <FormSection v-if="isEditMode && allowDecision" title="Ajustement des heures">
+          <div :class="cls.field">
+            <label :class="cls.fieldLabel">Motif de l'ajustement (conservé dans l'historique)</label>
+            <textarea v-model="form.reason" :class="cls.fieldTextarea" rows="2" maxlength="300" placeholder="Ex : réunion prolongée, confirmée par le responsable"></textarea>
+          </div>
+          <p class="text-[12px] text-muted-foreground mt-2">La saisie reste en attente : après l'ajustement, approuvez-la ou rejetez-la. L'employé est prévenu de la modification.</p>
         </FormSection>
 
         <FormSection title="Historique" :default-open="false">
@@ -180,7 +189,11 @@ function selectSidebar(no: string) {
 
 // Une saisie en attente ou refusee reste modifiable ; seule une saisie en attente s'annule.
 const editable = computed(() => !!current.value && (current.value.status === 'Pending' || current.value.status === 'Rejected'))
-const canEdit = computed(() => editable.value && (props.isHr || !props.allowDecision))
+// Onglet Validation : le validateur (ou le RH) ajuste les heures d'une saisie en
+// attente sans changer son type ni sa date. Hors validation : l'employe ou le RH
+// modifie sa saisie, qui repart dans le circuit.
+const adjustable = computed(() => !!current.value && current.value.status === 'Pending' && current.value.entryType !== 'panier' && current.value.entryType !== 'permanence')
+const canEdit = computed(() => (props.allowDecision ? adjustable.value : editable.value))
 const canCancel = computed(() => !!current.value && current.value.status === 'Pending' && (props.isHr || !props.allowDecision))
 
 // ── Historique ──
@@ -197,14 +210,14 @@ watch(() => [currentId.value, current.value?.status] as const, async ([id]) => {
 const isEditMode = ref(false)
 const saving = ref(false)
 const saveError = ref<string | null>(null)
-const form = reactive({ entryType: 'travail_sur_site' as keyof typeof ENTRY_TYPE_LABELS, date: '', start: '', end: '', hours: 0, comments: '' })
+const form = reactive({ entryType: 'travail_sur_site' as keyof typeof ENTRY_TYPE_LABELS, date: '', start: '', end: '', hours: 0, comments: '', reason: '' })
 const needsTimes = computed(() => form.entryType !== 'panier' && form.entryType !== 'permanence')
 const formDuration = computed(() => hoursBetween(form.start, form.end))
 
 function enterEdit() {
   const e = current.value
   if (!e) return
-  Object.assign(form, { entryType: e.entryType ?? 'travail_sur_site', date: e.date, start: toTimeInput(e.clockIn), end: toTimeInput(e.clockOut), hours: e.hours, comments: e.comments ?? '' })
+  Object.assign(form, { entryType: e.entryType ?? 'travail_sur_site', date: e.date, start: toTimeInput(e.clockIn), end: toTimeInput(e.clockOut), hours: e.hours, comments: e.comments ?? '', reason: '' })
   saveError.value = null
   isEditMode.value = true
 }
@@ -214,6 +227,7 @@ async function save() {
   const e = current.value
   if (!e) return
   saveError.value = null
+  if (props.allowDecision) return saveAdjustment(e)
   const payload: Parameters<typeof store.updateEntry>[1] = { Date: form.date, EntryType: form.entryType, Comments: form.comments }
   if (!needsTimes.value) {
     payload.Hours = 1
@@ -234,6 +248,32 @@ async function save() {
     emit('changed')
   } catch (err) {
     saveError.value = getApiErrorMessage(err, 'Enregistrement impossible')
+    toast.error(saveError.value)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveAdjustment(e: TimeEntry) {
+  const payload: Parameters<typeof store.adjustEntry>[1] = { Comment: form.reason.trim() || undefined }
+  if (e.clockIn || form.start || form.end) {
+    if (!form.start || !form.end) { saveError.value = "Renseignez l'heure de début et l'heure de fin."; return }
+    if (formDuration.value <= 0) { saveError.value = "L'heure de fin doit être après l'heure de début."; return }
+    payload.StartTime = form.start
+    payload.EndTime = form.end
+  } else {
+    if (!(form.hours > 0)) { saveError.value = 'Indiquez une durée supérieure à 0.'; return }
+    payload.Hours = form.hours
+  }
+  saving.value = true
+  toast.loading('Ajustement...')
+  try {
+    await store.adjustEntry(e.id, payload)
+    toast.success('Heures ajustées')
+    isEditMode.value = false
+    emit('changed')
+  } catch (err) {
+    saveError.value = getApiErrorMessage(err, 'Ajustement impossible')
     toast.error(saveError.value)
   } finally {
     saving.value = false

@@ -33,13 +33,17 @@
           <div :class="L.cardHeader"><div :class="L.cardTitle"><span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center justify-center shrink-0">3</span> <TrendingUp class="w-4 h-4" /> Calcul T5 : heures supplémentaires</div></div>
           <p class="text-[13px] text-muted-foreground mb-3">Répartit les heures supplémentaires par code (HS01 à HS10), ajoute le panier et la permanence. Les cadres sont exclus.</p>
           <div class="flex items-end gap-3 flex-wrap">
-            <div :class="cls.field" class="flex-1 min-w-[220px]">
+            <div v-if="methodChoice" :class="cls.field" class="flex-1 min-w-[220px]">
               <label :class="cls.fieldLabel">Méthode</label>
               <select v-model="method" :class="cls.fieldSelect">
                 <option value="daily">Dépassement de l'horaire du jour</option>
                 <option value="weekly">Cumul hebdomadaire au-delà de 40 h</option>
               </select>
             </div>
+            <p v-else class="text-[13px] flex-1 min-w-[220px] pb-2">
+              Méthode : <strong>{{ fixedMethod === 'weekly' ? 'cumul hebdomadaire au-delà de 40 h' : "dépassement de l'horaire du jour" }}</strong>
+              <span class="text-muted-foreground"> (réglée dans Configuration, Réglages)</span>
+            </p>
             <button :class="L.btnPrimary" :disabled="busy" @click="runOvertime"><Calculator class="w-4 h-4" /> Lancer le calcul T5</button>
           </div>
           <p v-if="overtimeText" class="text-[13px] mt-3 px-3 py-2 rounded-md bg-success-bg text-success flex items-center gap-1.5"><CircleCheck class="w-4 h-4 shrink-0" /> {{ overtimeText }}</p>
@@ -81,7 +85,7 @@
  * Export paie : calcul T4 (heures journalieres) puis T5 (heures supplementaires,
  * panier, permanence) sur une periode, rapport par code de paie et export Sage.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { CalendarRange, Clock, TrendingUp, Calculator, Search, FileSpreadsheet, CircleCheck } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
@@ -99,6 +103,13 @@ const today = todayIso()
 const from = ref(`${today.slice(0, 8)}01`)
 const to = ref(today)
 const method = ref<'daily' | 'weekly'>('daily')
+
+// Methode reglee pour le client : fixe (journaliere ou hebdomadaire) ou "les deux"
+// (choix a chaque calcul). Sans reglage lisible, on propose le choix.
+const methodValue = computed(() => store.settings.find(s => s.key === 'overtime_method')?.value)
+const methodChoice = computed(() => methodValue.value === undefined || methodValue.value === 2)
+const fixedMethod = computed<'daily' | 'weekly'>(() => (methodValue.value === 1 ? 'weekly' : 'daily'))
+onMounted(() => { store.fetchSettings().catch(() => {}) })
 const busy = ref(false)
 const dailyText = ref('')
 const overtimeText = ref('')
@@ -131,9 +142,9 @@ async function runDaily() {
   if (r) dailyText.value = `${r.calculated} jour(s) calculé(s), ${r.skipped} ignoré(s).`
 }
 async function runOvertime() {
-  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, method.value), 'Calcul impossible')
+  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, methodChoice.value ? method.value : undefined), 'Calcul impossible')
   if (r) {
-    overtimeText.value = `${r.calculated} ligne(s) de paie, ${r.excludedCadres} cadre(s) exclu(s).`
+    overtimeText.value = `${r.calculated} ligne(s) de paie (méthode ${r.method === 'weekly' ? 'hebdomadaire' : 'journalière'}), ${r.excludedCadres} cadre(s) exclu(s).`
     await loadReport()
   }
 }

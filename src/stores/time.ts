@@ -79,6 +79,16 @@ export interface TimesheetSummary {
   meta: { period: { from: string; to: string }; totals: { required: number; worked: number; overtime: number; absence: number; paidOvertime: number } }
 }
 
+export interface UnmatchedPerson {
+  biometricUuid: string
+  firstName: string
+  lastName: string
+  employeeNumber: string
+  records: number
+  from: string
+  to: string
+}
+
 export interface FolderListing {
   path: string
   parent: string | null
@@ -214,6 +224,10 @@ export const useTimeStore = defineStore('time', {
     async updateEntry(id: string, payload: { Date?: string; EntryType?: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string }) {
       await api.patch(`/time/entries/${id}`, payload)
     },
+    // Le validateur courant ajuste les heures (la saisie reste en attente).
+    async adjustEntry(id: string, payload: { Hours?: number; StartTime?: string; EndTime?: string; Comment?: string }) {
+      await api.patch(`/time/entries/${id}/adjust`, payload)
+    },
     async fetchHistory(id: string): Promise<TimeEntryHistoryItem[]> {
       const { data } = await api.get(`/time/entries/${id}/history`)
       return data.map((h: any) => ({ id: h.Id, action: h.Action, actorId: h.ActorId, comment: h.Comment, createdAt: h.CreatedAt }))
@@ -294,14 +308,24 @@ export const useTimeStore = defineStore('time', {
       const { data } = await api.post<{ matched: number; stillUnmatched: number }>('/time/morpho/rematch')
       return data
     },
+    // Personnes de la pointeuse dont les pointages sont restes sans employe.
+    async fetchUnmatchedPeople() {
+      const { data } = await api.get<UnmatchedPerson[]>('/time/morpho/unmatched-people')
+      return data
+    },
+    // Associe une personne de la pointeuse a un employe, puis rattache ses pointages.
+    async linkPerson(biometricUuid: string, employeeId: string) {
+      const { data } = await api.post<{ matched: number; stillUnmatched: number }>('/time/morpho/link', { BiometricUuid: biometricUuid, EmployeeId: employeeId })
+      return data
+    },
     // Calcul T4 : heures travaillees et prevues de chaque jour de la periode.
     async calculateDaily(from: string, to: string) {
       const { data } = await api.post<{ calculated: number; skipped: number }>('/time/calculation/daily-hours', { From: from, To: to })
       return data
     },
     // Calcul T5 : heures supplementaires, panier et permanence (lignes de paie).
-    async calculateOvertime(from: string, to: string, method: 'daily' | 'weekly') {
-      const { data } = await api.post<{ calculated: number; excludedCadres: number }>('/time/calculation/overtime', { From: from, To: to, Method: method })
+    async calculateOvertime(from: string, to: string, method?: 'daily' | 'weekly') {
+      const { data } = await api.post<{ calculated: number; excludedCadres: number; method: 'daily' | 'weekly' }>('/time/calculation/overtime', { From: from, To: to, Method: method })
       return data
     },
     async calculate(from: string, to: string, method: 'daily' | 'weekly') {

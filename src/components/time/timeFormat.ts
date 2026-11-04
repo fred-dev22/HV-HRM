@@ -56,6 +56,7 @@ export function downloadCsv(fileName: string, header: string[], rows: (string | 
 export const HISTORY_LABELS: Record<string, string> = {
   CREATE: 'Saisie créée',
   UPDATE: 'Saisie modifiée',
+  ADJUST: 'Heures ajustées',
   APPROVE: 'Approuvée',
   REJECT: 'Refusée',
   CANCEL: 'Annulée',

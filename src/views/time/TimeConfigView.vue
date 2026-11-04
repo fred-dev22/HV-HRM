@@ -53,6 +53,53 @@
         <p v-if="summaryText" class="text-[13px] mt-3" :class="summaryTone">{{ summaryText }}</p>
       </div>
 
+      <!-- Personnes de la pointeuse sans employé du HRM -->
+      <div :class="L.card">
+        <div :class="L.cardHeader"><div :class="L.cardTitle"><UserX class="w-4 h-4" /> Pointages sans employé</div></div>
+        <p class="text-[13px] text-muted-foreground mb-3">
+          Ces personnes figurent dans les fichiers de la pointeuse, mais aucun employé du HRM ne leur correspond (matricule absent, générique ou inconnu). Leurs heures n'entrent dans aucun calcul tant qu'elles ne sont pas rattachées. Le rattachement est mémorisé pour les imports suivants.
+        </p>
+        <p v-if="unmatched.length === 0" class="text-[13px] px-3 py-2 rounded-md bg-success-bg text-success flex items-center gap-1.5"><CircleCheck class="w-4 h-4 shrink-0" /> Tous les pointages sont rattachés à un employé.</p>
+        <template v-else>
+        <div class="flex items-center gap-2 mb-3">
+          <input v-model="unmatchedSearch" type="search" placeholder="Rechercher un nom ou un matricule" :class="cls.fieldInput" class="max-w-[320px]" />
+          <span class="text-[12px] text-muted-foreground">{{ unmatched.length }} personne(s) à rattacher</span>
+        </div>
+        <div :class="L.tableCard">
+          <table :class="L.table">
+            <thead>
+              <tr><th :class="L.th">Personne</th><th :class="L.th">Matricule du fichier</th><th :class="L.th">Pointages</th><th :class="L.th">Période</th><th :class="L.th"></th></tr>
+            </thead>
+            <tbody>
+              <tr v-if="unmatchedFiltered.length === 0"><td :class="L.td" colspan="5" class="text-center text-muted-foreground">Aucune personne ne correspond à la recherche.</td></tr>
+              <tr v-for="p in unmatchedPage" :key="p.biometricUuid" :class="L.rowHover">
+                <td :class="L.td" class="font-medium">{{ p.lastName }} {{ p.firstName }}<div class="text-[11px] text-muted-foreground font-normal" :title="p.biometricUuid">ID {{ p.biometricUuid.slice(0, 8) }}</div></td>
+                <td :class="L.td">{{ p.employeeNumber && p.employeeNumber !== 'None' ? p.employeeNumber : '-' }}</td>
+                <td :class="L.td">{{ p.records }}</td>
+                <td :class="L.td" class="whitespace-nowrap">{{ formatDate(p.from) }} au {{ formatDate(p.to) }}</td>
+                <td :class="L.td" class="text-right"><button :class="L.btnPrimary" @click="openLink(p)"><Link2 class="w-4 h-4" /> Rattacher</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <TimePager v-model:page="unmatchedPageNo" v-model:page-size="unmatchedPageSize" :total="unmatchedFiltered.length" />
+        </div>
+        </template>
+      </div>
+
+      <ModalShell :open="!!linking" :title="linking ? `Rattacher ${linking.person.lastName} ${linking.person.firstName}` : ''" max-width="max-w-[520px]" @close="linking = null">
+        <template v-if="linking">
+          <p class="text-[13px] text-muted-foreground">Choisissez l'employé du HRM qui correspond à cette personne de la pointeuse. Ses {{ linking.person.records }} pointage(s) seront rattachés et ses heures recalculées.</p>
+          <div :class="cls.field" class="min-h-[300px]">
+            <label :class="cls.fieldLabel">Employé</label>
+            <EmployeeSelector v-model="linking.employeeId" :employees="employeeItems" placeholder="Sélectionner un employé" />
+          </div>
+        </template>
+        <template #footer>
+          <button :class="L.btnOutline" @click="linking = null">Annuler</button>
+          <button :class="L.btnPrimary" :disabled="busy || !linking?.employeeId" @click="saveLink">Rattacher</button>
+        </template>
+      </ModalShell>
+
       <div :class="L.tableCard">
         <table :class="L.table">
           <thead>
@@ -106,6 +153,27 @@
 
     <!-- ─────────── Reglages ─────────── -->
     <section v-if="tab === 'settings'" class="flex flex-col gap-4">
+      <div v-if="methodSetting" :class="L.card">
+        <div :class="L.cardHeader"><div :class="L.cardTitle"><Calculator class="w-4 h-4" /> Méthode de calcul des heures supplémentaires</div></div>
+        <p class="text-[12px] text-muted-foreground mb-3">Chaque client utilise sa méthode. Le choix est enregistré dès que vous cliquez et s'applique au prochain calcul (Export paie).</p>
+        <div class="grid grid-cols-3 gap-3 max-lg:grid-cols-1">
+          <button
+            v-for="m in METHOD_OPTIONS" :key="m.value" type="button" :disabled="busy"
+            class="text-left rounded-lg border p-3.5 transition-colors cursor-pointer"
+            :class="methodSetting.value === m.value ? 'border-primary bg-tint' : 'border-border bg-background hover:border-primary'"
+            @click="chooseMethod(m.value)"
+          >
+            <div class="flex items-center gap-2 text-[13px] font-semibold" :class="methodSetting.value === m.value ? 'text-primary' : 'text-foreground'">
+              <span class="w-3.5 h-3.5 rounded-full border-2 inline-flex items-center justify-center shrink-0" :class="methodSetting.value === m.value ? 'border-primary' : 'border-border'">
+                <span v-if="methodSetting.value === m.value" class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+              </span>
+              {{ m.label }}
+            </div>
+            <p class="text-[12px] text-muted-foreground mt-1.5">{{ m.hint }}</p>
+          </button>
+        </div>
+      </div>
+
       <div :class="L.card">
         <div :class="L.cardHeader"><div :class="L.cardTitle"><SlidersHorizontal class="w-4 h-4" /> Corrections du temps travaillé</div></div>
         <p class="text-[12px] text-muted-foreground mb-3">Options appliquées au prochain calcul des heures. Le changement est enregistré dès que vous cliquez.</p>
@@ -187,14 +255,18 @@
  * Morpho, types et codes de presence (modifiables), reglages du calcul et tarifs
  * de permanence.
  */
-import { ref, computed, onMounted } from 'vue'
-import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Plus, Lock, Trash2, Coins } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted } from 'vue'
+import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Plus, Lock, Trash2, Coins, Calculator, UserX, Link2, CircleCheck } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
+import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { confirmDialog } from '../../lib/confirm'
 import { useToastStore } from '../../stores/toast'
-import { useTimeStore, type MorphoConfig, type MorphoImportSummary, type TimeSetting, type TimeType, type PermanenceRate } from '../../stores/time'
+import { useEmployeeStore } from '../../stores/employees'
+import { useTimeStore, type MorphoConfig, type MorphoImportSummary, type TimeSetting, type TimeType, type PermanenceRate, type UnmatchedPerson } from '../../stores/time'
+import EmployeeSelector from '../../components/ui/EmployeeSelector.vue'
+import TimePager from '../../components/time/TimePager.vue'
 import ModalShell from '../../components/ui/ModalShell.vue'
 import ToggleSwitch from '../../components/ui/ToggleSwitch.vue'
 import FolderPickerModal from '../../components/time/FolderPickerModal.vue'
@@ -203,6 +275,7 @@ defineProps<{ embedded?: boolean }>()
 
 const store = useTimeStore()
 const toast = useToastStore()
+const employeeStore = useEmployeeStore()
 
 const TABS = [
   { key: 'import', label: 'Import pointeuse' },
@@ -234,7 +307,26 @@ const TOGGLE_HINTS: Record<string, string> = {
 const toggleSettings = computed(() => editableSettings.value
   .filter(s => TOGGLE_KEYS.includes(s.key))
   .map(s => ({ ...s, label: s.label.replace(/\s*\(1 = oui\)/i, '') })))
-const numberSettings = computed(() => editableSettings.value.filter(s => !TOGGLE_KEYS.includes(s.key)))
+const numberSettings = computed(() => editableSettings.value.filter(s => !TOGGLE_KEYS.includes(s.key) && s.key !== METHOD_KEY))
+
+// Methode de calcul des heures supplementaires : 0 journalier, 1 hebdomadaire, 2 les deux.
+const METHOD_KEY = 'overtime_method'
+const METHOD_OPTIONS = [
+  { value: 0, label: 'Journalière', hint: "Chaque jour est comparé à son horaire prévu : l'excédent du jour est une heure supplémentaire, datée du jour travaillé." },
+  { value: 1, label: 'Hebdomadaire', hint: "Seul compte le cumul de la semaine au-delà de 40 h (hors dimanche, férié et nuit). Ligne datée du dimanche de fin de semaine." },
+  { value: 2, label: 'Les deux', hint: 'Les deux méthodes sont proposées : la méthode se choisit à chaque calcul dans Export paie.' },
+]
+const methodSetting = computed(() => {
+  const s = editableSettings.value.find(x => x.key === METHOD_KEY)
+  return s ? s : null
+})
+async function chooseMethod(value: number) {
+  const r = await run('Enregistrement...', () => store.saveSetting(METHOD_KEY, value), 'Enregistrement impossible')
+  if (r.ok) {
+    const target = editableSettings.value.find(x => x.key === METHOD_KEY)
+    if (target) target.value = value
+  }
+}
 
 async function run<T>(label: string, action: () => Promise<T>, fallback: string): Promise<{ ok: boolean; result?: T; message?: string }> {
   busy.value = true
@@ -254,7 +346,10 @@ async function run<T>(label: string, action: () => Promise<T>, fallback: string)
 
 async function selectTab(key: TabKey) {
   tab.value = key
-  if (key === 'import') await Promise.all([store.fetchConfig().then(() => (cfg.value = store.config && { ...store.config })), store.fetchImports()])
+  if (key === 'import') {
+    await Promise.all([store.fetchConfig().then(() => (cfg.value = store.config && { ...store.config })), store.fetchImports(), loadUnmatched()])
+    if (employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {})
+  }
   if (key === 'types') types.value = await store.fetchTypes()
   if (key === 'settings') {
     await store.fetchSettings()
@@ -276,14 +371,14 @@ function showSummary(s: MorphoImportSummary) {
 }
 async function importFolder() {
   const r = await run('Import du dossier...', () => store.importFolder(), 'Import impossible')
-  if (r.ok) showSummary(r.result as MorphoImportSummary)
+  if (r.ok) { showSummary(r.result as MorphoImportSummary); await loadUnmatched() }
 }
 async function importFile(ev: Event) {
   const input = ev.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   const r = await run('Import du fichier...', () => store.importFile(file), 'Import impossible')
-  if (r.ok) showSummary(r.result as MorphoImportSummary)
+  if (r.ok) { showSummary(r.result as MorphoImportSummary); await loadUnmatched() }
   input.value = ''
 }
 async function rematch() {
@@ -292,6 +387,42 @@ async function rematch() {
     const res = r.result as { matched: number; stillUnmatched: number }
     summaryText.value = `${res.matched} pointage(s) rattaché(s), ${res.stillUnmatched} toujours sans employé.`
     summaryTone.value = res.stillUnmatched > 0 ? 'text-warning' : 'text-success'
+    await loadUnmatched()
+  }
+}
+
+// ── Pointages sans employé : rattachement manuel d'une personne de la pointeuse ──
+const unmatched = ref<UnmatchedPerson[]>([])
+const linking = ref<{ person: UnmatchedPerson; employeeId: string } | null>(null)
+const unmatchedSearch = ref('')
+const unmatchedPageNo = ref(1)
+const unmatchedPageSize = ref(10)
+const unmatchedFiltered = computed(() => {
+  const q = unmatchedSearch.value.trim().toLowerCase()
+  if (!q) return unmatched.value
+  return unmatched.value.filter(p => `${p.lastName} ${p.firstName} ${p.employeeNumber}`.toLowerCase().includes(q))
+})
+const unmatchedPage = computed(() => unmatchedFiltered.value.slice((unmatchedPageNo.value - 1) * unmatchedPageSize.value, unmatchedPageNo.value * unmatchedPageSize.value))
+watch([unmatchedSearch, unmatchedPageSize], () => { unmatchedPageNo.value = 1 })
+const employeeItems = computed(() =>
+  employeeStore.directory.filter(e => e.status !== 'inactive').map(e => ({ id: e.id, name: e.name, avatarBg: e.avatarBg, avatarText: e.avatarText })),
+)
+async function loadUnmatched() {
+  try { unmatched.value = await store.fetchUnmatchedPeople() } catch { unmatched.value = [] }
+}
+function openLink(person: UnmatchedPerson) {
+  linking.value = { person, employeeId: '' }
+}
+async function saveLink() {
+  const l = linking.value
+  if (!l?.employeeId) return
+  const r = await run('Rattachement...', () => store.linkPerson(l.person.biometricUuid, l.employeeId), 'Rattachement impossible')
+  if (r.ok) {
+    const res = r.result as { matched: number; stillUnmatched: number }
+    summaryText.value = `${res.matched} pointage(s) rattaché(s) à l'employé, ${res.stillUnmatched} toujours sans employé.`
+    summaryTone.value = res.stillUnmatched > 0 ? 'text-warning' : 'text-success'
+    linking.value = null
+    await loadUnmatched()
   }
 }
 
