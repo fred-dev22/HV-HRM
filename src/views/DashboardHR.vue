@@ -3,8 +3,8 @@
 
         <div class="flex items-center justify-between mb-3.5">
           <div>
-            <div class="text-lg font-semibold">{{ t('dashboard.welcome') }}</div>
-            <div class="text-[13px] text-muted-foreground mt-px">{{ t('dashboard.greeting') }} {{ auth.user?.name }} · {{ today }}</div>
+            <div class="text-lg font-semibold">{{ t(`dashboard.hello_${dayPart}`) }}{{ firstName ? `, ${firstName}` : '' }}</div>
+            <div class="text-[13px] text-muted-foreground mt-px">{{ t('dashboard.welcome') }} · {{ today }}</div>
           </div>
         </div>
 
@@ -43,6 +43,9 @@
             <div :class="kpiSub">{{ t('dashboard.on_employees', { count: activeEmployeesCount }) }}</div>
           </div>
         </div>
+
+        <!-- Pointage en bref (module Temps de travail) -->
+        <TimeDashboardCard />
 
         <!-- Échéances à venir (backlog "Rappels d'échéances") -->
         <UpcomingDeadlinesCard v-if="DEADLINES_MODULE_ENABLED && auth.hasPermission('EMPLOYE_VOIR_TOUT')" class="mb-3" />
@@ -236,6 +239,7 @@ import {
 import AbsenceWorkflowActions from '../components/absences/AbsenceWorkflowActions.vue'
 import { DEADLINES_MODULE_ENABLED } from '../config/features'
 import UpcomingDeadlinesCard from '../components/rh/UpcomingDeadlinesCard.vue'
+import TimeDashboardCard from '../components/time/TimeDashboardCard.vue'
 import ProductTour from '../components/ui/ProductTour.vue'
 import type { TourStep } from '../components/ui/ProductTour.vue'
 import { SkeletonLoader, StatusPill } from '../components'
@@ -250,6 +254,7 @@ import type { BalancePage } from '../stores/leaveTransactions'
 import { useCalendarStore } from '../stores/calendar'
 import { isHoliday } from '../utils/calendar'
 import { isEligible } from '../lib/eligibility'
+import { firstNameOf, useDayPart } from '../lib/greeting'
 
 const auth        = useAuthStore()
 const leaves      = useLeaveRequestStore()
@@ -258,6 +263,8 @@ const dashboard     = useDashboardStore()
 const balanceStore = useLeaveTransactionStore()
 const calendarStore = useCalendarStore()
 const { t, locale } = useI18n()
+const dayPart = useDayPart()
+const firstName = computed(() => firstNameOf(auth.user))
 const route  = useRoute()
 const router = useRouter()
 

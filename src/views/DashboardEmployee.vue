@@ -3,8 +3,8 @@
 
         <div class="flex items-center justify-between mb-3.5">
           <div>
-            <div class="text-lg font-semibold">{{ t('dashboard.welcome_employee') }}</div>
-            <div class="text-[13px] text-muted-foreground">{{ auth.user?.name }}</div>
+            <div class="text-lg font-semibold">{{ t(`dashboard.hello_${dayPart}`) }}{{ firstName ? `, ${firstName}` : '' }}</div>
+            <div class="text-[13px] text-muted-foreground">{{ t('dashboard.welcome_employee') }}</div>
           </div>
           <button :class="btnPrimary" @click="openModal()">
             <Plus class="w-4 h-4" /> {{ t('absence.new') }}
@@ -116,6 +116,7 @@ import { formatDate } from '../lib/date'
 import { confirmDialog } from '../lib/confirm'
 import { isHoliday } from '../utils/calendar'
 import { isEligible } from '../lib/eligibility'
+import { firstNameOf, useDayPart } from '../lib/greeting'
 import { useAuthStore }             from '../stores/auth'
 import { useLeaveRequestStore }     from '../stores/leaveRequests'
 import { useLeaveTypesStore }       from '../stores/leaveTypes'
@@ -124,6 +125,8 @@ import { useCalendarStore }         from '../stores/calendar'
 import { MISSIONS_EXPENSES_ENABLED } from '../config/features'
 
 const auth   = useAuthStore()
+const dayPart = useDayPart()
+const firstName = computed(() => firstNameOf(auth.user))
 const leaves = useLeaveRequestStore()
 const leaveTypesStore = useLeaveTypesStore()
 const balanceStore     = useLeaveTransactionStore()

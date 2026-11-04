@@ -111,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     return {
       id:         employee.Id,
       name:       employee.FullName,
+      firstName:  employee.FirstName,
       initials:   (employee.FirstName.charAt(0) + employee.LastName.charAt(0)).toUpperCase(),
       role:       CATEGORY_NAME_TO_USER_ROLE[categoryNameValue] ?? 'employee',
       email:      employee.Email,

@@ -8,6 +8,17 @@ import { api } from '../lib/api'
 export interface DashboardSummary {
   employees: { total: number; active: number; newThisMonth: number } | null
   leaves: { pending: number; approvedThisMonth: number; absentToday: number; approvedTotal: number } | null
+  // Pointage : null si le module Temps de travail est coupe ou sans acces complet.
+  time: {
+    pendingEntries: number
+    clockedToday: number
+    unmatchedPeople: number
+    workedHoursMonth: number
+    requiredHoursMonth: number
+    overtimeHoursMonth: number
+    lastImportAt: string | null
+    lastImportStatus: string | null
+  } | null
 }
 
 export const useDashboardStore = defineStore('dashboard', () => {
