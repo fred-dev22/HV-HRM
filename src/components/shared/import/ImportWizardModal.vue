@@ -10,7 +10,7 @@
  * creation, avec en plus les etapes en ronds (meme pattern que
  * OnboardingWizard.vue) puisque c'est un assistant a plusieurs etapes.
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Papa from 'papaparse'
 import { readSheet } from 'read-excel-file/browser'
@@ -21,6 +21,7 @@ import { api, getApiErrorMessage } from '../../../lib/api'
 import * as cls from '../../../lib/formClasses'
 import { useToastStore } from '../../../stores/toast'
 import type { ImportConfig, ImportColumn, ParsedRow, ImportRowResult } from './importTypes'
+import { resolveColumnMapping, loadSavedMapping, saveMapping } from './columnMapping'
 
 const props = defineProps<{ open: boolean; config: ImportConfig }>()
 const emit = defineEmits<{ close: []; imported: [] }>()
@@ -108,37 +109,23 @@ function isTruthy(v: string): boolean {
   return ['1', 'true', 'oui', 'yes', 'x'].includes(v.trim().toLowerCase())
 }
 
-// Compare les en-têtes sans tenir compte des accents/casse/espaces —
-// un fichier tape a la main ("intitule" sans accent) ou resauvegarde
-// depuis Excel avec un encodage different ("IntitulÃ©") ne doit pas
-// echouer sur une comparaison strictement egale a col.csvHeader alors
-// que la colonne est manifestement la bonne.
-function normalizeHeader(s: string): string {
-  return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-}
-
-// Fait correspondre chaque en-tete attendu (config) au vrai nom de colonne
-// tel qu'il apparait dans le fichier, via la comparaison normalisee
-// ci-dessus — utilise a la fois pour la verification des colonnes
-// manquantes et pour la lecture des cellules dans buildRows().
-function buildHeaderMap(actualHeaders: string[]): Map<string, string> {
-  return new Map(actualHeaders.map(h => [normalizeHeader(h), h]))
-}
-
-function buildRows(parsed: Record<string, string>[], headerMap: Map<string, string>) {
+// map : en-tete attendu -> colonne du fichier qui lui correspond ('' = aucune).
+function buildRows(parsed: Record<string, string>[], map: Record<string, string>) {
+  const cellOf = (raw: Record<string, string>, csvHeader: string) => {
+    const actual = map[csvHeader]
+    return actual ? (raw[actual] ?? '').trim() : ''
+  }
   rows.value = parsed.map((raw) => {
     const values: Record<string, string> = {}
     const rawValues: Record<string, string> = {}
     for (const col of props.config.columns) {
-      const actualKey = headerMap.get(normalizeHeader(col.csvHeader)) ?? col.csvHeader
-      const cell = (raw[actualKey] ?? '').trim()
+      const cell = cellOf(raw, col.csvHeader)
       rawValues[col.key] = cell
       values[col.key] = col.type === 'select' ? resolveSelect(col, cell) : col.type === 'date' ? resolveDate(cell) : cell
     }
     const extra: Record<string, unknown> = {}
     for (const col of props.config.extraColumns ?? []) {
-      const actualKey = headerMap.get(normalizeHeader(col.csvHeader)) ?? col.csvHeader
-      const cell = (raw[actualKey] ?? '').trim()
+      const cell = cellOf(raw, col.csvHeader)
       extra[col.key] = col.type === 'boolean' ? isTruthy(cell) : cell
     }
     return { values, raw: rawValues, extra }
@@ -167,29 +154,44 @@ async function readXlsx(file: File): Promise<{ fields: string[]; data: Record<st
   return { fields, data }
 }
 
-// Suite commune a un CSV et a un fichier Excel : controle des colonnes puis lignes de l'apercu.
+// Fichier lu mais dont des colonnes obligatoires n'ont pas ete reconnues : en attente
+// de l'association des colonnes par la personne (etape 1).
+const pendingFile = ref<{ data: Record<string, string>[]; headers: string[] } | null>(null)
+const mapping = reactive<Record<string, string>>({})
+const allColumns = computed(() => [...props.config.columns, ...(props.config.extraColumns ?? [])])
+const mappingHeaders = computed(() => (pendingFile.value?.headers ?? []).filter(h => h !== ''))
+const mappingMissing = computed(() => props.config.columns.filter(c => c.required && !mapping[c.csvHeader]))
+
+// Suite commune a un CSV et a un fichier Excel : un fichier au format prevu passe seul ;
+// sinon la personne associe ses colonnes (association memorisee pour la prochaine fois).
 function onParsed(data: Record<string, string>[], headers: string[]) {
+  parsingFile.value = false
+  toast.hide()
   if (data.length === 0) {
     fileError.value = 'Le fichier est vide ou illisible.'
-    parsingFile.value = false
-    toast.hide()
     return
   }
-  const headerMap = buildHeaderMap(headers)
-  const missing = props.config.columns.filter(c => c.required && !headerMap.has(normalizeHeader(c.csvHeader)))
-  if (missing.length > 0) {
-    // Liste aussi ce qui a ete detecte dans le fichier — permet de
-    // reperer immediatement un probleme d'encodage (accents corrompus,
-    // ex: "IntitulÃ©") plutot qu'un simple nom de colonne different.
-    fileError.value = `Colonne(s) manquante(s) dans le fichier : ${missing.map(c => c.csvHeader).join(', ')}. Colonnes détectées dans le fichier : ${headers.join(', ') || 'aucune'}.`
-    parsingFile.value = false
-    toast.hide()
+  const resolved = resolveColumnMapping(allColumns.value, headers, loadSavedMapping(props.config.title))
+  const unresolved = props.config.columns.some(c => c.required && !resolved[c.csvHeader])
+  if (unresolved) {
+    Object.keys(mapping).forEach(k => delete mapping[k])
+    Object.assign(mapping, resolved)
+    pendingFile.value = { data, headers }
     return
   }
-  buildRows(data, headerMap)
+  buildRows(data, resolved)
   fileReady.value = true
-  parsingFile.value = false
   toast.success(`${data.length} ligne(s) analysée(s)`)
+}
+
+function applyMapping() {
+  const file = pendingFile.value
+  if (!file || mappingMissing.value.length > 0) return
+  buildRows(file.data, { ...mapping })
+  saveMapping(props.config.title, { ...mapping })
+  fileReady.value = true
+  pendingFile.value = null
+  toast.success(`${file.data.length} ligne(s) analysée(s)`)
 }
 
 // Ne fait plus avancer a l'etape 2 automatiquement — l'utilisateur doit
@@ -198,6 +200,7 @@ function onParsed(data: Record<string, string>[], headers: string[]) {
 function handleFile(file: File | undefined) {
   fileError.value = ''
   fileReady.value = false
+  pendingFile.value = null
   if (!file) return
   const lower = file.name.toLowerCase()
   const isXlsx = lower.endsWith('.xlsx')
@@ -367,6 +370,7 @@ function reset() {
   fileName.value = ''
   fileReady.value = false
   rows.value = []
+  pendingFile.value = null
   results.value = []
   progress.value = { current: 0, total: 0 }
   done.value = false
@@ -506,6 +510,40 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               <p v-if="fileError" :class="[cls.fieldErrorBlock, 'mt-3']">
                 <FileWarning class="w-3.5 h-3.5 shrink-0" /> {{ fileError }}
               </p>
+              <!-- Colonnes non reconnues : association par la personne, memorisee ensuite -->
+              <div v-if="pendingFile" class="mt-4 border border-border rounded-lg overflow-hidden">
+                <div class="px-4 py-3 bg-warning-bg text-warning text-[12px] flex items-start gap-2">
+                  <AlertTriangle class="w-4 h-4 shrink-0 mt-px" />
+                  <span>Des colonnes attendues n'ont pas été trouvées dans votre fichier. Associez-les à vos colonnes pour continuer ; cette association sera mémorisée pour les prochains imports.</span>
+                </div>
+                <table class="w-full text-[13px]">
+                  <thead>
+                    <tr class="bg-tint border-b border-primary/20">
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-foreground">Colonne attendue</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-foreground">Colonne de votre fichier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="col in allColumns" :key="col.csvHeader" class="border-b border-border last:border-0">
+                      <td class="px-4 py-2">
+                        <span v-if="col.required" class="text-danger">* </span>{{ col.csvHeader }}
+                      </td>
+                      <td class="px-4 py-1.5">
+                        <select v-model="mapping[col.csvHeader]" :class="[cls.fieldSelect, mapping[col.csvHeader] || !col.required ? '' : '!border-danger']">
+                          <option value="">{{ col.required ? 'Choisir une colonne…' : 'Ne pas importer' }}</option>
+                          <option v-for="h in mappingHeaders" :key="h" :value="h">{{ h }}</option>
+                        </select>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="px-4 py-3 flex items-center justify-between gap-3 border-t border-border bg-background/40">
+                  <span class="text-[12px]" :class="mappingMissing.length ? 'text-danger' : 'text-muted-foreground'">
+                    {{ mappingMissing.length ? `À associer : ${mappingMissing.map(c => c.csvHeader).join(', ')}` : 'Toutes les colonnes obligatoires sont associées.' }}
+                  </span>
+                  <button type="button" :class="cls.btnPrimary" :disabled="mappingMissing.length > 0" @click="applyMapping">Appliquer l'association</button>
+                </div>
+              </div>
               <p v-if="fileReady" class="text-[12px] text-muted-foreground mt-3">
                 Fichier différent ? Déposez-en un autre ci-dessus avant de cliquer sur « Suivant ».
               </p>
