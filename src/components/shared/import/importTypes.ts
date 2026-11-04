@@ -24,6 +24,8 @@ export interface ImportColumn {
   sample: string
   /** Obligatoire si type === 'select' — evalue a l'ouverture du wizard pour refleter les donnees a jour. */
   options?: () => ImportOption[]
+  /** Reconnait la valeur par son code seulement (matricule, code de categorie), jamais par le libelle. */
+  matchCodeOnly?: boolean
 }
 
 export interface ImportDependency {

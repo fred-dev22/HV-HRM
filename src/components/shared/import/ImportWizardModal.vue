@@ -80,7 +80,7 @@ function resolveSelect(col: ImportColumn, rawValue: string): string {
   if (!col.options) return rawValue
   const norm = rawValue.trim().toLowerCase()
   if (!norm) return ''
-  const match = col.options().find(o => (o.code && o.code.toLowerCase() === norm) || o.label.toLowerCase() === norm)
+  const match = col.options().find(o => (o.code && o.code.toLowerCase() === norm) || (!col.matchCodeOnly && o.label.toLowerCase() === norm))
   return match ? match.value : ''
 }
 

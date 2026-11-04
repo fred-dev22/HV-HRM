@@ -71,8 +71,8 @@ export function validateScheduleRow(row: ParsedRow, lookups: ScheduleLookups): s
   const scope = row.values.Scope
   if (!scope) return 'Choisissez la portée : Global, Catégorie ou Employé.'
   const target = (row.values.Target ?? '').trim()
-  if (scope === 'category' && !lookups.findCategoryId(target)) return target ? `Catégorie « ${target} » introuvable.` : 'Indiquez la catégorie dans la colonne Cible.'
-  if (scope === 'employee' && !lookups.findEmployeeId(target)) return target ? `Employé « ${target} » introuvable (matricule ou nom).` : "Indiquez le matricule de l'employé dans la colonne Cible."
+  if (scope === 'category' && !lookups.findCategoryId(target)) return target ? `Aucune catégorie avec le code « ${target} ». Indiquez le code, pas le nom.` : 'Indiquez le code de la catégorie dans la colonne Cible.'
+  if (scope === 'employee' && !lookups.findEmployeeId(target)) return target ? `Aucun employé avec le matricule « ${target} ». Indiquez le matricule, pas le nom.` : "Indiquez le matricule de l'employé dans la colonne Cible."
   if (!parseDays(row.values.Days)) return 'Jours non reconnus. Exemples : Lundi-Vendredi, Samedi, Lundi, Mercredi, Tous.'
 
   const start = normalizeTime(row.values.StartTime)
@@ -98,19 +98,23 @@ export function buildScheduleImportConfig(): ImportConfig {
   if (categoryStore.categories.length === 0) categoryStore.fetchAll().catch(() => {})
 
   const lookups: ScheduleLookups = {
+    // Code de categorie et matricule uniquement (uniques en base) ; si jamais deux
+    // lignes portaient le meme, la cible est refusee plutot que devinee.
     findCategoryId: (text) => {
       const t = plain(text)
-      return categoryStore.categories.find(c => plain(c.code) === t || plain(c.name) === t)?.id
+      const found = categoryStore.categories.filter(c => plain(c.code) === t)
+      return found.length === 1 ? found[0]!.id : undefined
     },
     findEmployeeId: (text) => {
       const t = plain(text)
-      return employeeStore.directory.find(e => plain(e.code) === t || plain(e.name) === t)?.id
+      const found = employeeStore.directory.filter(e => plain(e.code) === t)
+      return found.length === 1 ? found[0]!.id : undefined
     },
   }
 
   return {
     title: 'Horaires de travail',
-    intro: "Importez les horaires du calendrier global, d'une catégorie ou d'un employé. Chaque ligne donne des jours (Lundi-Vendredi, Samedi, Lundi, Mercredi, Tous), l'heure de début et de fin, et une pause facultative. Laissez Début et Fin vides pour un jour de repos. Le calendrier d'une catégorie ou d'un employé est créé s'il n'existe pas ; sinon seuls les jours indiqués changent.",
+    intro: "Importez les horaires du calendrier global, d'une catégorie ou d'un employé. La colonne Cible contient le code de la catégorie ou le matricule de l'employé (jamais le nom). Chaque ligne donne des jours (Lundi-Vendredi, Samedi, Lundi, Mercredi, Tous), l'heure de début et de fin, et une pause facultative. Laissez Début et Fin vides pour un jour de repos. Le calendrier d'une catégorie ou d'un employé est créé s'il n'existe pas ; sinon seuls les jours indiqués changent.",
     acceptExcel: true,
     createEndpoint: '/calendars/import-schedule',
     dependencies: [],
@@ -123,7 +127,7 @@ export function buildScheduleImportConfig(): ImportConfig {
           { value: 'employee', label: 'Employé', code: 'employee' },
         ],
       },
-      { key: 'Target', csvHeader: 'Cible', label: 'Cible (catégorie ou matricule)', required: false, type: 'text', sample: 'Production' },
+      { key: 'Target', csvHeader: 'Cible', label: 'Cible (code catégorie ou matricule)', required: false, type: 'text', sample: 'PROD' },
       { key: 'Days', csvHeader: 'Jours', label: 'Jours', required: true, type: 'text', sample: 'Lundi-Vendredi' },
       { key: 'StartTime', csvHeader: 'Début', label: 'Début (HH:mm)', required: false, type: 'text', sample: '08:00' },
       { key: 'EndTime', csvHeader: 'Fin', label: 'Fin (HH:mm)', required: false, type: 'text', sample: '17:00' },
@@ -132,6 +136,7 @@ export function buildScheduleImportConfig(): ImportConfig {
     ],
     sampleRows: [
       { 'Portée': 'Global', Cible: '', Jours: 'Lundi-Vendredi', 'Début': '08:00', Fin: '17:00', 'Début pause': '12:00', 'Fin pause': '13:00' },
+      { 'Portée': 'Catégorie', Cible: 'PROD', Jours: 'Lundi-Vendredi', 'Début': '07:00', Fin: '16:00', 'Début pause': '12:00', 'Fin pause': '13:00' },
       { 'Portée': 'Global', Cible: '', Jours: 'Samedi', 'Début': '08:00', Fin: '12:00', 'Début pause': '', 'Fin pause': '' },
       { 'Portée': 'Global', Cible: '', Jours: 'Dimanche', 'Début': '', Fin: '', 'Début pause': '', 'Fin pause': '' },
       { 'Portée': 'Employé', Cible: 'EMP001', Jours: 'Lundi-Jeudi', 'Début': '07:00', Fin: '15:00', 'Début pause': '', 'Fin pause': '' },
@@ -147,8 +152,8 @@ export function buildScheduleImportConfig(): ImportConfig {
         Days: parseDays(row.values.Days) ?? [],
         IsEnabled: !!(start || end),
       }
-      if (scope === 'category') out.TargetId = lookups.findCategoryId(target)
-      if (scope === 'employee') out.TargetId = lookups.findEmployeeId(target)
+      // Le serveur retrouve la cible par son code / matricule (et nomme la valeur fautive).
+      if (scope === 'category' || scope === 'employee') out.TargetCode = target
       if (start) out.StartTime = start
       if (end) out.EndTime = end
       const bStart = normalizeTime(row.values.BreakStartTime)

@@ -23,23 +23,16 @@
       </button>
     </div>
 
-    <!-- Sélection d'un employé = sélection d'une ENTITÉ → TableLookupField -->
+    <!-- Sélection d'un employé : EmployeePicker, le même choix partout dans l'app -->
     <div v-if="modelValue.mode === 'for-employee'" class="flex flex-col gap-1">
-      <TableLookupField
+      <EmployeePicker
         label="Employé concerné"
         required
-        :code="selectedCode"
-        :name="selectedName"
-        :columns="lookupColumns"
-        :fetch-fn="fetchEmployees"
-        value-key="id"
-        name-key="label"
-        modal-title="Sélectionner un employé"
         placeholder="Code employé"
+        :model-value="modelValue.employeeId"
+        :employees="availableEmployees"
         :invalid="!!errorEmployee"
-        :is-item-disabled="(item) => item.status && item.status !== 'active'"
-        :item-disabled-reason="() => 'compte désactivé'"
-        @select="onSelect"
+        @update:model-value="onPick"
       />
       <div v-if="errorEmployee" class="text-[11px] text-danger">{{ errorEmployee }}</div>
     </div>
@@ -47,10 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { User, Users } from 'lucide-vue-next'
-import TableLookupField from './table-lookup/TableLookupField.vue'
-import type { LookupColumn, LookupFetchParams } from './table-lookup/TableLookupField.vue'
+import EmployeePicker from './EmployeePicker.vue'
 
 export interface BeneficiaryValue {
   mode: 'self' | 'for-employee'
@@ -94,35 +85,7 @@ function setMode(mode: 'self' | 'for-employee') {
   emit('update:modelValue', { mode, employeeId: '' })
 }
 
-/* ── Lookup employé ─────────────────────────────────────────── */
-const lookupColumns: LookupColumn[] = [
-  { key: 'code', label: 'Matricule', width: '90px' },
-  { key: 'label', label: 'Nom' },
-  { key: 'sublabel', label: 'Entité' },
-]
-
-const selectedEmp = computed(() => props.availableEmployees.find(e => e.id === props.modelValue.employeeId))
-const selectedCode = computed(() => selectedEmp.value?.code ?? selectedEmp.value?.id ?? '')
-const selectedName = computed(() => selectedEmp.value?.label ?? '')
-
-// fetchFn local sur la liste fournie (les employés sont des entités du store)
-function fetchEmployees(params: LookupFetchParams) {
-  const q = (params.searchQuery ?? '').toLowerCase()
-  let rows = props.availableEmployees
-  if (q) {
-    rows = rows.filter(e =>
-      e.label.toLowerCase().includes(q) ||
-      (e.sublabel ?? '').toLowerCase().includes(q) ||
-      (e.code ?? e.id).toLowerCase().includes(q),
-    )
-  }
-  const total = rows.length
-  const start = (params.page - 1) * params.pageSize
-  return { items: rows.slice(start, start + params.pageSize), total }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function onSelect(item: any) {
-  emit('update:modelValue', { mode: 'for-employee', employeeId: String(item.id) })
+function onPick(employeeId: string) {
+  emit('update:modelValue', { mode: 'for-employee', employeeId })
 }
 </script>

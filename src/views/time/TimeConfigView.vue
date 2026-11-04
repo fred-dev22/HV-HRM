@@ -89,9 +89,9 @@
       <ModalShell :open="!!linking" :title="linking ? `Rattacher ${linking.person.lastName} ${linking.person.firstName}` : ''" max-width="max-w-[520px]" @close="linking = null">
         <template v-if="linking">
           <p class="text-[13px] text-muted-foreground">Choisissez l'employé du HRM qui correspond à cette personne de la pointeuse. Ses {{ linking.person.records }} pointage(s) seront rattachés et ses heures recalculées.</p>
-          <div :class="cls.field" class="min-h-[300px]">
+          <div :class="cls.field">
             <label :class="cls.fieldLabel">Employé</label>
-            <EmployeeSelector v-model="linking.employeeId" :employees="employeeItems" placeholder="Sélectionner un employé" />
+            <EmployeePicker v-model="linking.employeeId" :employees="employeeItems" />
           </div>
         </template>
         <template #footer>
@@ -265,7 +265,7 @@ import { confirmDialog } from '../../lib/confirm'
 import { useToastStore } from '../../stores/toast'
 import { useEmployeeStore } from '../../stores/employees'
 import { useTimeStore, type MorphoConfig, type MorphoImportSummary, type TimeSetting, type TimeType, type PermanenceRate, type UnmatchedPerson } from '../../stores/time'
-import EmployeeSelector from '../../components/ui/EmployeeSelector.vue'
+import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 import TimePager from '../../components/time/TimePager.vue'
 import ModalShell from '../../components/ui/ModalShell.vue'
 import ToggleSwitch from '../../components/ui/ToggleSwitch.vue'
@@ -405,7 +405,7 @@ const unmatchedFiltered = computed(() => {
 const unmatchedPage = computed(() => unmatchedFiltered.value.slice((unmatchedPageNo.value - 1) * unmatchedPageSize.value, unmatchedPageNo.value * unmatchedPageSize.value))
 watch([unmatchedSearch, unmatchedPageSize], () => { unmatchedPageNo.value = 1 })
 const employeeItems = computed(() =>
-  employeeStore.directory.filter(e => e.status !== 'inactive').map(e => ({ id: e.id, name: e.name, avatarBg: e.avatarBg, avatarText: e.avatarText })),
+  employeeStore.directory.filter(e => e.status !== 'inactive').map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code })),
 )
 async function loadUnmatched() {
   try { unmatched.value = await store.fetchUnmatchedPeople() } catch { unmatched.value = [] }

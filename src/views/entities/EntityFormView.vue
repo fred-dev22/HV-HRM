@@ -76,12 +76,7 @@
               <div :class="fieldGrid">
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Responsable</label>
-                  <select v-model="form.managerId" :class="cls.fieldSelect" @change="onResponsibleChange">
-                    <option value="">-- Aucun --</option>
-                    <option v-for="e in empStore.employees" :key="e.id" :value="e.id">
-                      {{ e.code }} · {{ e.name }} · {{ e.jobTitle }}
-                    </option>
-                  </select>
+                  <EmployeePicker :model-value="form.managerId ?? ''" :employees="managerItems" placeholder="Aucun" @update:model-value="pickManager" />
                 </div>
                 <div :class="cls.field">
                   <label :class="cls.fieldLabel">Téléphone principal</label>
@@ -128,6 +123,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Building, User, ShieldCheck, Save, Send, Info } from 'lucide-vue-next'
 import { SkeletonLoader } from '../../components'
 import ApprovalPoolConfig from '../../components/entities/ApprovalPoolConfig.vue'
+import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { useAuthStore }     from '../../stores/auth'
@@ -207,6 +203,13 @@ onMounted(async () => {
 // Auto-uppercase code
 watch(() => form.code, v => { form.code = v.toUpperCase() })
 
+const managerItems = computed(() =>
+  empStore.employees.map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, status: e.status })),
+)
+function pickManager(id: string) {
+  form.managerId = id
+  onResponsibleChange()
+}
 function onResponsibleChange() {
   const emp = empStore.getById(form.managerId ?? '')
   form.responsibleName = emp?.name ?? ''

@@ -57,7 +57,7 @@ export function buildTimeEntryImportConfig(): ImportConfig {
     ],
     columns: [
       {
-        key: 'EmployeeId', csvHeader: 'Matricule', label: 'Employé', required: true, type: 'select', sample: 'EMP001',
+        key: 'EmployeeId', csvHeader: 'Matricule', label: 'Employé (matricule)', required: true, type: 'select', matchCodeOnly: true, sample: 'EMP001',
         options: () => employeeStore.directory.map(e => ({ value: e.id, label: e.name, code: e.code })),
       },
       {

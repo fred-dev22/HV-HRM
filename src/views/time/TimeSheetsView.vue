@@ -24,7 +24,7 @@
         <div class="flex items-end gap-3 flex-wrap">
           <div v-if="isHr" :class="cls.field" class="min-w-[260px] flex-1">
             <label :class="cls.fieldLabel">Employé</label>
-            <EmployeeSelector v-model="employeeId" :employees="employeeItems" placeholder="Sélectionner un employé" />
+            <EmployeePicker v-model="employeeId" :employees="employeeItems" />
           </div>
           <div :class="cls.field"><label :class="cls.fieldLabel">Du</label><input v-model="from" type="date" :class="cls.fieldInput" /></div>
           <div :class="cls.field"><label :class="cls.fieldLabel">Au</label><input v-model="to" type="date" :class="cls.fieldInput" /></div>
@@ -56,7 +56,7 @@ import { todayIso } from '../../lib/date'
 import { useAuthStore } from '../../stores/auth'
 import { useEmployeeStore } from '../../stores/employees'
 import type { TimesheetRow } from '../../stores/time'
-import EmployeeSelector from '../../components/ui/EmployeeSelector.vue'
+import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 import TimesheetCard from '../../components/time/TimesheetCard.vue'
 import TimesheetDetail from '../../components/time/TimesheetDetail.vue'
 import TimesheetSummaryTable from '../../components/time/TimesheetSummaryTable.vue'
@@ -87,7 +87,7 @@ const period = reactive({ from: from.value, to: to.value })
 
 // Annuaire charge seulement pour le RH, a l'ouverture de l'onglet.
 const employeeItems = computed(() =>
-  employeeStore.directory.filter(e => e.status !== 'inactive').map(e => ({ id: e.id, name: e.name, avatarBg: e.avatarBg, avatarText: e.avatarText })),
+  employeeStore.directory.filter(e => e.status !== 'inactive').map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code })),
 )
 onMounted(() => { if (isHr.value && employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {}) })
 

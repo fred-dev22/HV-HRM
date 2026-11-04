@@ -9,6 +9,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
 import UserAvatar from '../ui/UserAvatar.vue'
 import ForWhomSelector from '../ui/ForWhomSelector.vue'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import type { BeneficiaryValue } from '../ui/ForWhomSelector.vue'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
@@ -198,10 +199,7 @@ async function saveDraft() {
           </div>
           <div :class="cls.field" class="mb-3">
             <label :class="cls.fieldLabel">Associer un accompagnant <span class="font-normal text-muted-foreground">(optionnel)</span></label>
-            <select v-model="associatedEmployeeId" :class="cls.fieldSelect">
-              <option value="">Aucun</option>
-              <option v-for="e in associableEmployeeItems" :key="e.id" :value="e.id">{{ e.label }}</option>
-            </select>
+            <EmployeePicker v-model="associatedEmployeeId" :employees="associableEmployeeItems" placeholder="Aucun" />
             <p class="text-[11px] text-muted-foreground mt-1">
               Crée automatiquement un second ordre de mission, mêmes dates et destination, pour cette personne (ex : le chauffeur).
             </p>

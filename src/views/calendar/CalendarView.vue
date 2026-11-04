@@ -76,17 +76,9 @@
                     {{ c.name }} {{ categoryHasDedicatedCalendar(c.id) ? '(calendrier dédié)' : '(suit le calendrier global)' }}
                   </option>
                 </select>
-                <select
-                  v-if="scope === 'employee'"
-                  v-model="selectedEmployeeId"
-                  :class="cls.fieldSelect"
-                  class="!w-auto !h-9 max-w-[320px]"
-                  @change="onEmployeeChange"
-                >
-                  <option v-for="e in employeeOptions" :key="e.id" :value="e.id">
-                    {{ e.name }} ({{ e.code }}) {{ employeeHasDedicatedCalendar(e.id) ? '- calendrier dédié' : '' }}
-                  </option>
-                </select>
+                <div v-if="scope === 'employee'" class="w-[420px] max-w-full">
+                  <EmployeePicker :model-value="selectedEmployeeId" :employees="employeePickerItems" @update:model-value="pickEmployee" />
+                </div>
               </div>
 
               <!-- Portée actuelle — mise en évidence explicite du choix actif -->
@@ -448,6 +440,7 @@ import { useCompanySettingsStore }  from '../../stores/companySettings'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useEntityStore } from '../../stores/entities'
 import { useEmployeeStore } from '../../stores/employees'
+import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 import type { Holiday } from '../../types'
 
 const calendarStore   = useCalendarStore()
@@ -595,6 +588,9 @@ const employeeStore = useEmployeeStore()
 const employeeOptions = computed(() =>
   [...employeeStore.directory].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
 )
+const employeePickerItems = computed(() =>
+  employeeOptions.value.map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, status: e.status })),
+)
 let lastConfirmedEmployeeId = ''
 
 function refreshConfiguredEmployeeCalendars() {
@@ -636,6 +632,13 @@ watch(employeeOptions, async (list) => {
   lastConfirmedEmployeeId = selectedEmployeeId.value
   await calendarStore.fetchCalendarByEmployee(selectedEmployeeId.value)
 })
+// Le selecteur change la valeur, puis la meme garde qu'avant (modifications non
+// enregistrees) s'applique : en cas de refus on revient a l'employe precedent.
+async function pickEmployee(id: string) {
+  if (!id || id === selectedEmployeeId.value) return
+  selectedEmployeeId.value = id
+  await onEmployeeChange()
+}
 async function onEmployeeChange() {
   if (!(await confirmDiscardIfDirty())) {
     selectedEmployeeId.value = lastConfirmedEmployeeId

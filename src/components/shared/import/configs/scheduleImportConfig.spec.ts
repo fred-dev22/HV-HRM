@@ -4,7 +4,7 @@ import type { ParsedRow } from '../importTypes'
 
 const row = (values: Record<string, string>): ParsedRow => ({ values, raw: {}, extra: {} })
 const lookups: ScheduleLookups = {
-  findCategoryId: (t) => (t.toLowerCase() === 'production' ? 'cat1' : undefined),
+  findCategoryId: (t) => (t.toLowerCase() === 'prod' ? 'cat1' : undefined),
   findEmployeeId: (t) => (t.toUpperCase() === 'EMP001' ? 'emp1' : undefined),
 }
 
@@ -41,12 +41,16 @@ describe('validateScheduleRow', () => {
   it('accepte une ligne valide, un jour de repos et une portee categorie ou employe', () => {
     expect(validateScheduleRow(row(ok), lookups)).toBeUndefined()
     expect(validateScheduleRow(row({ Scope: 'global', Days: 'Dimanche' }), lookups)).toBeUndefined()
-    expect(validateScheduleRow(row({ ...ok, Scope: 'category', Target: 'Production' }), lookups)).toBeUndefined()
+    expect(validateScheduleRow(row({ ...ok, Scope: 'category', Target: 'PROD' }), lookups)).toBeUndefined()
     expect(validateScheduleRow(row({ ...ok, Scope: 'employee', Target: 'EMP001' }), lookups)).toBeUndefined()
   })
   it('signale une cible introuvable ou manquante', () => {
-    expect(validateScheduleRow(row({ ...ok, Scope: 'category', Target: 'Inconnue' }), lookups)).toContain('introuvable')
+    expect(validateScheduleRow(row({ ...ok, Scope: 'category', Target: 'Inconnue' }), lookups)).toContain('code « Inconnue »')
     expect(validateScheduleRow(row({ ...ok, Scope: 'employee' }), lookups)).toContain('matricule')
+  })
+  it('refuse un nom a la place du code ou du matricule', () => {
+    expect(validateScheduleRow(row({ ...ok, Scope: 'category', Target: 'Production' }), lookups)).toContain('pas le nom')
+    expect(validateScheduleRow(row({ ...ok, Scope: 'employee', Target: 'Alice Rakoto' }), lookups)).toContain('pas le nom')
   })
   it('signale des jours non reconnus', () => {
     expect(validateScheduleRow(row({ ...ok, Days: 'Lundiii' }), lookups)).toContain('Jours non reconnus')

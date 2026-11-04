@@ -87,10 +87,7 @@
                 </div>
                 <div :class="cls.field" class="col-span-2">
                   <label :class="cls.fieldLabel">Employé <span class="text-danger">*</span></label>
-                  <select v-model="form.employeeId" :class="cls.fieldSelect">
-                    <option value="">Sélectionner…</option>
-                    <option v-for="e in employeeStore.directory" :key="e.id" :value="e.id">{{ e.name }}</option>
-                  </select>
+                  <EmployeePicker v-model="form.employeeId" :employees="employeeItems" />
                 </div>
               </div>
             </FormSection>
@@ -124,11 +121,15 @@ import { useSubmitGuard } from '../../lib/submitGuard'
 import { useEnrollmentStore, useSessionStore } from '../../stores/training'
 import type { Enrollment } from '../../stores/training'
 import { useEmployeeStore } from '../../stores/employees'
+import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 
 const enrollmentStore = useEnrollmentStore()
 const sessionStore = useSessionStore()
 const employeeStore = useEmployeeStore()
 if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+const employeeItems = computed(() =>
+  employeeStore.directory.map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, status: e.status })),
+)
 
 onMounted(() => loadAll(() => enrollmentStore.fetchAll(), () => sessionStore.fetchAll()))
 

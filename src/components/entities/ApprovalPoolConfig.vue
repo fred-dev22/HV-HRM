@@ -19,6 +19,7 @@ import * as cls from '../../lib/formClasses'
 import { useApprovalPoolStore } from '../../stores/approvalPools'
 import type { ApprovalObjectType, ApprovalPoolMember } from '../../stores/approvalPools'
 import { useEmployeeStore } from '../../stores/employees'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useEntityStore } from '../../stores/entities'
 import { confirmDialog } from '../../lib/confirm'
@@ -83,6 +84,28 @@ const validatorsByCategory = computed(() => {
   }
   return [...groups.entries()].map(([label, employees]) => ({ label, employees }))
 })
+
+// Tous les employes sont listes ; ceux qui ne peuvent pas valider sont grises avec
+// leur motif (decision du 30/07 : montrer pourquoi plutot que cacher).
+const validatorItems = computed(() =>
+  empStore.employees.map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, status: e.status })),
+)
+function validatorBlockedReason(employeeId: string, level: 1 | 2 | 3 | 4): string {
+  const e = empStore.employees.find(x => x.id === employeeId)
+  if (!e) return ''
+  if (e.status !== 'active') return 'compte désactivé'
+  if (!e.hasAccount) return 'pas de compte'
+  if (!canValidate(e)) return 'permission manquante'
+  if (isAssignedAtOtherLevel(e.id, level)) return 'déjà à un autre niveau'
+  return ''
+}
+// Le selecteur est recree apres chaque ajout pour revenir a vide.
+const pickerResets = ref(0)
+async function pickValidator(level: 1 | 2 | 3 | 4, employeeId: string) {
+  if (!employeeId) return
+  await addValidator(level, employeeId)
+  pickerResets.value++
+}
 
 function load() { store.fetchByUnit(props.entityId) }
 onMounted(load)
@@ -328,20 +351,16 @@ const interimCandidates = computed(() => empStore.employees.filter(x => x.hasAcc
               </button>
             </template>
             <template v-else>
-              <select
-                :class="[cls.fieldSelect, 'flex-1']"
-                value=""
-                @change="addValidator(level, ($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">-- Choisir un validateur --</option>
-                <optgroup v-for="grp in validatorsByCategory" :key="grp.label" :label="grp.label">
-                  <option
-                    v-for="e in grp.employees" :key="e.id" :value="e.id"
-                    :disabled="e.status !== 'active' || !e.hasAccount || !canValidate(e) || isAssignedAtOtherLevel(e.id, level)"
-                    :title="e.status !== 'active' ? 'Ce compte est désactivé.' : !e.hasAccount ? 'Cet employé n\'a pas de compte utilisateur, il ne peut pas se connecter pour approuver.' : !canValidate(e) ? 'La catégorie de cet employé n\'a pas la permission de validation pour ce type de demande, il ne pourra pas voir ni traiter la file « À valider ».' : isAssignedAtOtherLevel(e.id, level) ? 'Déjà validateur à un autre niveau de ce pool.' : ''"
-                  >{{ e.name }} · {{ e.jobTitle }}{{ e.status !== 'active' ? ' (compte désactivé)' : !e.hasAccount ? ' (pas de compte)' : !canValidate(e) ? ' (permission manquante)' : isAssignedAtOtherLevel(e.id, level) ? ' (déjà à un autre niveau)' : '' }}</option>
-                </optgroup>
-              </select>
+              <div class="flex-1">
+                <EmployeePicker
+                  :key="`${level}-${pickerResets}`"
+                  :employees="validatorItems"
+                  :disabled-reason-of="(id) => validatorBlockedReason(id, level)"
+                  placeholder="Choisir un validateur"
+                  modal-title="Choisir un validateur"
+                  @update:model-value="(id) => pickValidator(level, id)"
+                />
+              </div>
             </template>
           </div>
 
