@@ -34,6 +34,10 @@
           <div :class="sectionCard">
             <div :class="sectionHeader">
               <h2 class="text-[15px] font-semibold text-foreground">Jours ouvrables</h2>
+              <div class="flex items-center gap-2">
+              <button :class="[L.btnOutline, '!px-3 !py-2 !text-xs']" @click="showScheduleImport = true">
+                <Upload class="w-3.5 h-3.5" /> Importer les horaires
+              </button>
               <button
                 :class="[L.btnPrimary, '!px-3.5 !py-2 !text-xs']"
                 class="disabled:opacity-40 disabled:cursor-not-allowed"
@@ -43,6 +47,7 @@
               >
                 <Save class="w-3.5 h-3.5" /> {{ savingWorkingDays ? 'Enregistrement…' : 'Enregistrer les modifications' }}
               </button>
+              </div>
             </div>
 
             <!-- ── Portée du calendrier ── -->
@@ -318,6 +323,7 @@
   <LeaveTypeFormModal v-if="showLTModal" :edit-id="editLTId" @close="showLTModal = false" />
 
   <!-- ── Import CSV: fériés + types d'absence ── -->
+  <ImportWizardModal v-if="showScheduleImport" :open="showScheduleImport" :config="scheduleImportConfig" @close="showScheduleImport = false" @imported="refreshAfterScheduleImport" />
   <ImportWizardModal v-if="showHolidayImport" :open="showHolidayImport" :config="holidayImportConfig" @close="showHolidayImport = false" @imported="calendarStore.fetchHolidays(new Date().getFullYear())" />
   <ImportWizardModal v-if="showLeaveTypeImport" :open="showLeaveTypeImport" :config="leaveTypeImportConfig" @close="showLeaveTypeImport = false" @imported="leaveTypesStore.fetchAll()" />
 
@@ -430,6 +436,7 @@ import EligibilityFields from '../../components/ui/form-field/EligibilityFields.
 import { SkeletonLoader } from '../../components'
 import ImportWizardModal from '../../components/shared/import/ImportWizardModal.vue'
 import { buildHolidayImportConfig } from '../../components/shared/import/configs/holidayImportConfig'
+import { buildScheduleImportConfig } from '../../components/shared/import/configs/scheduleImportConfig'
 import { buildLeaveTypeImportConfig } from '../../components/shared/import/configs/leaveTypeImportConfig'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
@@ -455,6 +462,8 @@ const { calendar, annualHolidays, ponctualHolidays } = storeToRefs(calendarStore
 const pageLoading = computed(() => calendarStore.loading || leaveTypesStore.loading)
 
 const showHolidayImport = ref(false)
+const showScheduleImport = ref(false)
+const scheduleImportConfig = computed(() => buildScheduleImportConfig())
 const showLeaveTypeImport = ref(false)
 const holidayImportConfig = computed(() => buildHolidayImportConfig())
 const leaveTypeImportConfig = computed(() => buildLeaveTypeImportConfig())
@@ -590,6 +599,14 @@ let lastConfirmedEmployeeId = ''
 
 function refreshConfiguredEmployeeCalendars() {
   calendarStore.fetchConfiguredEmployeeCalendars().then((list) => { configuredEmployeeCalendars.value = list }).catch(() => {})
+}
+// Apres un import d'horaires : relit le calendrier affiche et la liste des calendriers dedies.
+async function refreshAfterScheduleImport() {
+  refreshConfiguredCategoryCalendars()
+  refreshConfiguredEmployeeCalendars()
+  if (scope.value === 'global') await calendarStore.fetchDefaultCalendar()
+  else if (scope.value === 'category' && selectedCategoryId.value) await calendarStore.fetchCalendarByCategory(selectedCategoryId.value)
+  else if (scope.value === 'employee' && selectedEmployeeId.value) await calendarStore.fetchCalendarByEmployee(selectedEmployeeId.value)
 }
 function employeeHasDedicatedCalendar(employeeId: string): boolean {
   return configuredEmployeeCalendars.value.some(c => c.employeeId === employeeId)
