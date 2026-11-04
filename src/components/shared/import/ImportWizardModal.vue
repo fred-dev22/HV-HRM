@@ -13,6 +13,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Papa from 'papaparse'
+import { readSheet } from 'read-excel-file/browser'
 import {
   ArrowLeft, ArrowRight, Check, X, Upload, Download, FileWarning, CheckCircle2, AlertTriangle, Loader2,
 } from 'lucide-vue-next'
@@ -144,6 +145,53 @@ function buildRows(parsed: Record<string, string>[], headerMap: Map<string, stri
   })
 }
 
+// Valeur d'une cellule Excel en texte, comme le ferait un CSV : une date devient
+// AAAA-MM-JJ, une heure (Excel la stocke comme une date de 1899) devient HH:mm.
+function cellToText(cell: unknown): string {
+  if (cell === null || cell === undefined) return ''
+  if (cell instanceof Date) {
+    if (cell.getUTCFullYear() < 1950) return `${String(cell.getUTCHours()).padStart(2, '0')}:${String(cell.getUTCMinutes()).padStart(2, '0')}`
+    return cell.toISOString().slice(0, 10)
+  }
+  return String(cell).trim()
+}
+
+// Premiere feuille d'un fichier Excel (.xlsx) : premiere ligne = en-tetes, comme un CSV.
+async function readXlsx(file: File): Promise<{ fields: string[]; data: Record<string, string>[] }> {
+  const sheet = await readSheet(file)
+  const [head, ...body] = sheet
+  const fields = (head ?? []).map(cellToText)
+  const data = body
+    .map(r => Object.fromEntries(fields.map((f, i) => [f, cellToText(r[i])])))
+    .filter(r => Object.values(r).some(v => v !== ''))
+  return { fields, data }
+}
+
+// Suite commune a un CSV et a un fichier Excel : controle des colonnes puis lignes de l'apercu.
+function onParsed(data: Record<string, string>[], headers: string[]) {
+  if (data.length === 0) {
+    fileError.value = 'Le fichier est vide ou illisible.'
+    parsingFile.value = false
+    toast.hide()
+    return
+  }
+  const headerMap = buildHeaderMap(headers)
+  const missing = props.config.columns.filter(c => c.required && !headerMap.has(normalizeHeader(c.csvHeader)))
+  if (missing.length > 0) {
+    // Liste aussi ce qui a ete detecte dans le fichier — permet de
+    // reperer immediatement un probleme d'encodage (accents corrompus,
+    // ex: "IntitulÃ©") plutot qu'un simple nom de colonne different.
+    fileError.value = `Colonne(s) manquante(s) dans le fichier : ${missing.map(c => c.csvHeader).join(', ')}. Colonnes détectées dans le fichier : ${headers.join(', ') || 'aucune'}.`
+    parsingFile.value = false
+    toast.hide()
+    return
+  }
+  buildRows(data, headerMap)
+  fileReady.value = true
+  parsingFile.value = false
+  toast.success(`${data.length} ligne(s) analysée(s)`)
+}
+
 // Ne fait plus avancer a l'etape 2 automatiquement — l'utilisateur doit
 // confirmer via "Suivant" (voir goNext), pour pouvoir se rattraper si le
 // fichier deposé n'est pas le bon avant de passer a l'apercu.
@@ -151,40 +199,29 @@ function handleFile(file: File | undefined) {
   fileError.value = ''
   fileReady.value = false
   if (!file) return
-  if (!file.name.toLowerCase().endsWith('.csv')) {
-    fileError.value = 'Le fichier doit être au format CSV (.csv).'
+  const lower = file.name.toLowerCase()
+  const isXlsx = lower.endsWith('.xlsx')
+  if (!lower.endsWith('.csv') && !(isXlsx && props.config.acceptExcel)) {
+    fileError.value = props.config.acceptExcel ? 'Le fichier doit être au format Excel (.xlsx) ou CSV (.csv).' : 'Le fichier doit être au format CSV (.csv).'
     return
   }
   fileName.value = file.name
   parsingFile.value = true
   toast.loading('Analyse du fichier en cours…')
+  if (isXlsx) {
+    readXlsx(file)
+      .then(({ fields, data }) => onParsed(data, fields))
+      .catch(() => {
+        fileError.value = "Le fichier Excel n'a pas pu être lu. Vérifiez qu'il s'agit bien d'un fichier .xlsx valide."
+        parsingFile.value = false
+        toast.hide()
+      })
+    return
+  }
   Papa.parse<Record<string, string>>(file, {
     header: true,
     skipEmptyLines: true,
-    complete: (results) => {
-      if (results.data.length === 0) {
-        fileError.value = 'Le fichier est vide ou illisible.'
-        parsingFile.value = false
-        toast.hide()
-        return
-      }
-      const headers = results.meta.fields ?? []
-      const headerMap = buildHeaderMap(headers)
-      const missing = props.config.columns.filter(c => c.required && !headerMap.has(normalizeHeader(c.csvHeader)))
-      if (missing.length > 0) {
-        // Liste aussi ce qui a ete detecte dans le fichier — permet de
-        // reperer immediatement un probleme d'encodage (accents corrompus,
-        // ex: "IntitulÃ©") plutot qu'un simple nom de colonne different.
-        fileError.value = `Colonne(s) manquante(s) dans le fichier : ${missing.map(c => c.csvHeader).join(', ')}. Colonnes détectées dans le fichier : ${headers.join(', ') || 'aucune'}.`
-        parsingFile.value = false
-        toast.hide()
-        return
-      }
-      buildRows(results.data, headerMap)
-      fileReady.value = true
-      parsingFile.value = false
-      toast.success(`${results.data.length} ligne(s) analysée(s)`)
-    },
+    complete: (results) => onParsed(results.data, results.meta.fields ?? []),
     // err.message vient de PapaParse (toujours en anglais) — jamais affiché
     // tel quel, voir Lot F #3.
     error: () => {
@@ -460,10 +497,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                 <Loader2 v-if="parsingFile" class="w-6 h-6 text-primary animate-spin" />
                 <Upload v-else class="w-6 h-6 text-muted-foreground" />
                 <span v-if="parsingFile" class="text-[13px] text-foreground font-medium">Analyse du fichier en cours, patientez…</span>
-                <span v-else class="text-[13px] text-foreground font-medium">Glissez un fichier CSV ici, ou cliquez pour parcourir</span>
+                <span v-else class="text-[13px] text-foreground font-medium">{{ config.acceptExcel ? 'Glissez un fichier Excel ou CSV ici, ou cliquez pour parcourir' : 'Glissez un fichier CSV ici, ou cliquez pour parcourir' }}</span>
                 <span v-if="fileReady" class="text-[11px] text-success flex items-center gap-1"><CheckCircle2 class="w-3.5 h-3.5" /> {{ fileName }} : {{ rows.length }} ligne(s), prêt</span>
                 <span v-else-if="fileName && !parsingFile" class="text-[11px] text-primary">{{ fileName }}</span>
-                <input type="file" accept=".csv" class="hidden" :disabled="parsingFile" @change="onFileInput" />
+                <input type="file" :accept="config.acceptExcel ? '.csv,.xlsx' : '.csv'" class="hidden" :disabled="parsingFile" @change="onFileInput" />
               </label>
 
               <p v-if="fileError" :class="[cls.fieldErrorBlock, 'mt-3']">

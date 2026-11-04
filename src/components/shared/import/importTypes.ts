@@ -48,6 +48,8 @@ export interface ImportConfig {
   extraColumns?: ImportColumn[]
   /** Appele apres succes de la creation d'une ligne — effet de bord optionnel (ex: creer le compte utilisateur). Un rejet est capture et affiche comme avertissement a l'etape 3 (voir ImportRowResult.warning), pas silencieusement ignore. */
   onRowCreated?: (created: Record<string, unknown>, extra: Record<string, unknown>) => Promise<void>
+  /** Accepte aussi un fichier Excel (.xlsx) en plus du CSV (premiere feuille, premiere ligne = en-tetes). */
+  acceptExcel?: boolean
   /** Ajuste le payload juste avant l'envoi — pour un champ backend requis mais derivable d'un autre champ deja saisi (ex: HolidayType derive de OrganizationUnitId), sans l'exposer a l'utilisateur. */
   transformPayload?: (row: ParsedRow, payload: Record<string, unknown>) => Record<string, unknown>
   /** Validation inter-champs au-dela de "required" sur une colonne isolee (ex: "createAccount" coché sans catégorie choisie) — retourne un message si la ligne a un problème, undefined sinon. Affiché comme avertissement (n'empêche pas l'import). */
