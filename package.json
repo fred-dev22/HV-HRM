@@ -6,6 +6,7 @@
   "scripts": {
     "client:hv": "node scripts/client.mjs hv",
     "client:congelo": "node scripts/client.mjs congelo",
+    "client:grt": "node scripts/client.mjs grt",
     "client:reset": "node scripts/client.mjs reset",
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",

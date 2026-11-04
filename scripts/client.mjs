@@ -4,6 +4,7 @@
 //
 //   npm run client:hv        applique le profil HV (deploy/hv/brand du backend)
 //   npm run client:congelo   applique le profil Congelo (deploy/congelo/brand du backend)
+//   npm run client:grt       applique le profil GRT (marque Congelo + module Temps de travail)
 //   npm run client:reset     retour a l'application generique
 //   node scripts/client.mjs <profil.json>   autre profil (dossier ou client.json, relatif au backend)
 //
@@ -28,6 +29,7 @@ const arg = process.argv[2];
 let args;
 if (!arg || arg === 'hv') args = ['--preset', 'deploy/hv/brand'];
 else if (arg === 'congelo') args = ['--preset', 'deploy/congelo/brand'];
+else if (arg === 'grt') args = ['--preset', 'deploy/grt/brand'];
 else if (arg === 'reset') args = ['--reset'];
 else args = ['--preset', arg];
 
