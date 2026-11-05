@@ -44,8 +44,9 @@
               Méthode : <strong>{{ fixedMethod === 'weekly' ? 'cumul hebdomadaire au-delà de 40 h' : "dépassement de l'horaire du jour" }}</strong>
               <span class="text-muted-foreground"> (réglée dans Configuration, Réglages)</span>
             </p>
-            <button :class="L.btnPrimary" :disabled="busy" @click="runOvertime"><Calculator class="w-4 h-4" /> Lancer le calcul T5</button>
+            <button :class="L.btnPrimary" :disabled="busy || !dailyReady" @click="runOvertime"><Calculator class="w-4 h-4" /> Lancer le calcul T5</button>
           </div>
+          <p v-if="!dailyReady" class="text-[12px] text-muted-foreground mt-2">Lancez d'abord le calcul T4 sur cette période : T5 part des heures journalières.</p>
           <p v-if="overtimeText" class="text-[13px] mt-3 px-3 py-2 rounded-md bg-success-bg text-success flex items-center gap-1.5"><CircleCheck class="w-4 h-4 shrink-0" /> {{ overtimeText }}</p>
         </div>
       </div>
@@ -55,11 +56,10 @@
         <div :class="L.cardHeader">
           <div :class="L.cardTitle"><span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center justify-center shrink-0">4</span> <FileSpreadsheet class="w-4 h-4" /> Rapport et export Sage</div>
           <div class="flex items-center gap-2">
-            <button :class="L.btnOutline" :disabled="busy" @click="loadReport"><Search class="w-4 h-4" /> Afficher le rapport</button>
             <button :class="L.btnPrimary" :disabled="busy" @click="downloadSage"><FileSpreadsheet class="w-4 h-4" /> Export Sage (.xlsx)</button>
           </div>
         </div>
-        <div v-if="!report" class="text-[13px] text-muted-foreground">Affichez le rapport pour contrôler les heures par code avant l'export.</div>
+        <div v-if="!report" class="text-[13px] text-muted-foreground">Chargement du rapport...</div>
         <div v-else :class="L.tableCard">
           <table :class="L.table">
             <thead>
@@ -85,8 +85,8 @@
  * Export paie : calcul T4 (heures journalieres) puis T5 (heures supplementaires,
  * panier, permanence) sur une periode, rapport par code de paie et export Sage.
  */
-import { ref, computed, onMounted } from 'vue'
-import { CalendarRange, Clock, TrendingUp, Calculator, Search, FileSpreadsheet, CircleCheck } from 'lucide-vue-next'
+import { ref, computed, onMounted, watch } from 'vue'
+import { CalendarRange, Clock, TrendingUp, Calculator, FileSpreadsheet, CircleCheck } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { todayIso } from '../../lib/date'
@@ -100,8 +100,19 @@ const store = useTimeStore()
 const toast = useToastStore()
 
 const today = todayIso()
-const from = ref(`${today.slice(0, 8)}01`)
-const to = ref(today)
+// La periode choisie est gardee dans le navigateur (confort de saisie, jamais bloquant).
+const PERIOD_KEY = 'time-payroll-period'
+function savedPeriod(): { from: string; to: string } | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')
+    return p && /^\d{4}-\d{2}-\d{2}$/.test(p.from) && /^\d{4}-\d{2}-\d{2}$/.test(p.to) && p.from <= p.to ? p : null
+  } catch {
+    return null
+  }
+}
+const saved = savedPeriod()
+const from = ref(saved?.from ?? `${today.slice(0, 8)}01`)
+const to = ref(saved?.to ?? today)
 const method = ref<'daily' | 'weekly'>('daily')
 
 // Methode reglee pour le client : fixe (journaliere ou hebdomadaire) ou "les deux"
@@ -109,11 +120,17 @@ const method = ref<'daily' | 'weekly'>('daily')
 const methodValue = computed(() => store.settings.find(s => s.key === 'overtime_method')?.value)
 const methodChoice = computed(() => methodValue.value === undefined || methodValue.value === 2)
 const fixedMethod = computed<'daily' | 'weekly'>(() => (methodValue.value === 1 ? 'weekly' : 'daily'))
-onMounted(() => { store.fetchSettings().catch(() => {}) })
+onMounted(() => {
+  store.fetchSettings().catch(() => {})
+  loadReport()
+  loadStatus()
+})
 const busy = ref(false)
 const dailyText = ref('')
 const overtimeText = ref('')
 const report = ref<OvertimeReport | null>(null)
+// T5 part des heures journalieres de T4 : il faut qu'il y en ait sur la periode.
+const dailyReady = ref(false)
 
 const reportCodes = computed(() => {
   const codes = new Set<string>()
@@ -139,7 +156,10 @@ async function run<T>(label: string, action: () => Promise<T>, fallback: string)
 
 async function runDaily() {
   const r = await run('Calcul T4 en cours...', () => store.calculateDaily(from.value, to.value), 'Calcul impossible')
-  if (r) dailyText.value = `${r.calculated} jour(s) calculé(s), ${r.skipped} ignoré(s).`
+  if (r) {
+    dailyText.value = `${r.calculated} jour(s) calculé(s), ${r.skipped} ignoré(s).`
+    await loadStatus()
+  }
 }
 async function runOvertime() {
   const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, methodChoice.value ? method.value : undefined), 'Calcul impossible')
@@ -148,13 +168,41 @@ async function runOvertime() {
     await loadReport()
   }
 }
+// Le rapport suit la periode : il se recharge quand les dates changent (la derniere
+// reponse seule est gardee si l'utilisateur change vite de dates).
+let reportSeq = 0
 async function loadReport() {
+  if (!from.value || !to.value || from.value > to.value) return
+  const seq = ++reportSeq
   try {
-    report.value = await store.fetchReport(from.value, to.value)
+    const data = await store.fetchReport(from.value, to.value)
+    if (seq === reportSeq) report.value = data
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'Chargement du rapport impossible'))
   }
 }
+let statusSeq = 0
+async function loadStatus() {
+  if (!from.value || !to.value || from.value > to.value) return
+  const seq = ++statusSeq
+  try {
+    const s = await store.fetchCalculationStatus(from.value, to.value)
+    if (seq === statusSeq) dailyReady.value = s.dailyRows > 0
+  } catch {
+    if (seq === statusSeq) dailyReady.value = true // en cas de doute, le serveur refuse lui-meme T5 sans T4
+  }
+}
+
+watch([from, to], () => {
+  if (from.value && to.value && from.value <= to.value) {
+    try { localStorage.setItem(PERIOD_KEY, JSON.stringify({ from: from.value, to: to.value })) } catch { /* stockage indisponible */ }
+  }
+  dailyText.value = ''
+  overtimeText.value = ''
+  loadReport()
+  loadStatus()
+})
+
 async function downloadSage() {
   await run('Génération de l\'export...', () => store.downloadSageXlsx(from.value, to.value), 'Export impossible')
 }
