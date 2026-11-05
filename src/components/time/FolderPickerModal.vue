@@ -1,6 +1,6 @@
 <template>
   <ModalShell :open="open" title="Choisir le dossier des exports Morpho" max-width="max-w-[560px]" @close="emit('close')">
-    <p class="text-[12px] text-muted-foreground -mt-2">Dossiers du serveur, là où les fichiers .xlsx de la pointeuse sont déposés.</p>
+    <p class="text-[12px] text-muted-foreground -mt-2">Dossiers du serveur, là où les fichiers .xlsx de la pointeuse sont déposés.<template v-if="listing?.root"> Recherche limitée à <span class="font-medium text-foreground">{{ listing.root }}</span>.</template></p>
 
     <form class="flex items-center gap-2" @submit.prevent="go(typed)">
       <input v-model="typed" :class="cls.fieldInput" placeholder="Saisir un chemin puis Entrée" />

@@ -95,6 +95,8 @@ export interface FolderListing {
   folders: { name: string; path: string }[]
   xlsxCount: number
   shortcuts: { name: string; path: string }[]
+  // Zone autorisee par l'installation (MORPHO_ROOT) ; null = tout le serveur.
+  root: string | null
 }
 
 export interface MorphoConfig {
@@ -333,6 +335,10 @@ export const useTimeStore = defineStore('time', {
       const overtime = await api.post('/time/calculation/overtime', { From: from, To: to, Method: method })
       return { hours: hours.data, overtime: overtime.data }
     },
+    async fetchCalculationStatus(from: string, to: string) {
+      const { data } = await api.get<{ dailyRows: number; overtimeRows: number }>('/time/calculation/status', { params: { From: from, To: to } })
+      return data
+    },
     async fetchReport(from: string, to: string) {
       const { data } = await api.get<OvertimeReport>('/time/calculation/report', { params: { From: from, To: to } })
       return data
@@ -373,9 +379,6 @@ export const useTimeStore = defineStore('time', {
     },
     async updateType(id: string, payload: { Name?: string; Description?: string; SageTypeCode?: number }) {
       await api.patch(`/time/settings/types/${id}`, payload)
-    },
-    async createCode(typeId: string, payload: { Code: string; Description?: string }) {
-      await api.post(`/time/settings/types/${typeId}/codes`, payload)
     },
     async updateCode(id: string, payload: { Code?: string; Description?: string }) {
       await api.patch(`/time/settings/codes/${id}`, payload)

@@ -133,7 +133,6 @@
             <p class="text-[11px] text-muted-foreground mt-0.5">Code Sage du type : {{ t.sageTypeCode ?? '-' }}</p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button :class="L.btnOutline" @click="openCode(t, null)"><Plus class="w-4 h-4" /> Ajouter un code</button>
             <button :class="L.btnOutline" @click="openType(t)"><Pencil class="w-4 h-4" /> Modifier</button>
           </div>
         </div>
@@ -230,7 +229,7 @@
     </ModalShell>
 
     <!-- Fenetre : code -->
-    <ModalShell :open="!!codeForm" :title="codeForm?.id ? 'Modifier le code' : 'Ajouter un code'" max-width="max-w-[520px]" @close="codeForm = null">
+    <ModalShell :open="!!codeForm" title="Modifier le code" max-width="max-w-[520px]" @close="codeForm = null">
       <template v-if="codeForm">
         <div :class="cls.field">
           <label :class="cls.fieldLabel">Code</label>
@@ -256,7 +255,7 @@
  * de permanence.
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Plus, Lock, Trash2, Coins, Calculator, UserX, Link2, CircleCheck } from 'lucide-vue-next'
+import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Lock, Trash2, Coins, Calculator, UserX, Link2, CircleCheck } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
@@ -434,9 +433,9 @@ function openType(t: TimeType) {
   formError.value = ''
   typeForm.value = { id: t.id, name: t.name, description: t.description ?? '', sageTypeCode: t.sageTypeCode }
 }
-function openCode(t: TimeType, c: TimeType['codes'][number] | null) {
+function openCode(t: TimeType, c: TimeType['codes'][number]) {
   formError.value = ''
-  codeForm.value = { typeId: t.id, id: c?.id ?? null, code: c?.code ?? '', description: c?.description ?? '', locked: c?.locked ?? false }
+  codeForm.value = { typeId: t.id, id: c.id, code: c.code, description: c.description ?? '', locked: c.locked }
 }
 async function saveType() {
   const f = typeForm.value
@@ -453,9 +452,7 @@ async function saveCode() {
   if (!f.locked && !f.code.trim()) { formError.value = 'Le code est obligatoire.'; return }
   const r = await run(
     'Enregistrement...',
-    () => (f.id
-      ? store.updateCode(f.id, { ...(f.locked ? {} : { Code: f.code.trim() }), Description: f.description })
-      : store.createCode(f.typeId, { Code: f.code.trim(), Description: f.description || undefined })),
+    () => store.updateCode(f.id!, { ...(f.locked ? {} : { Code: f.code.trim() }), Description: f.description }),
     'Enregistrement impossible',
   )
   if (!r.ok) { formError.value = r.message ?? ''; return }
