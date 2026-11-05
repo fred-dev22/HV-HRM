@@ -48,7 +48,7 @@
                       <Coffee class="w-3.5 h-3.5 shrink-0" />
                       <span>Pause {{ day.hours?.breakStart }} → {{ day.hours?.breakEnd }}</span>
                     </div>
-                    <div class="text-[11px] font-semibold text-primary mt-1">{{ effectiveHoursLabel(day.hours) }} effectives</div>
+                    <div class="text-[11px] font-semibold text-primary mt-1">{{ effectiveHoursLabel(day.hours) }} prévues</div>
                   </div>
                 </template>
 
@@ -116,7 +116,7 @@
                 <Clock class="w-5 h-5 text-primary shrink-0" />
                 <div class="flex flex-col gap-0.5">
                   <span class="text-lg font-bold text-foreground">{{ effectiveHoursTotal }}</span>
-                  <span class="text-[11px] text-muted-foreground">Heures effectives prévues</span>
+                  <span class="text-[11px] text-muted-foreground">Heures prévues</span>
                 </div>
               </div>
             </div>

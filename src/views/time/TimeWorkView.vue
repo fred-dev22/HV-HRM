@@ -8,7 +8,7 @@
     </div>
 
     <!-- Onglets -->
-    <div class="flex gap-1 border-b-[1.5px] border-border overflow-x-auto">
+    <div class="flex gap-1 border-b-[1.5px] border-border overflow-x-auto overflow-y-hidden">
       <button
         v-for="tb in visibleTabs" :key="tb.key"
         class="flex items-center gap-1.5 px-[18px] py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer bg-transparent"
