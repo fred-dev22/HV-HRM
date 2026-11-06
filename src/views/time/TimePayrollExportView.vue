@@ -44,8 +44,16 @@
               Méthode : <strong>{{ fixedMethod === 'weekly' ? 'cumul hebdomadaire au-delà de 40 h' : "dépassement de l'horaire du jour" }}</strong>
               <span class="text-muted-foreground"> (réglée dans Configuration, Réglages)</span>
             </p>
-            <button :class="L.btnPrimary" :disabled="busy || !dailyReady" @click="runOvertime"><Calculator class="w-4 h-4" /> Lancer le calcul T5</button>
+            <div :class="cls.field" class="min-w-[200px]">
+              <label :class="cls.fieldLabel">Code à calculer</label>
+              <select v-model="onlyCode" :class="cls.fieldSelect">
+                <option value="">Tous les codes</option>
+                <option v-for="c in CALCULATED_CODES" :key="c.code" :value="c.code">{{ c.label }}</option>
+              </select>
+            </div>
+            <button :class="L.btnPrimary" :disabled="busy || !dailyReady" @click="runOvertime"><Calculator class="w-4 h-4" /> {{ onlyCode ? `Recalculer ${onlyCode}` : 'Lancer le calcul T5' }}</button>
           </div>
+          <p v-if="onlyCode" class="text-[12px] text-muted-foreground mt-2">Seules les lignes {{ onlyCode }} de la période sont remplacées, les autres codes restent tels quels.</p>
           <p v-if="!dailyReady" class="text-[12px] text-muted-foreground mt-2">Lancez d'abord le calcul T4 sur cette période : T5 part des heures journalières.</p>
           <p v-if="overtimeText" class="text-[13px] mt-3 px-3 py-2 rounded-md bg-success-bg text-success flex items-center gap-1.5"><CircleCheck class="w-4 h-4 shrink-0" /> {{ overtimeText }}</p>
         </div>
@@ -114,6 +122,18 @@ const saved = savedPeriod()
 const from = ref(saved?.from ?? `${today.slice(0, 8)}01`)
 const to = ref(saved?.to ?? today)
 const method = ref<'daily' | 'weekly'>('daily')
+// Mode par code : vide = tous les codes. Les codes calcules automatiquement par T5.
+const onlyCode = ref('')
+const CALCULATED_CODES = [
+  { code: 'HS01', label: 'HS01 : heures sup. à 130 %' },
+  { code: 'HS02', label: 'HS02 : heures sup. à 150 %' },
+  { code: 'HS03', label: 'HS03 : HS01 non imposables' },
+  { code: 'HS04', label: 'HS04 : HS02 non imposables' },
+  { code: 'HS09', label: 'HS09 : heures de nuit' },
+  { code: 'HS10', label: 'HS10 : dimanche et jours fériés' },
+  { code: '30900', label: '30900 : panier' },
+  { code: '2210', label: '2210 : permanence' },
+]
 
 // Methode reglee pour le client : fixe (journaliere ou hebdomadaire) ou "les deux"
 // (choix a chaque calcul). Sans reglage lisible, on propose le choix.
@@ -162,9 +182,9 @@ async function runDaily() {
   }
 }
 async function runOvertime() {
-  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, methodChoice.value ? method.value : undefined), 'Calcul impossible')
+  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, methodChoice.value ? method.value : undefined, onlyCode.value), 'Calcul impossible')
   if (r) {
-    overtimeText.value = `${r.calculated} ligne(s) de paie (méthode ${r.method === 'weekly' ? 'hebdomadaire' : 'journalière'}), ${r.excludedCadres} cadre(s) exclu(s).`
+    overtimeText.value = `${r.calculated} ligne(s) de paie${r.code ? ` ${r.code}` : ''} (méthode ${r.method === 'weekly' ? 'hebdomadaire' : 'journalière'}), ${r.excludedCadres} cadre(s) exclu(s).`
     await loadReport()
   }
 }

@@ -345,8 +345,8 @@ export const useTimeStore = defineStore('time', {
       return data
     },
     // Calcul T5 : heures supplementaires, panier et permanence (lignes de paie).
-    async calculateOvertime(from: string, to: string, method?: 'daily' | 'weekly') {
-      const { data } = await api.post<{ calculated: number; excludedCadres: number; method: 'daily' | 'weekly' }>('/time/calculation/overtime', { From: from, To: to, Method: method })
+    async calculateOvertime(from: string, to: string, method?: 'daily' | 'weekly', code?: string) {
+      const { data } = await api.post<{ calculated: number; excludedCadres: number; method: 'daily' | 'weekly'; code?: string }>('/time/calculation/overtime', { From: from, To: to, Method: method, Code: code || undefined })
       return data
     },
     async calculate(from: string, to: string, method: 'daily' | 'weekly') {
