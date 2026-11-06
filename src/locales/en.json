@@ -238,7 +238,7 @@
     "placeholder_first": "e.g. Aminata",
     "placeholder_last": "e.g. Diallo",
     "placeholder_code": "EMP001",
-    "placeholder_email": "first.last@exemple.com",
+    "placeholder_email": "first.last{'@'}exemple.com",
     "placeholder_phone": "+230 5xx xxxx",
     "placeholder_job": "e.g. HR Assistant",
     "placeholder_position": "Position code",
