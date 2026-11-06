@@ -21,6 +21,7 @@ import { useEmployeeStore } from '../../stores/employees'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useContractStore, useTrialStore } from '../../stores/recruitment'
 import type { Contract } from '../../stores/recruitment'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 
 const props = defineProps<{
   open: boolean
@@ -100,43 +101,23 @@ const showDirectValidatorSection = computed(() =>
 function canValidateLeave(e: { validatorPermissions?: string[] }): boolean {
   return !!e.validatorPermissions?.includes('CONGE_VALIDER')
 }
-const validatorColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'label', label: 'Nom' }]
-function fetchValidatorCandidates({ searchQuery }: LookupFetchParams) {
-  let items = employeeStore.employees.map(e => ({
-    id: e.id, label: e.name, code: e.code, sublabel: e.entityName,
-    status: e.status, hasAccount: e.hasAccount, validatorPermissions: e.validatorPermissions,
-  }))
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase()
-    items = items.filter(e => e.label.toLowerCase().includes(q) || e.code.toLowerCase().includes(q))
-  }
-  return { items, total: items.length }
-}
-function isValidatorDisabled(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): boolean {
-  return item.status !== 'active' || !item.hasAccount || !canValidateLeave(item)
-}
-function validatorDisabledReason(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): string {
-  if (item.status !== 'active') return 'compte désactivé'
-  if (!item.hasAccount) return "n'a pas de compte utilisateur"
-  if (!canValidateLeave(item)) return 'permission de validation des congés manquante'
+// Choix du validateur direct : EmployeePicker, le même choix d'employé partout dans l'application.
+// Les employés qui ne peuvent pas valider restent visibles mais grisés, avec le motif.
+const validatorItems = computed(() => employeeStore.employees.map(e => ({ id: e.id, label: e.name, code: e.code, sublabel: e.entityName, status: e.status })))
+function validatorBlockedReason(id: string): string {
+  const e = employeeStore.employees.find(x => x.id === id)
+  if (!e) return ''
+  if (e.status !== 'active') return 'compte désactivé'
+  if (!e.hasAccount) return "n'a pas de compte utilisateur"
+  if (!canValidateLeave(e)) return 'permission de validation des congés manquante'
   return ''
 }
-const validatorName = ref('')
-const validatorCode = ref('')
-// Vrai des que l'utilisateur choisit OU vide lui-meme le validateur : le
-// defaut (responsable de l'entite) ne doit jamais ecraser ce choix.
+// Vrai des que l'utilisateur choisit OU vide lui-meme le validateur : le defaut (responsable de
+// l'entite) ne doit jamais ecraser ce choix.
 const validatorTouched = ref(false)
-function onValidatorSelect(item: Record<string, unknown>) {
+function onValidatorPick(id: string) {
   validatorTouched.value = true
-  form.DirectValidatorId = String(item.id)
-  validatorName.value = String(item.label)
-  validatorCode.value = String(item.code)
-}
-// Le champ lookup vide seulement son libelle a la croix : sans ceci l'ancien
-// id resterait envoye alors que le champ parait vide.
-function onValidatorNameUpdate(name: string) {
-  validatorName.value = name
-  if (!name) { form.DirectValidatorId = ''; validatorTouched.value = true }
+  form.DirectValidatorId = id
 }
 // Defaut = responsable de l'entite choisie, seulement s'il est reellement
 // eligible (le backend refuse sinon la creation). Rejoue a chaque changement
@@ -145,14 +126,10 @@ watchEffect(() => {
   if (!props.open || validatorTouched.value) return
   const headId = showDirectValidatorSection.value ? entityStore.getEntityById(form.OrganizationUnitId)?.managerId : null
   const head = headId ? employeeStore.employees.find(e => e.id === headId) : undefined
-  if (head && !isValidatorDisabled(head)) {
+  if (head && !validatorBlockedReason(head.id)) {
     form.DirectValidatorId = head.id
-    validatorName.value = head.name
-    validatorCode.value = head.code
   } else {
     form.DirectValidatorId = ''
-    validatorName.value = ''
-    validatorCode.value = ''
   }
 })
 
@@ -335,14 +312,7 @@ async function submit() {
             </p>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Validateur</label>
-              <TableLookupField
-                :code="validatorCode" :name="validatorName"
-                value-key="id" name-key="label"
-                :columns="validatorColumns" :fetch-fn="fetchValidatorCandidates"
-                :is-item-disabled="isValidatorDisabled" :item-disabled-reason="validatorDisabledReason"
-                modal-title="Sélectionner un validateur" placeholder="Code employé"
-                @update:code="validatorCode = $event" @update:name="onValidatorNameUpdate" @select="onValidatorSelect"
-              />
+              <EmployeePicker :model-value="form.DirectValidatorId" :employees="validatorItems" :disabled-reason-of="validatorBlockedReason" placeholder="Code employé" modal-title="Sélectionner un validateur" @update:model-value="onValidatorPick" />
             </div>
           </FormSection>
         </div>

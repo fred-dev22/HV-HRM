@@ -64,11 +64,13 @@ const selected = computed(() => rows.value.find(e => e.id === props.modelValue))
 const selectedCode = computed(() => selected.value?.code ?? '')
 const selectedName = computed(() => selected.value?.label ?? '')
 
-const isDisabled = (item: { id: string; status?: string }) => !!disabledReason(item)
-function disabledReason(item: { id: string; status?: string }): string {
-  const custom = props.disabledReasonOf?.(item.id)
+// Les lignes du sélecteur arrivent sous forme d'objets génériques : on lit id et status à la main.
+const isDisabled = (item: Record<string, unknown>) => !!disabledReason(item)
+function disabledReason(item: Record<string, unknown>): string {
+  const custom = props.disabledReasonOf?.(String(item.id))
   if (custom) return custom
-  return item.status && item.status !== 'active' ? 'compte désactivé' : ''
+  const status = item.status as string | undefined
+  return status && status !== 'active' ? 'compte désactivé' : ''
 }
 
 function fetchEmployees(params: LookupFetchParams) {

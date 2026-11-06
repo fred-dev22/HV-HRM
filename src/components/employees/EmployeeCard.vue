@@ -9,6 +9,7 @@ import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import UserAvatar from '../ui/UserAvatar.vue'
 import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import type { LookupFetchParams } from '../ui/table-lookup/TableLookupField.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import CreateUserAccountDialog from './CreateUserAccountDialog.vue'
@@ -116,11 +117,6 @@ const form = ref({
   maritalStatus: 'Single' as MaritalStatus, idType: 'NationalId' as IdDocumentType, idNumber: '',
   directValidatorId: '' as string,
 })
-// Séparé de `form` (plutôt que form.directValidatorName) : `save()` envoie
-// `{ ...form.value, ... }` au backend, un champ d'affichage local mélangé
-// dedans devrait être retiré avant l'envoi — plus simple de ne jamais
-// l'y mettre.
-const directValidatorDisplayName = ref('')
 
 // Le mode de validation des congés (pool vs validateur direct) est un choix
 // d'ENTITÉ, pas d'employé (retour du 09/09, voir ApprovalPoolConfig.vue) —
@@ -141,32 +137,16 @@ const showDirectValidatorSection = computed(() => relevantEntityLeaveMode.value 
 function canValidateLeave(e: { validatorPermissions?: string[] }): boolean {
   return !!e.validatorPermissions?.includes('CONGE_VALIDER')
 }
-const validatorColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'label', label: 'Nom' }]
-function fetchValidatorCandidates({ searchQuery }: LookupFetchParams) {
-  let items = store.employees.map(e => ({
-    id: e.id, label: e.name, code: e.code, sublabel: e.entityName,
-    status: e.status, hasAccount: e.hasAccount, validatorPermissions: e.validatorPermissions,
-  }))
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase()
-    items = items.filter(e => e.label.toLowerCase().includes(q) || e.code.toLowerCase().includes(q))
-  }
-  return { items, total: items.length }
-}
-function isValidatorDisabled(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): boolean {
-  return item.status !== 'active' || !item.hasAccount || !canValidateLeave(item)
-}
-function validatorDisabledReason(item: { status?: string; hasAccount?: boolean; validatorPermissions?: string[] }): string {
-  if (item.status !== 'active') return 'compte désactivé'
-  if (!item.hasAccount) return "n'a pas de compte utilisateur"
-  if (!canValidateLeave(item)) return 'permission de validation des congés manquante'
+// Choix du validateur direct : EmployeePicker, le même choix d'employé partout dans l'application.
+// Les employés qui ne peuvent pas valider restent visibles mais grisés, avec le motif.
+const validatorItems = computed(() => store.employees.map(e => ({ id: e.id, label: e.name, code: e.code, sublabel: e.entityName, status: e.status })))
+function validatorBlockedReason(id: string): string {
+  const e = store.getById(id)
+  if (!e) return ''
+  if (e.status !== 'active') return 'compte désactivé'
+  if (!e.hasAccount) return "n'a pas de compte utilisateur"
+  if (!canValidateLeave(e)) return 'permission de validation des congés manquante'
   return ''
-}
-const validatorCode = ref('')
-function onValidatorSelect(item: Record<string, unknown>) {
-  form.value.directValidatorId = String(item.id)
-  directValidatorDisplayName.value = String(item.label)
-  validatorCode.value = String(item.code)
 }
 
 function enterEdit() {
@@ -181,8 +161,6 @@ function enterEdit() {
     maritalStatus: e.maritalStatus, idType: e.idType, idNumber: e.idNumber ?? '',
     directValidatorId: e.directValidatorId ?? '',
   }
-  directValidatorDisplayName.value = e.directValidatorId ? (store.getById(e.directValidatorId)?.name ?? '') : ''
-  validatorCode.value = e.directValidatorId ? (store.getById(e.directValidatorId)?.code ?? '') : ''
   const ent = e.entityId ? entityStore.getEntityById(e.entityId) : undefined
   entityCode.value = ent?.code ?? ''
   positionCode.value = ''
@@ -521,14 +499,7 @@ async function deletePermanently() {
           <template v-if="isEditMode">
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Validateur</label>
-              <TableLookupField
-                :code="validatorCode" :name="directValidatorDisplayName"
-                value-key="id" name-key="label"
-                :columns="validatorColumns" :fetch-fn="fetchValidatorCandidates"
-                :is-item-disabled="isValidatorDisabled" :item-disabled-reason="validatorDisabledReason"
-                modal-title="Sélectionner un validateur" placeholder="Code employé"
-                @update:code="validatorCode = $event" @update:name="directValidatorDisplayName = $event" @select="onValidatorSelect"
-              />
+              <EmployeePicker v-model="form.directValidatorId" :employees="validatorItems" :disabled-reason-of="validatorBlockedReason" placeholder="Code employé" modal-title="Sélectionner un validateur" />
               <span v-if="form.directValidatorId && form.directValidatorId === current.id" class="flex items-center gap-1 text-[11px] text-warning mt-1">
                 <Info class="w-3 h-3" /> Cet employé est son propre validateur : ses demandes seront auto-approuvées, sans validation humaine.
               </span>

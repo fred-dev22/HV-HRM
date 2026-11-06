@@ -3,10 +3,11 @@
  * Fiche de création d'une entité — sur CreateModalShell (pattern frontdesk).
  * Entité parente et responsable via TableLookupField.
  */
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { Info } from 'lucide-vue-next'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import type { LookupFetchParams } from '../ui/table-lookup/TableLookupField.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
 import * as cls from '../../lib/formClasses'
@@ -30,16 +31,10 @@ function fetchParents({ searchQuery }: LookupFetchParams) {
 }
 function isEntityDisabled(item: { status?: string }) { return item.status === 'Inactive' }
 
-const employeeColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'name', label: 'Nom' }]
-function fetchManagers({ searchQuery }: LookupFetchParams) {
-  let items = empStore.employees
-  if (searchQuery) { const q = searchQuery.toLowerCase(); items = items.filter(e => e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q)) }
-  return { items, total: items.length }
-}
-function isEmployeeDisabled(item: { status?: string }) { return item.status !== 'active' }
+// Responsable : EmployeePicker, le même choix d'employé partout dans l'application.
+const managerItems = computed(() => empStore.employees.map(e => ({ id: e.id, label: e.name, code: e.code, sublabel: e.entityName, status: e.status })))
 
 const parentCode = ref('')
-const managerCode = ref('')
 const form = reactive({ name: '', code: '', type: '' as EntityType | '', parentId: '' as string | null, parentName: '', legalIdentifier: '', address: '', managerId: '' as string | null, responsibleName: '', phone: '', email: '' })
 const error = ref('')
 
@@ -52,7 +47,6 @@ function onNameInput() {
 function onCodeInput() { codeTouched.value = true }
 
 function onParentSelect(item: Record<string, unknown>) { form.parentId = String(item.id); form.parentName = String(item.name); parentCode.value = String(item.code) }
-function onManagerSelect(item: Record<string, unknown>) { form.managerId = String(item.id); form.responsibleName = String(item.name); managerCode.value = String(item.code) }
 
 function validate(): boolean {
   if (!form.name.trim()) { error.value = "L'intitulé est obligatoire"; return false }
@@ -144,7 +138,7 @@ async function saveDraft() {
           <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Responsable</label>
-              <TableLookupField :code="managerCode" :name="form.responsibleName" value-key="code" name-key="name" :columns="employeeColumns" :fetch-fn="fetchManagers" :is-item-disabled="isEmployeeDisabled" :item-disabled-reason="() => 'compte désactivé'" modal-title="Sélectionner le responsable" placeholder="Matricule" @update:code="managerCode = $event" @update:name="form.responsibleName = $event" @select="onManagerSelect" />
+              <EmployeePicker :model-value="form.managerId ?? ''" @update:model-value="form.managerId = $event || null" :employees="managerItems" modal-title="Sélectionner un responsable" placeholder="Code employé" />
             </div>
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Téléphone</label>

@@ -57,18 +57,13 @@
               </div>
               <div :class="cls.field" class="col-span-2">
                 <label :class="cls.fieldLabel">Participants <span class="text-danger">*</span></label>
-                <TableLookupField
-                  :code="participantPickerCode" :name="participantPickerName"
-                  :columns="employeeLookupColumns"
-                  :fetch-fn="fetchEmployeesForPicker"
-                  value-key="id" name-key="label"
+                <EmployeePicker
+                  :key="pickerResets"
+                  :employees="participantItems"
+                  :disabled-reason-of="participantBlockedReason"
+                  placeholder="Ajouter un participant"
                   modal-title="Ajouter un participant"
-                  placeholder="Rechercher un employé (code, nom, entité)…"
-                  :is-item-disabled="(item) => item.status && item.status !== 'active'"
-                  :item-disabled-reason="() => 'compte désactivé'"
-                  @update:code="participantPickerCode = $event"
-                  @update:name="participantPickerName = $event"
-                  @select="onAddParticipant"
+                  @update:model-value="onAddParticipant"
                 />
                 <div v-if="form.participants.length" class="flex flex-col gap-1.5 mt-2">
                   <div v-for="(p, idx) in form.participants" :key="p.employeeId" class="flex items-center gap-2 bg-background border border-border rounded-md px-2.5 h-[34px]">
@@ -101,8 +96,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { MapPin, Video, X } from 'lucide-vue-next'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import FormSection from '../ui/form-field/FormSection.vue'
-import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
-import type { LookupColumn, LookupFetchParams } from '../ui/table-lookup/TableLookupField.vue'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import * as cls from '../../lib/formClasses'
 import { getApiErrorMessage } from '../../lib/api'
 import { withToast } from '../../lib/withToast'
@@ -135,33 +129,18 @@ const preselectedApplication = computed(() =>
 
 const eligibleApplications = computed(() => applicationStore.items.filter(a => a.status === 'New' || a.status === 'InReview'))
 
-const employeeLookupColumns: LookupColumn[] = [
-  { key: 'code', label: 'Code', width: '90px' },
-  { key: 'label', label: 'Nom' },
-  { key: 'sublabel', label: 'Entité' },
-]
-function fetchEmployeesForPicker(params: LookupFetchParams) {
-  const q = (params.searchQuery ?? '').toLowerCase()
-  let rows = employeeStore.directory.map(e => ({ id: e.id, code: e.code, label: e.name, sublabel: e.entityName, status: e.status }))
-  if (q) {
-    rows = rows.filter(e =>
-      e.label.toLowerCase().includes(q) || (e.sublabel ?? '').toLowerCase().includes(q) || (e.code ?? '').toLowerCase().includes(q),
-    )
-  }
-  const total = rows.length
-  const start = (params.page - 1) * params.pageSize
-  return { items: rows.slice(start, start + params.pageSize), total }
+// Participants : EmployeePicker, le même choix d'employé partout dans l'application. Le sélecteur est
+// recréé après chaque ajout pour revenir à vide.
+const participantItems = computed(() => employeeStore.directory.map(e => ({ id: e.id, code: e.code, label: e.name, sublabel: e.entityName, status: e.status })))
+const pickerResets = ref(0)
+function participantBlockedReason(id: string): string {
+  return form.participants.some(p => p.employeeId === id) ? 'déjà participant' : ''
 }
-const participantPickerCode = ref('')
-const participantPickerName = ref('')
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function onAddParticipant(item: any) {
-  const employeeId = String(item.id)
-  if (!form.participants.some(p => p.employeeId === employeeId)) {
-    form.participants.push({ employeeId, name: String(item.label) })
-  }
-  participantPickerCode.value = ''
-  participantPickerName.value = ''
+function onAddParticipant(employeeId: string) {
+  if (!employeeId) return
+  const e = employeeStore.directory.find(x => x.id === employeeId)
+  if (e && !form.participants.some(p => p.employeeId === employeeId)) form.participants.push({ employeeId, name: e.name })
+  pickerResets.value++
 }
 
 const error = ref<string | null>(null)
@@ -175,8 +154,7 @@ function resetForm() {
     applicationId: props.preselectedApplicationId ?? '',
     scheduledAt: '', mode: 'InPerson', location: '', meetingLink: '', participants: [],
   })
-  participantPickerCode.value = ''
-  participantPickerName.value = ''
+  pickerResets.value++
   error.value = null
 }
 watch(() => props.open, (o) => { if (o) resetForm() }, { immediate: true })

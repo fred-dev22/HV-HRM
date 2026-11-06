@@ -99,6 +99,16 @@ function validatorBlockedReason(employeeId: string, level: 1 | 2 | 3 | 4): strin
   if (isAssignedAtOtherLevel(e.id, level)) return 'déjà à un autre niveau'
   return ''
 }
+// Intérimaire d'un niveau du pool : un compte actif de l'entité, jamais le titulaire lui-même.
+function interimBlockedReason(id: string, titularId: string): string {
+  const e = empStore.employees.find(x => x.id === id)
+  if (!e) return ''
+  if (e.id === titularId) return 'est le titulaire'
+  if (e.status !== 'active') return 'compte désactivé'
+  if (!e.hasAccount) return "n'a pas de compte utilisateur"
+  if (e.entityId !== props.entityId) return "n'est pas dans cette entité"
+  return ''
+}
 // Le selecteur est recree apres chaque ajout pour revenir a vide.
 const pickerResets = ref(0)
 async function pickValidator(level: 1 | 2 | 3 | 4, employeeId: string) {
@@ -257,7 +267,6 @@ function employeeLabel(id?: string): string {
 // Employés éligibles comme intérimaire : même entité que celle configurée
 // ici (decision du 30/07) — un intérimaire d'une autre entité n'a pas de
 // sens dans ce contexte de validation.
-const interimCandidates = computed(() => empStore.employees.filter(x => x.hasAccount && x.entityId === props.entityId))
 </script>
 
 <template>
@@ -368,14 +377,13 @@ const interimCandidates = computed(() => empStore.employees.filter(x => x.hasAcc
           <div v-if="interimOpenFor === level" class="flex flex-col gap-2 mt-1 pt-2 border-t border-border">
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Intérimaire</label>
-              <select v-model="interimForm.interimEmployeeId" :class="cls.fieldSelect">
-                <option value="">-- Aucun --</option>
-                <option
-                  v-for="e in interimCandidates.filter(x => x.id !== memberAt(level)!.employeeId)" :key="e.id" :value="e.id"
-                  :disabled="e.status !== 'active'"
-                  :title="e.status !== 'active' ? 'Ce compte est désactivé.' : ''"
-                >{{ e.name }}{{ e.status !== 'active' ? ' (compte désactivé)' : '' }}</option>
-              </select>
+              <EmployeePicker
+                v-model="interimForm.interimEmployeeId"
+                :employees="validatorItems"
+                :disabled-reason-of="(id) => interimBlockedReason(id, memberAt(level)!.employeeId)"
+                placeholder="Code employé"
+                modal-title="Sélectionner un intérimaire"
+              />
               <p class="text-[11px] text-muted-foreground mt-1">
                 Utilisé automatiquement quand ce validateur a un congé approuvé couvrant le jour où une demande lui arrive, pas besoin de préciser de dates.
               </p>

@@ -9,6 +9,7 @@ import { Ban, RotateCcw, Trash2 } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
 import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
+import EmployeePicker from '../ui/EmployeePicker.vue'
 import type { LookupFetchParams } from '../ui/table-lookup/TableLookupField.vue'
 import EntityWorkflowActions from './EntityWorkflowActions.vue'
 import ApprovalPoolConfig from './ApprovalPoolConfig.vue'
@@ -43,13 +44,8 @@ function fetchParents({ searchQuery }: LookupFetchParams) {
 }
 function isEntityDisabled(item: { status?: string }) { return item.status === 'Inactive' }
 
-const employeeColumns = [{ key: 'code', label: 'Matricule', width: '90px' }, { key: 'name', label: 'Nom' }]
-function fetchManagers({ searchQuery }: LookupFetchParams) {
-  let items = empStore.employees
-  if (searchQuery) { const q = searchQuery.toLowerCase(); items = items.filter(e => e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q)) }
-  return { items, total: items.length }
-}
-function isEmployeeDisabled(item: { status?: string }) { return item.status !== 'active' }
+// Responsable : EmployeePicker, le même choix d'employé partout dans l'application.
+const managerItems = computed(() => empStore.employees.map(e => ({ id: e.id, label: e.name, code: e.code, sublabel: e.entityName, status: e.status })))
 
 const currentId = ref(props.entityId)
 watch(() => props.entityId, (v) => { currentId.value = v; isEditMode.value = false })
@@ -84,7 +80,6 @@ function selectSidebar(no: string) { const e = props.entities.find(x => x.code =
 const isEditMode = ref(false)
 const canEdit = computed(() => current.value?.status === 'Draft' || current.value?.status === 'Active')
 const parentCode = ref('')
-const managerCode = ref('')
 const form = ref({ name: '', code: '', type: 'Service' as EntityType, parentId: '' as string | null, parentName: '', legalIdentifier: '', address: '', managerId: '' as string | null, responsibleName: '', phone: '', email: '' })
 
 function enterEdit() {
@@ -97,14 +92,12 @@ function enterEdit() {
     phone: e.phone ?? '', email: e.email ?? '',
   }
   parentCode.value = parentEntity.value?.code ?? ''
-  managerCode.value = e.managerId ? (empStore.getById(e.managerId)?.code ?? '') : ''
   isEditMode.value = true
 }
 function cancelEdit() { isEditMode.value = false }
 // Ouverte depuis la page detail (bouton Modifier) : directement en modification.
 onMounted(() => { if (props.startInEdit && canEdit.value) enterEdit() })
 function onParentSelect(item: Record<string, unknown>) { form.value.parentId = String(item.id); form.value.parentName = String(item.name); parentCode.value = String(item.code) }
-function onManagerSelect(item: Record<string, unknown>) { form.value.managerId = String(item.id); form.value.responsibleName = String(item.name); managerCode.value = String(item.code) }
 async function save() {
   if (!current.value) return
   await store.updateEntity(current.value.id, {
@@ -240,7 +233,7 @@ async function deletePermanently() {
         <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Responsable</label>
-            <TableLookupField v-if="isEditMode" :code="managerCode" :name="form.responsibleName" value-key="code" name-key="name" :columns="employeeColumns" :fetch-fn="fetchManagers" :is-item-disabled="isEmployeeDisabled" :item-disabled-reason="() => 'compte désactivé'" modal-title="Sélectionner le responsable" placeholder="Matricule" @update:code="managerCode = $event" @update:name="form.responsibleName = $event" @select="onManagerSelect" />
+            <EmployeePicker v-if="isEditMode" :model-value="form.managerId ?? ''" @update:model-value="form.managerId = $event || null" :employees="managerItems" modal-title="Sélectionner un responsable" placeholder="Code employé" />
             <div v-else :class="readBox">{{ current.responsibleName || '-' }}</div>
           </div>
           <div :class="cls.field">
