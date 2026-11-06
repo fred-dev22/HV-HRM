@@ -4,7 +4,7 @@
  * frontdesk. Entité parente via TableLookupField. Pools de validation,
  * sous-entités, historique.
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Ban, RotateCcw, Trash2 } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
@@ -20,7 +20,7 @@ import { useEmployeeStore } from '../../stores/employees'
 import { useAuthStore } from '../../stores/auth'
 import type { Entity, EntityType } from '../../types'
 
-const props = defineProps<{ entities: Entity[]; entityId: string }>()
+const props = defineProps<{ entities: Entity[]; entityId: string; startInEdit?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const store = useEntityStore()
@@ -101,6 +101,8 @@ function enterEdit() {
   isEditMode.value = true
 }
 function cancelEdit() { isEditMode.value = false }
+// Ouverte depuis la page detail (bouton Modifier) : directement en modification.
+onMounted(() => { if (props.startInEdit && canEdit.value) enterEdit() })
 function onParentSelect(item: Record<string, unknown>) { form.value.parentId = String(item.id); form.value.parentName = String(item.name); parentCode.value = String(item.code) }
 function onManagerSelect(item: Record<string, unknown>) { form.value.managerId = String(item.id); form.value.responsibleName = String(item.name); managerCode.value = String(item.code) }
 async function save() {

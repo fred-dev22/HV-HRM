@@ -74,8 +74,6 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'hr-training-providers':       'FORMATION_ACCES',
   'hr-employees':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
   'hr-entities':         'ENTITE_VOIR',
-  'hr-entity-create':    'ENTITE_CREER',
-  'hr-entity-edit':      'ENTITE_MODIFIER',
   'hr-entity-detail':    'ENTITE_VOIR',
   'hr-org-chart':        'ENTITE_VOIR',
   'hr-config-calendar':      'CONFIG_CALENDRIER',
@@ -231,16 +229,6 @@ const router = createRouter({
     {
       path: '/hr/entities', name: 'hr-entities',
       component: () => import('../views/entities/EntityListView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
-    },
-    {
-      path: '/hr/entities/new', name: 'hr-entity-create',
-      component: () => import('../views/entities/EntityFormView.vue'),
-      meta: { requiresAuth: true, layout: 'dashboard' },
-    },
-    {
-      path: '/hr/entities/:id/edit', name: 'hr-entity-edit',
-      component: () => import('../views/entities/EntityFormView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
     {

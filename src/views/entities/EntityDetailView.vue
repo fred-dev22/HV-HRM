@@ -32,9 +32,9 @@
               </button>
 
               <template v-if="entity.status === 'Draft'">
-                <router-link v-if="auth.hasPermission('ENTITE_MODIFIER')" :to="{ name: 'hr-entity-edit', params: { id: entity.id } }" :class="L.btnOutline">
+                <button v-if="auth.hasPermission('ENTITE_MODIFIER')" :class="L.btnOutline" @click="showEditCard = true">
                   <Pencil class="w-4 h-4" /> Modifier
-                </router-link>
+                </button>
                 <button v-if="auth.hasPermission('ENTITE_SOUMETTRE')" :class="L.btnPrimary" @click="store.submitEntity(entity.id)">
                   <Send class="w-4 h-4" /> Soumettre pour approbation
                 </button>
@@ -48,9 +48,9 @@
                 </button>
               </template>
               <template v-else-if="entity.status === 'Active'">
-                <router-link v-if="auth.hasPermission('ENTITE_MODIFIER')" :to="{ name: 'hr-entity-edit', params: { id: entity.id } }" :class="L.btnOutline">
+                <button v-if="auth.hasPermission('ENTITE_MODIFIER')" :class="L.btnOutline" @click="showEditCard = true">
                   <Pencil class="w-4 h-4" /> Modifier
-                </router-link>
+                </button>
                 <button v-if="!isRoot && auth.hasPermission('ENTITE_DESACTIVER')" :class="btnDangerOutline" @click="store.deactivateEntity(entity.id)">
                   <Ban class="w-4 h-4" /> Désactiver
                 </button>
@@ -168,11 +168,14 @@
           </div>
         </template>
 
+    <!-- Modification : meme fenetre que depuis la liste des entites -->
+    <EntityCard v-if="showEditCard && entity" :entities="store.entities" :entity-id="entity.id" start-in-edit @close="showEditCard = false" />
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   TriangleAlert, ChevronRight, ArrowLeft, Pencil, Send, Check, X, Ban, Info,
@@ -180,6 +183,7 @@ import {
 } from 'lucide-vue-next'
 import { SkeletonLoader } from '../../components'
 import ApprovalPoolConfig from '../../components/entities/ApprovalPoolConfig.vue'
+import EntityCard from '../../components/entities/EntityCard.vue'
 import * as L from '../../lib/listClasses'
 import { useAuthStore }       from '../../stores/auth'
 import { useEntityStore }     from '../../stores/entities'
@@ -193,6 +197,7 @@ const empStore = useEmployeeStore()
 const navStore = useNavigationStore()
 const route    = useRoute()
 const router   = useRouter()
+const showEditCard = ref(false)
 if (empStore.employees.length === 0) empStore.fetchAll()
 
 // ── Classes du design system ─────────────────────────────────
