@@ -67,17 +67,19 @@ function upsert<T extends { id: string }>(list: T[], row: T): T {
 export type CourseInput = Pick<Course, 'title' | 'category' | 'description' | 'durationHours' | 'maxParticipants' | 'providerId' | 'budgetAllocated'>
 
 export const useCourseStore = defineStore('training-courses', {
-  state: () => ({ items: [] as Course[], loaded: false, loading: false }),
+  state: () => ({ items: [] as Course[], loaded: false, loading: false,
+    loadedFetches: [] as string[] }),
   getters: {
     inProgressCount: (state) => state.items.filter(c => c.status === 'InProgress').length,
     inPreparationCount: (state) => state.items.filter(c => c.status === 'InPreparation').length,
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Course[]>('/training/courses')
         this.items = data
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.loaded = true
       } finally {
         this.loading = false
@@ -103,17 +105,19 @@ export const useCourseStore = defineStore('training-courses', {
 export type SessionInput = Pick<TrainingSession, 'courseId' | 'scheduledAt' | 'endAt' | 'mode' | 'location' | 'meetingLink' | 'trainerName' | 'capacity'>
 
 export const useSessionStore = defineStore('training-sessions', {
-  state: () => ({ items: [] as TrainingSession[], loaded: false, loading: false }),
+  state: () => ({ items: [] as TrainingSession[], loaded: false, loading: false,
+    loadedFetches: [] as string[] }),
   getters: {
     upcoming: (state) => state.items.filter(s => s.status === 'Scheduled')
       .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)),
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<TrainingSession[]>('/training/sessions')
         this.items = data.map(mapSession)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.loaded = true
       } finally {
         this.loading = false
@@ -149,7 +153,8 @@ export const useSessionStore = defineStore('training-sessions', {
 // Inscriptions (couvre la demande de formation + la presence)
 // ═══════════════════════════════════════════════════════════════
 export const useEnrollmentStore = defineStore('training-enrollments', {
-  state: () => ({ items: [] as Enrollment[], loaded: false, loading: false }),
+  state: () => ({ items: [] as Enrollment[], loaded: false, loading: false,
+    loadedFetches: [] as string[] }),
   getters: {
     pendingRequests: (state) => state.items.filter(e => e.status === 'Requested'),
     coldEvalsDue: (state) => state.items.filter(e =>
@@ -158,10 +163,11 @@ export const useEnrollmentStore = defineStore('training-enrollments', {
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Enrollment[]>('/training/enrollments')
         this.items = data.map(mapEnrollment)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.loaded = true
       } finally {
         this.loading = false
@@ -207,13 +213,15 @@ export const useEnrollmentStore = defineStore('training-enrollments', {
 export type ProviderInput = Pick<Provider, 'name' | 'contactName' | 'email' | 'phone' | 'specialties'>
 
 export const useProviderStore = defineStore('training-providers', {
-  state: () => ({ items: [] as Provider[], loaded: false, loading: false }),
+  state: () => ({ items: [] as Provider[], loaded: false, loading: false,
+    loadedFetches: [] as string[] }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Provider[]>('/training/providers')
         this.items = data
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.loaded = true
       } finally {
         this.loading = false
@@ -242,17 +250,19 @@ export const useProviderStore = defineStore('training-providers', {
 export type BudgetInput = Pick<BudgetLine, 'year' | 'entityName' | 'courseTitle' | 'allocated' | 'comment'>
 
 export const useBudgetStore = defineStore('training-budget', {
-  state: () => ({ items: [] as BudgetLine[], loaded: false, loading: false }),
+  state: () => ({ items: [] as BudgetLine[], loaded: false, loading: false,
+    loadedFetches: [] as string[] }),
   getters: {
     totalAllocated: (state) => state.items.filter(b => b.requestStatus === 'Approved').reduce((s, b) => s + b.allocated, 0),
     totalUsed: (state) => state.items.filter(b => b.requestStatus === 'Approved').reduce((s, b) => s + b.used, 0),
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<BudgetLine[]>('/training/budget')
         this.items = data
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.loaded = true
       } finally {
         this.loading = false

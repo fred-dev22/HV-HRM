@@ -203,9 +203,19 @@ const query = computed<TimeEntryQuery>(() => ({
 }))
 
 let seq = 0
+let lastKey = ''
 async function load() {
   const mine = ++seq
-  loading.value = true
+  // Derniere lecture gardee pour les memes criteres : affichee tout de suite, sans indicateur
+  // de chargement, puis TOUJOURS relue en arriere-plan (donnees exactes).
+  const key = 'entries:' + JSON.stringify([kind.value, query.value, page.value, pageSize.value])
+  const cached = store.getCached<{ list: { items: TimeEntry[]; total: number }; sum: TimeEntriesSummary }>(key)
+  if (cached) {
+    rows.value = cached.list.items
+    total.value = cached.list.total
+    summary.value = cached.sum
+  }
+  loading.value = !cached && key !== lastKey
   try {
     const [list, sum] = await Promise.all([
       store.fetchEntriesPage(kind.value, { ...query.value, Page: page.value, Limit: pageSize.value }),
@@ -215,6 +225,8 @@ async function load() {
     rows.value = list.items
     total.value = list.total
     summary.value = sum
+    store.setCached(key, { list, sum })
+    lastKey = key
   } catch (e) {
     if (mine === seq) toast.error(getApiErrorMessage(e, 'Chargement des saisies impossible'))
   } finally {

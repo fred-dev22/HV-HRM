@@ -295,13 +295,15 @@ function upsert<T extends { id: string }>(list: T[], row: T) {
 // Expressions de besoin
 // ═══════════════════════════════════════════════════════════════
 export const useHiringRequestStore = defineStore('recruitment-hiring-requests', {
-  state: () => ({ items: [] as HiringRequest[], loading: false, error: null as string | null }),
+  state: () => ({ items: [] as HiringRequest[], loading: false,
+    loadedFetches: [] as string[], error: null as string | null }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/hiring-requests')
         this.items = data.map(mapHiringRequest)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des expressions de besoin impossible')
@@ -355,16 +357,18 @@ export const useHiringRequestStore = defineStore('recruitment-hiring-requests', 
 // Offres d'emploi
 // ═══════════════════════════════════════════════════════════════
 export const useJobOfferStore = defineStore('recruitment-job-offers', {
-  state: () => ({ items: [] as JobOffer[], loading: false, error: null as string | null }),
+  state: () => ({ items: [] as JobOffer[], loading: false,
+    loadedFetches: [] as string[], error: null as string | null }),
   getters: {
     published: (state) => state.items.filter((o) => o.status === 'Published'),
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/job-offers')
         this.items = data.map(mapJobOffer)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des offres impossible')
@@ -468,6 +472,7 @@ export const useApplicationStore = defineStore('recruitment-applications', {
     // Pieces jointes reelles par candidature (backlog "Depot de CV reel").
     documentsByApplication: {} as Record<string, RecruitmentDocument[]>,
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   getters: {
@@ -477,10 +482,11 @@ export const useApplicationStore = defineStore('recruitment-applications', {
   },
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/applications')
         this.items = data.map(mapApplication)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des candidatures impossible')
@@ -590,14 +596,16 @@ export const useInterviewStore = defineStore('recruitment-interviews', {
     items: [] as Interview[],
     evaluationTemplates: [] as InterviewEvaluationTemplate[],
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/interviews')
         this.items = data.map(mapInterview)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des entretiens impossible')
@@ -677,13 +685,15 @@ export const useInterviewStore = defineStore('recruitment-interviews', {
 // Grilles d'evaluation d'entretien (US15)
 // ═══════════════════════════════════════════════════════════════
 export const useEvalTemplateStore = defineStore('recruitment-eval-templates', {
-  state: () => ({ items: [] as InterviewEvaluationTemplate[], loading: false, error: null as string | null }),
+  state: () => ({ items: [] as InterviewEvaluationTemplate[], loading: false,
+    loadedFetches: [] as string[], error: null as string | null }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/evaluation-templates')
         this.items = data.map(mapEvalTemplate)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des grilles impossible')
@@ -717,13 +727,15 @@ export const useEvalTemplateStore = defineStore('recruitment-eval-templates', {
 // Vivier de talents
 // ═══════════════════════════════════════════════════════════════
 export const useTalentPoolStore = defineStore('recruitment-talent-pool', {
-  state: () => ({ items: [] as TalentPoolEntry[], loading: false, error: null as string | null }),
+  state: () => ({ items: [] as TalentPoolEntry[], loading: false,
+    loadedFetches: [] as string[], error: null as string | null }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/talent-pool')
         this.items = data.map(mapTalentPoolEntry)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement du vivier impossible')
@@ -795,14 +807,16 @@ export const useContractStore = defineStore('recruitment-contracts', {
     templates: [] as ContractTemplate[],
     eligibleApplications: [] as { id: string; referenceCode: string; candidateName: string; jobOfferTitle?: string }[],
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/contracts')
         this.items = data.map(mapContract)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des propositions impossible')
@@ -907,13 +921,15 @@ export const useContractStore = defineStore('recruitment-contracts', {
 // Periodes d'essai
 // ═══════════════════════════════════════════════════════════════
 export const useTrialStore = defineStore('recruitment-trial', {
-  state: () => ({ items: [] as TrialEmployee[], loading: false, error: null as string | null }),
+  state: () => ({ items: [] as TrialEmployee[], loading: false,
+    loadedFetches: [] as string[], error: null as string | null }),
   actions: {
     async fetchAll() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get<Row[]>('/recruitment/trial-employees')
         this.items = data.map(mapTrialEmployee)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des periodes d\'essai impossible')
@@ -978,14 +994,16 @@ export const usePublicCareersStore = defineStore('recruitment-public-careers', {
     // Jeton de formulaire anti-spam (usage unique, re-recupere apres chaque envoi).
     formToken: null as string | null,
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   actions: {
     async fetchPublished() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchPublished')
       try {
         const { data } = await api.get<Row[]>('/public/careers')
         this.offers = data.map(mapPublicOffer)
+        if (!this.loadedFetches.includes('fetchPublished')) this.loadedFetches.push('fetchPublished')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des offres impossible')
@@ -1048,14 +1066,16 @@ export const useDistributionStore = defineStore('recruitment-distribution', {
     channels: [] as DistributionChannel[],
     byOffer: {} as Record<string, JobOfferDistribution[]>,
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   actions: {
     async fetchChannels() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchChannels')
       try {
         const { data } = await api.get<Row[]>('/recruitment/distribution-channels')
         this.channels = data.map(mapDistributionChannel)
+        if (!this.loadedFetches.includes('fetchChannels')) this.loadedFetches.push('fetchChannels')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des canaux impossible')

@@ -146,16 +146,27 @@ const kpis = computed(() => [
 ])
 
 let seq = 0
+let lastKey = ''
 async function load() {
   if (!from.value || !to.value || from.value > to.value) return
   const mine = ++seq
-  loading.value = true
+  // Voir TimeEntriesView : derniere lecture affichee tout de suite, relue en silence.
+  const key = 'timesheets:' + JSON.stringify([props.kind, from.value, to.value, debouncedSearch.value, page.value, pageSize.value])
+  const cached = store.getCached<Awaited<ReturnType<typeof store.fetchTimesheetSummary>>>(key)
+  if (cached) {
+    rows.value = cached.items
+    total.value = cached.total
+    totals.value = cached.meta.totals
+  }
+  loading.value = !cached && key !== lastKey
   try {
     const res = await store.fetchTimesheetSummary(props.kind, { From: from.value, To: to.value, Search: debouncedSearch.value, Page: page.value, PageSize: pageSize.value })
     if (mine !== seq) return
     rows.value = res.items
     total.value = res.total
     totals.value = res.meta.totals
+    store.setCached(key, res)
+    lastKey = key
     emit('period', from.value, to.value)
   } catch (e) {
     if (mine === seq) toast.error(getApiErrorMessage(e, 'Chargement impossible'))

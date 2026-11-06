@@ -425,13 +425,19 @@ watch(search, (v) => {
 onBeforeUnmount(() => clearTimeout(searchTimer))
 watch([debouncedSearch, filterEntity], () => { page.value = 1 })
 
+let lastKey = ''
 async function loadPage() {
   const seq = ++pageSeq
-  loadingPage.value = true
   const params: BalancePageParams = { page: page.value, pageSize: pageSize.value, search: debouncedSearch.value, entity: filterEntity.value }
+  // Derniere page gardee pour les memes criteres : affichee tout de suite, sans indicateur de
+  // chargement, puis TOUJOURS relue en arriere-plan (donnees exactes).
+  const key = JSON.stringify(params)
+  const cached = balanceStore.peekBalancePage(params)
+  if (cached) pageData.value = cached
+  loadingPage.value = !cached && key !== lastKey
   try {
     const data = await balanceStore.fetchBalancePage(params)
-    if (seq === pageSeq) pageData.value = data
+    if (seq === pageSeq) { pageData.value = data; lastKey = key }
   } catch {
     // le toast d'erreur reseau est gere par l'intercepteur ; la page precedente reste affichee
   } finally {

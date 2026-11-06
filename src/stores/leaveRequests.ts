@@ -160,18 +160,25 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   const pagePending   = ref(0)
   const pageLoading   = ref(false)
   let lastPageParams: LeavePageParams | null = null
+  // Voir employees.ts : page gardee affichee tout de suite, relue en silence, videe a
+  // chaque changement et a la deconnexion.
+  const pageCache = new Map<string, { items: LeaveRequest[]; total: number; pending: number }>()
   let pageSeq = 0
   const pendingForMe  = ref<LeaveRequest[]>([])
   const validatedByMe = ref<LeaveRequest[]>([])
   const loading       = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error         = ref<string | null>(null)
 
   async function fetchMine() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchMine')
     error.value = null
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/mine')
       mine.value = data.map(mapLeaveRequest)
+      loadedFetches.add('fetchMine')
       mineLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger vos demandes de congé')
@@ -182,11 +189,12 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   }
 
   async function fetchTeam() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchTeam')
     error.value = null
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/team')
       team.value = data.map(mapLeaveRequest)
+      loadedFetches.add('fetchTeam')
       teamLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible de charger les demandes de l'équipe")
@@ -197,11 +205,12 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   }
 
   async function fetchAll() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAll')
     error.value = null
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests')
       all.value = data.map(mapLeaveRequest)
+      loadedFetches.add('fetchAll')
       allLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les demandes de congé')
@@ -265,17 +274,25 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
 
   // Page de l'ecran liste. Les reponses arrivent parfois dans le desordre
   // (frappe rapide dans la recherche) : seule la derniere requete compte.
-  async function fetchPage(params: LeavePageParams) {
+  async function fetchPage(params: LeavePageParams, opts: { silent?: boolean } = {}) {
     lastPageParams = params
     const seq = ++pageSeq
-    pageLoading.value = true
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+    const key = JSON.stringify(clean)
+    const cached = pageCache.get(key)
+    if (cached) {
+      pageItems.value = cached.items
+      pageTotal.value = cached.total
+      pagePending.value = cached.pending
+    }
+    pageLoading.value = !cached && !opts.silent
     try {
-      const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
       const { data } = await api.get<{ items: BackendLeaveRequest[]; total: number; meta?: { pending: number } }>('/leave-requests/page', { params: clean })
       if (seq !== pageSeq) return
       pageItems.value = data.items.map(mapLeaveRequest)
       pageTotal.value = data.total
       pagePending.value = data.meta?.pending ?? 0
+      pageCache.set(key, { items: pageItems.value, total: pageTotal.value, pending: pagePending.value })
     } catch (err) {
       if (seq === pageSeq) error.value = getApiErrorMessage(err, 'Impossible de charger les demandes de congé')
       throw err
@@ -286,7 +303,8 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   // Rafraichit la page affichee (temps reel, action de workflow) — sans effet
   // si l'ecran liste n'est pas ouvert.
   function refreshPage() {
-    return lastPageParams ? fetchPage(lastPageParams).catch(() => {}) : Promise.resolve()
+    pageCache.clear()
+    return lastPageParams ? fetchPage(lastPageParams, { silent: true }).catch(() => {}) : Promise.resolve()
   }
   function releasePage() { lastPageParams = null }
 
@@ -298,11 +316,12 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   }
 
   async function fetchPendingForMe() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchPendingForMe')
     error.value = null
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/pending-for-me')
       pendingForMe.value = data.map(mapLeaveRequest)
+      loadedFetches.add('fetchPendingForMe')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les demandes à valider')
       throw err
@@ -317,11 +336,12 @@ export const useLeaveRequestStore = defineStore('leaveRequests', () => {
   // disparaitre comme le fait pendingForMe (qui lui reste une file d'attente
   // exacte, utilisee pour le badge de notification).
   async function fetchValidatedByMe() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchValidatedByMe')
     error.value = null
     try {
       const { data } = await api.get<BackendLeaveRequest[]>('/leave-requests/validated-by-me')
       validatedByMe.value = data.map(mapLeaveRequest)
+      loadedFetches.add('fetchValidatedByMe')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les demandes déjà traitées')
       throw err

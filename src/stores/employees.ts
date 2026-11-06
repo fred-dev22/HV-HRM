@@ -225,6 +225,11 @@ export const useEmployeeStore = defineStore('employees', () => {
   const pageMeta = ref<EmployeePageMeta | null>(null)
   const pageLoading = ref(false)
   let lastPageParams: EmployeePageParams | null = null
+  // Dernieres pages lues, par criteres (filtres, recherche, tri, page). Au retour sur
+  // l'ecran, la page gardee s'affiche tout de suite, sans indicateur de chargement,
+  // et elle est TOUJOURS relue en arriere-plan (donnees exactes). Videe a chaque
+  // changement (refreshPage) et a la deconnexion (le store est reinitialise).
+  const pageCache = new Map<string, { items: Employee[]; total: number; meta: EmployeePageMeta }>()
   let pageSeq = 0
   // Annuaire léger (fetchDirectory), tenu à part de `employees` : fetchAll/
   // fetchTeam/fetchDirectory partageaient auparavant le même tableau, donc
@@ -253,6 +258,9 @@ export const useEmployeeStore = defineStore('employees', () => {
   // Soldes de chaque collaborateur, par type de conge : { idEmploye: { idType: solde } }.
   const collaboratorBalances = ref<Record<string, Record<string, number>>>({})
   const loading   = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error     = ref<string | null>(null)
 
   const activeEmployees   = computed(() => employees.value.filter(e => e.status === 'active'))
@@ -293,12 +301,13 @@ export const useEmployeeStore = defineStore('employees', () => {
   }
 
   async function fetchAll() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAll')
     error.value = null
     try {
       await ensurePositionsLoaded()
       const { data } = await api.get<BackendEmployee[]>('/employees')
       employees.value = data.map(mapEmployee)
+      loadedFetches.add('fetchAll')
       allLoaded.value = true
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
@@ -312,11 +321,12 @@ export const useEmployeeStore = defineStore('employees', () => {
   // un selecteur de beneficiaire/interimaire quand l'appelant n'a pas
   // EMPLOYE_VOIR_TOUT/EQUIPE (fetchAll/fetchTeam echoueraient en 403).
   async function fetchDirectory() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchDirectory')
     error.value = null
     try {
       const { data } = await api.get<BackendDirectoryEmployee[]>('/employees/directory')
       directory.value = data.map(mapDirectoryEmployee)
+      loadedFetches.add('fetchDirectory')
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible de charger l'annuaire des employés")
       throw err
@@ -329,12 +339,13 @@ export const useEmployeeStore = defineStore('employees', () => {
   // EMPLOYE_VOIR_EQUIPE plutot que EMPLOYE_VOIR_TOUT (voir /employees/team
   // cote backend).
   async function fetchCollaborators() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchCollaborators')
     error.value = null
     try {
       await ensurePositionsLoaded()
       const { data } = await api.get<(BackendEmployee & { Links?: string[]; Balances?: Record<string, number> })[]>('/employees/collaborators')
       collaborators.value = data.map(mapEmployee)
+      loadedFetches.add('fetchCollaborators')
       collaboratorLinks.value = Object.fromEntries(data.map(e => [e.Id, e.Links ?? []]))
       collaboratorBalances.value = Object.fromEntries(data.map(e => [e.Id, e.Balances ?? {}]))
     } catch (err) {
@@ -346,12 +357,13 @@ export const useEmployeeStore = defineStore('employees', () => {
   }
 
   async function fetchTeam() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchTeam')
     error.value = null
     try {
       await ensurePositionsLoaded()
       const { data } = await api.get<BackendEmployee[]>('/employees/team')
       team.value = data.map(mapEmployee)
+      loadedFetches.add('fetchTeam')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger votre équipe')
       throw err
@@ -379,17 +391,25 @@ export const useEmployeeStore = defineStore('employees', () => {
     }
   }
 
-  async function fetchPage(params: EmployeePageParams) {
+  async function fetchPage(params: EmployeePageParams, opts: { silent?: boolean } = {}) {
     lastPageParams = params
     const seq = ++pageSeq
-    pageLoading.value = true
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+    const key = JSON.stringify(clean)
+    const cached = pageCache.get(key)
+    if (cached) {
+      pageItems.value = cached.items
+      pageTotal.value = cached.total
+      pageMeta.value = cached.meta
+    }
+    pageLoading.value = !cached && !opts.silent
     try {
-      const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
       const { data } = await api.get<{ items: (BackendEmployee & { PaletteIndex?: number })[]; total: number; meta: EmployeePageMeta }>('/employees/page', { params: clean })
       if (seq !== pageSeq) return
       pageItems.value = data.items.map(r => mapEmployee(r, r.PaletteIndex ?? 0))
       pageTotal.value = data.total
       pageMeta.value = data.meta
+      pageCache.set(key, { items: pageItems.value, total: pageTotal.value, meta: pageMeta.value })
     } catch (err) {
       if (seq === pageSeq) error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
       throw err
@@ -400,7 +420,8 @@ export const useEmployeeStore = defineStore('employees', () => {
   // Rafraichit la page affichee (temps reel, creation/modification) — sans effet
   // si l'ecran liste n'est pas ouvert.
   function refreshPage() {
-    return lastPageParams ? fetchPage(lastPageParams).catch(() => {}) : Promise.resolve()
+    pageCache.clear()
+    return lastPageParams ? fetchPage(lastPageParams, { silent: true }).catch(() => {}) : Promise.resolve()
   }
   function releasePage() { lastPageParams = null }
   function replaceInPage(mapped: Employee) {

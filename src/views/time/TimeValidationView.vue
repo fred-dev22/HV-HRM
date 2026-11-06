@@ -195,9 +195,18 @@ function resetFilters() {
 }
 
 let seq = 0
+let lastKey = ''
 async function load() {
   const mine = ++seq
-  loading.value = true
+  // Voir TimeEntriesView : derniere lecture affichee tout de suite, relue en silence.
+  const key = 'validation:' + JSON.stringify([tab.value, debouncedSearch.value, entryType.value, from.value, to.value, page.value, pageSize.value])
+  const cached = store.getCached<{ rows: TimeEntry[]; counts: Record<TabKey, number>; pendingHours: number }>(key)
+  if (cached) {
+    rows.value = cached.rows
+    counts.value = cached.counts
+    pendingHours.value = cached.pendingHours
+  }
+  loading.value = !cached && key !== lastKey
   try {
     const q = { Search: debouncedSearch.value, EntryType: entryType.value, From: from.value, To: to.value }
     // La page affichee + le compte de l'autre scope (un Limit de 1 suffit pour son total).
@@ -210,6 +219,8 @@ async function load() {
     rows.value = current.items
     counts.value = { [tab.value]: current.total, [other]: side.total } as Record<TabKey, number>
     pendingHours.value = tab.value === 'pending' ? current.hours : side.hours
+    store.setCached(key, { rows: rows.value, counts: counts.value, pendingHours: pendingHours.value })
+    lastKey = key
   } catch (e) {
     if (mine === seq) toast.error(getApiErrorMessage(e, 'Chargement des saisies impossible'))
   } finally {

@@ -35,17 +35,19 @@ export const useRemindersStore = defineStore('reminders', {
   state: () => ({
     items: [] as UpcomingDeadline[],
     loading: false,
+    loadedFetches: [] as string[],
     error: null as string | null,
   }),
   actions: {
     async fetchUpcoming(from?: string, to?: string) {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchUpcoming')
       try {
         const params: Record<string, string> = {}
         if (from) params.From = from
         if (to) params.To = to
         const { data } = await api.get<UpcomingDeadline[]>('/reminders/upcoming', { params })
         this.items = data
+        if (!this.loadedFetches.includes('fetchUpcoming')) this.loadedFetches.push('fetchUpcoming')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des echeances impossible')

@@ -211,6 +211,9 @@ export const useMissionStore = defineStore('missions', () => {
   const all          = ref<MissionOrder[]>([])
   const pendingForMe = ref<MissionOrder[]>([])
   const loading      = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error        = ref<string | null>(null)
 
   // forEmployeeId (optionnel) : etend le resultat aux missions du
@@ -218,13 +221,14 @@ export const useMissionStore = defineStore('missions', () => {
   // (voir ExpenseCreate.vue) — le picker "Mission liee" doit proposer ses
   // missions en plus des miennes.
   async function fetchMine(forEmployeeId?: string) {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchMine')
     error.value = null
     try {
       const { data } = await api.get<BackendMissionOrder[]>('/mission-orders/mine', {
         params: forEmployeeId ? { forEmployeeId } : undefined,
       })
       mine.value = data.map(mapMissionOrder)
+      loadedFetches.add('fetchMine')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger vos ordres de mission')
       throw err
@@ -234,11 +238,12 @@ export const useMissionStore = defineStore('missions', () => {
   }
 
   async function fetchTeam() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchTeam')
     error.value = null
     try {
       const { data } = await api.get<BackendMissionOrder[]>('/mission-orders/team')
       team.value = data.map(mapMissionOrder)
+      loadedFetches.add('fetchTeam')
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible de charger les ordres de mission de l'équipe")
       throw err
@@ -248,11 +253,12 @@ export const useMissionStore = defineStore('missions', () => {
   }
 
   async function fetchAll() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAll')
     error.value = null
     try {
       const { data } = await api.get<BackendMissionOrder[]>('/mission-orders')
       all.value = data.map(mapMissionOrder)
+      loadedFetches.add('fetchAll')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les ordres de mission')
       throw err
@@ -262,11 +268,12 @@ export const useMissionStore = defineStore('missions', () => {
   }
 
   async function fetchPendingForMe() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchPendingForMe')
     error.value = null
     try {
       const { data } = await api.get<BackendMissionOrder[]>('/mission-orders/pending-for-me')
       pendingForMe.value = data.map(mapMissionOrder)
+      loadedFetches.add('fetchPendingForMe')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les ordres de mission à valider')
       throw err

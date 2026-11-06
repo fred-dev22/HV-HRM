@@ -385,10 +385,12 @@ const balTotal = computed(() => balData.value?.total ?? 0)
 let balSeq = 0
 async function loadBalances() {
   const seq = ++balSeq
+  const params = { page: balPage.value, pageSize: balPageSize.value, sort: balSortKey.value, dir: balSortDir.value }
+  // Derniere page gardee affichee tout de suite, puis relue en silence.
+  const cached = balanceStore.peekBalancePage(params)
+  if (cached) balData.value = cached
   try {
-    const data = await balanceStore.fetchBalancePage({
-      page: balPage.value, pageSize: balPageSize.value, sort: balSortKey.value, dir: balSortDir.value,
-    })
+    const data = await balanceStore.fetchBalancePage(params)
     if (seq === balSeq) balData.value = data
   } catch {
     // le widget garde sa derniere page affichee

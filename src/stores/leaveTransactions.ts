@@ -40,18 +40,22 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
   const myBalances  = ref<LeaveBalance[]>([])
   const allBalances = ref<EmployeeLeaveBalances[]>([])
   const loading     = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error       = ref<string | null>(null)
   // Incremente a chaque changement de soldes (ajustement, import, generation,
   // temps reel) : les ecrans qui affichent une page de soldes la relisent.
   const balancesVersion = ref(0)
-  const bumpBalances = () => { balancesVersion.value++ }
+  const bumpBalances = () => { balancePageCache.clear(); balancesVersion.value++ }
 
   async function fetchMyBalances() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchMyBalances')
     error.value = null
     try {
       const { data } = await api.get<LeaveBalance[]>('/leave-transactions/balance/mine')
       myBalances.value = data
+      loadedFetches.add('fetchMyBalances')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger vos soldes de congés')
       throw err
@@ -66,18 +70,28 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
   }
 
   // Une page de soldes (pagination, recherche, filtre entite, tri : serveur).
+  // Les dernieres pages lues sont gardees (par criteres) : l'ecran les affiche tout de suite au
+  // retour, puis relit TOUJOURS en arriere-plan. Videe quand les soldes changent (bumpBalances).
+  const balancePageCache = new Map<string, BalancePage>()
+  const balanceKey = (params: BalancePageParams) =>
+    JSON.stringify(Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null)))
+  function peekBalancePage(params: BalancePageParams): BalancePage | undefined {
+    return balancePageCache.get(balanceKey(params))
+  }
   async function fetchBalancePage(params: BalancePageParams): Promise<BalancePage> {
     const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
     const { data } = await api.get<BalancePage>('/leave-transactions/balance/page', { params: clean })
+    balancePageCache.set(balanceKey(params), data)
     return data
   }
 
   async function fetchAllBalances() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAllBalances')
     error.value = null
     try {
       const { data } = await api.get<EmployeeLeaveBalances[]>('/leave-transactions/balance/all')
       allBalances.value = data
+      loadedFetches.add('fetchAllBalances')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les soldes de congés')
       throw err
@@ -146,5 +160,5 @@ export const useLeaveTransactionStore = defineStore('leaveTransactions', () => {
     }, () => error.value ?? "Impossible de mettre à jour ce solde")
   }
 
-  return { myBalances, allBalances, loading, error, balancesVersion, bumpBalances, fetchBalancePage, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual, setBalance }
+  return { myBalances, allBalances, loading, error, balancesVersion, bumpBalances, fetchBalancePage, peekBalancePage, fetchMyBalances, fetchBalancesFor, fetchAllBalances, generateAccruals, creditManual, setBalance }
 })

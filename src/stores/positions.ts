@@ -58,14 +58,18 @@ function toBackendPayload(payload: Partial<Position>) {
 export const usePositionStore = defineStore('positions', () => {
   const positions = ref<Position[]>([])
   const loading = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error   = ref<string | null>(null)
 
   async function fetchAll() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAll')
     error.value = null
     try {
       const { data } = await api.get<BackendPosition[]>('/positions')
       positions.value = data.map(mapPosition)
+      loadedFetches.add('fetchAll')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les postes')
       throw err

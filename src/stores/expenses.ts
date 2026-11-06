@@ -154,14 +154,18 @@ export const useExpenseStore = defineStore('expenses', () => {
   const all          = ref<ExpenseReport[]>([])
   const pendingForMe = ref<ExpenseReport[]>([])
   const loading      = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error        = ref<string | null>(null)
 
   async function fetchMine() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchMine')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseReport[]>('/expense-reports/mine')
       mine.value = data.map(mapExpenseReport)
+      loadedFetches.add('fetchMine')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger vos notes de frais')
       throw err
@@ -171,11 +175,12 @@ export const useExpenseStore = defineStore('expenses', () => {
   }
 
   async function fetchTeam() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchTeam')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseReport[]>('/expense-reports/team')
       team.value = data.map(mapExpenseReport)
+      loadedFetches.add('fetchTeam')
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible de charger les notes de frais de l'équipe")
       throw err
@@ -185,11 +190,12 @@ export const useExpenseStore = defineStore('expenses', () => {
   }
 
   async function fetchAll() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchAll')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseReport[]>('/expense-reports')
       all.value = data.map(mapExpenseReport)
+      loadedFetches.add('fetchAll')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les notes de frais')
       throw err
@@ -199,11 +205,12 @@ export const useExpenseStore = defineStore('expenses', () => {
   }
 
   async function fetchPendingForMe() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchPendingForMe')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseReport[]>('/expense-reports/pending-for-me')
       pendingForMe.value = data.map(mapExpenseReport)
+      loadedFetches.add('fetchPendingForMe')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les notes de frais à valider')
       throw err

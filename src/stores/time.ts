@@ -192,14 +192,25 @@ export const useTimeStore = defineStore('time', {
     codes: [] as TimeCode[],
     rates: [] as PermanenceRate[],
     loading: false,
+    loadedFetches: [] as string[],
+    // Dernieres lectures des ecrans (page, filtres...), par cle : affichees tout de suite au
+    // retour sur un onglet, puis relues en silence. Videe a chaque modification de saisie.
+    viewCache: {} as Record<string, unknown>,
     error: null as string | null,
   }),
   actions: {
+    getCached<T>(key: string): T | undefined {
+      return this.viewCache[key] as T | undefined
+    },
+    setCached(key: string, value: unknown) {
+      this.viewCache[key] = value
+    },
     async fetchMine(from?: string, to?: string) {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchMine')
       try {
         const { data } = await api.get('/time/entries/mine', { params: { From: from, To: to, Limit: 200 } })
         this.myEntries = data.data.map(mapEntry)
+        if (!this.loadedFetches.includes('fetchMine')) this.loadedFetches.push('fetchMine')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement de vos saisies impossible')
@@ -222,13 +233,16 @@ export const useTimeStore = defineStore('time', {
     },
     async create(payload: { Date: string; EntryType: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string; EmployeeId?: string }) {
       await api.post('/time/entries', payload)
+      this.viewCache = {}
     },
     async updateEntry(id: string, payload: { Date?: string; EntryType?: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string }) {
       await api.patch(`/time/entries/${id}`, payload)
+      this.viewCache = {}
     },
     // Le validateur courant ajuste les heures (la saisie reste en attente).
     async adjustEntry(id: string, payload: { Hours?: number; StartTime?: string; EndTime?: string; Comment?: string }) {
       await api.patch(`/time/entries/${id}/adjust`, payload)
+      this.viewCache = {}
     },
     async fetchHistory(id: string): Promise<TimeEntryHistoryItem[]> {
       const { data } = await api.get(`/time/entries/${id}/history`)
@@ -236,12 +250,14 @@ export const useTimeStore = defineStore('time', {
     },
     async cancel(id: string) {
       await api.delete(`/time/entries/${id}`)
+      this.viewCache = {}
     },
     async fetchPending() {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchPending')
       try {
         const { data } = await api.get('/time/entries/pending', { params: { Limit: 200 } })
         this.pending = data.data.map(mapEntry)
+        if (!this.loadedFetches.includes('fetchPending')) this.loadedFetches.push('fetchPending')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des saisies à valider impossible')
@@ -251,15 +267,18 @@ export const useTimeStore = defineStore('time', {
     },
     async approve(id: string, comment?: string) {
       await api.post(`/time/entries/${id}/approve`, { Comment: comment })
+      this.viewCache = {}
     },
     async reject(id: string, comment: string) {
       await api.post(`/time/entries/${id}/reject`, { Comment: comment })
+      this.viewCache = {}
     },
     async fetchAll(status?: string) {
-      this.loading = true
+      this.loading = !this.loadedFetches.includes('fetchAll')
       try {
         const { data } = await api.get('/time/entries', { params: { Status: status || undefined, Limit: 200 } })
         this.allEntries = data.data.map(mapEntry)
+        if (!this.loadedFetches.includes('fetchAll')) this.loadedFetches.push('fetchAll')
         this.error = null
       } catch (e) {
         this.error = getApiErrorMessage(e, 'Chargement des saisies impossible')

@@ -122,15 +122,19 @@ export const useMissionConfigStore = defineStore('missionConfig', () => {
   const configs      = ref<ExpenseConfigRow[]>([])
   const ceilings     = ref<ExpenseCeilingRow[]>([])
   const loading = ref(false)
+  // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
+  // (la liste affichee est relue en silence), meme si elle est vide.
+  const loadedFetches = new Set<string>()
   const error   = ref<string | null>(null)
 
   // ── EmployeeCategory ──────────────────────────────────────────
   async function fetchCategories() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchCategories')
     error.value = null
     try {
       const { data } = await api.get<BackendEmployeeCategory[]>('/employee-categories')
       categories.value = data.map(mapCategory)
+      loadedFetches.add('fetchCategories')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les catégories d\'employés')
       throw err
@@ -193,11 +197,12 @@ export const useMissionConfigStore = defineStore('missionConfig', () => {
 
   // ── ExpenseType ───────────────────────────────────────────────
   async function fetchExpenseTypes() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchExpenseTypes')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseType[]>('/expense-types')
       expenseTypes.value = data.map(mapExpenseType)
+      loadedFetches.add('fetchExpenseTypes')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les types de frais')
       throw err
@@ -259,11 +264,12 @@ export const useMissionConfigStore = defineStore('missionConfig', () => {
 
   // ── ExpenseConfig (matrice des taux) ─────────────────────────
   async function fetchConfigs() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchConfigs')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseConfig[]>('/expense-configs')
       configs.value = data.map(mapConfig)
+      loadedFetches.add('fetchConfigs')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les taux de frais')
       throw err
@@ -323,11 +329,12 @@ export const useMissionConfigStore = defineStore('missionConfig', () => {
 
   // ── ExpenseCeiling (plafond note de frais) ───────────────────
   async function fetchCeilings() {
-    loading.value = true
+    loading.value = !loadedFetches.has('fetchCeilings')
     error.value = null
     try {
       const { data } = await api.get<BackendExpenseCeiling[]>('/expense-ceilings')
       ceilings.value = data.map(mapCeiling)
+      loadedFetches.add('fetchCeilings')
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de charger les plafonds de notes de frais')
       throw err
