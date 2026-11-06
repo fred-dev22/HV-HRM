@@ -4,7 +4,10 @@
     <div v-else-if="error" class="text-[13px] text-danger p-4">{{ error }}</div>
     <template v-else-if="sheet">
       <div class="flex justify-end mb-2.5">
-        <button :class="L.btnOutline" :disabled="sheet.days.length === 0" @click="exportCsv"><FileDown class="w-4 h-4" /> Exporter la feuille</button>
+        <div class="flex gap-2">
+          <button :class="L.btnOutline" :disabled="sheet.days.length === 0" @click="exportCsv"><FileDown class="w-4 h-4" /> Exporter la feuille</button>
+          <button :class="L.btnOutline" :disabled="sheet.days.length === 0 || pdfBusy" @click="exportPdf"><FileText class="w-4 h-4" /> Exporter en PDF</button>
+        </div>
       </div>
       <div class="grid grid-cols-4 gap-2.5 mb-3.5 max-sm:grid-cols-2">
         <div v-for="k in kpis" :key="k.label" :class="L.card">
@@ -40,12 +43,14 @@
 <script setup lang="ts">
 /** Feuille de temps d'un employe sur une periode : synthese et detail jour par jour. */
 import { ref, computed, watch } from 'vue'
-import { FileDown } from 'lucide-vue-next'
+import { FileDown, FileText } from 'lucide-vue-next'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { useTimeStore, type Timesheet } from '../../stores/time'
 import { clock, formatHours, downloadCsv } from './timeFormat'
+import { generateTimesheetPdf } from '../../lib/timesheetPdf'
+import { useToastStore } from '../../stores/toast'
 
 const props = defineProps<{ employeeId?: string; from: string; to: string }>()
 const emit = defineEmits<{ loaded: [sheet: Timesheet] }>()
@@ -75,6 +80,22 @@ function exportCsv() {
   const rows: (string | number)[][] = s.days.map(d => [formatDate(d.date), clock(d.in), clock(d.out), num(d.required), num(d.worked), num(d.overtime), num(d.absence)])
   rows.push(['Total', '', '', num(s.summary.required), num(s.summary.worked), num(s.summary.overtime), num(s.summary.absence)])
   downloadCsv(`feuille-de-temps-${s.employee.EmployeeNumber}-${s.period.from}-${s.period.to}.csv`, ['Date', 'Entrée', 'Sortie', 'Prévu (h)', 'Travaillé (h)', 'Heures supp. (h)', 'Absence (h)'], rows)
+}
+
+// Export PDF de la feuille affichee (meme mise en page que le systeme de pointage).
+const toast = useToastStore()
+const pdfBusy = ref(false)
+async function exportPdf() {
+  const s = sheet.value
+  if (!s || pdfBusy.value) return
+  pdfBusy.value = true
+  try {
+    await generateTimesheetPdf(s)
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'Export PDF impossible'))
+  } finally {
+    pdfBusy.value = false
+  }
 }
 
 let seq = 0

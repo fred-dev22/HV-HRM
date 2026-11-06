@@ -144,7 +144,7 @@ export interface OvertimeReport {
 export interface SageRow { im: string; type: number; code: string; valeur: number }
 
 export interface Timesheet {
-  employee: { Id: string; FullName: string; EmployeeNumber: string }
+  employee: { Id: string; FullName: string; EmployeeNumber: string; Service?: string | null }
   period: { from: string; to: string }
   summary: { required: number; worked: number; overtime: number; absence: number }
   days: { date: string; required: number; worked: number; overtime: number; absence: number; in: string | null; out: string | null }[]

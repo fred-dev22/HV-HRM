@@ -18,6 +18,7 @@
   >
     <template #header-actions>
       <button :class="L.btnOutline" :disabled="exporting || total === 0" @click="exportCsv"><FileDown class="w-4 h-4" /> Exporter</button>
+      <button :class="L.btnOutline" :disabled="exporting || total === 0" @click="exportPdf"><FileText class="w-4 h-4" /> PDF</button>
     </template>
 
     <!-- Période et totaux de tous les employés -->
@@ -87,7 +88,7 @@
  * pagination faites par le serveur, totaux calcules sur l'ensemble.
  */
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { FileDown, Users, Clock, Briefcase, TrendingUp, UserX } from 'lucide-vue-next'
+import { FileDown, FileText, Users, Clock, Briefcase, TrendingUp, UserX } from 'lucide-vue-next'
 import { UserAvatar, ListPageLayout } from '../index'
 import type { ListColumn } from '../shared/ListPageLayout.vue'
 import * as cls from '../../lib/formClasses'
@@ -97,6 +98,7 @@ import { getApiErrorMessage } from '../../lib/api'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, type TimesheetRow, type TimesheetSummary } from '../../stores/time'
 import { formatHours, downloadCsv } from './timeFormat'
+import { generateGlobalReportPdf } from '../../lib/timesheetPdf'
 
 const props = defineProps<{ kind: 'global' | 'team' }>()
 const emit = defineEmits<{ open: [row: TimesheetRow, rows: TimesheetRow[]]; period: [from: string, to: string] }>()
@@ -177,6 +179,28 @@ async function load() {
 watch([() => props.kind, from, to, debouncedSearch, page, pageSize], load, { immediate: true })
 
 const num = (n: number) => n.toString().replace('.', ',')
+
+// Toutes les lignes de la periode (pas seulement la page affichee).
+async function fetchAllRows(): Promise<TimesheetRow[]> {
+  const all: TimesheetRow[] = []
+  for (let p = 1; p <= 50; p++) {
+    const res = await store.fetchTimesheetSummary(props.kind, { From: from.value, To: to.value, Search: debouncedSearch.value, Page: p, PageSize: 100 })
+    all.push(...res.items)
+    if (all.length >= res.total || res.items.length === 0) break
+  }
+  return all
+}
+
+async function exportPdf() {
+  exporting.value = true
+  try {
+    await generateGlobalReportPdf(await fetchAllRows(), { from: from.value, to: to.value })
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'Export PDF impossible'))
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function exportCsv() {
   exporting.value = true
