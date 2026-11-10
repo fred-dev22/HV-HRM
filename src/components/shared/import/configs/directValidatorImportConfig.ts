@@ -18,7 +18,7 @@ export function buildDirectValidatorImportConfig(): ImportConfig {
   // validation reel (voir options() de la colonne DirectValidatorId
   // ci-dessous) — directory n'expose ni hasAccount ni validatorPermissions
   // (reponse allegee, voir stores/employees.ts).
-  if (employeeStore.employees.length === 0) employeeStore.fetchAll()
+  employeeStore.fetchAll().catch(() => {})
 
   // Seul un employé avec un compte actif ET la permission CONGE_VALIDER
   // RÉELLEMENT accordée (validatorPermissions, calculé backend depuis les

@@ -89,7 +89,7 @@ const leaveTypesStore = useLeaveTypesStore()
 // elles restent affichees au rechargement et a la prochaine connexion.
 const authStore = useAuthStore()
 const columnsStorageKey = computed(() => `team-members:${authStore.user?.id ?? 'anon'}:${props.mode}`)
-if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll().catch(() => undefined)
+leaveTypesStore.fetchAll().catch(() => undefined)
 const BALANCE_PREFIX = 'balance:'
 
 const openCardId = ref<string | null>(null)

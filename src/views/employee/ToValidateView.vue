@@ -213,7 +213,7 @@ onMounted(async () => {
     MISSIONS_EXPENSES_ENABLED && missionStore.pendingForMe.length === 0 ? missionStore.fetchPendingForMe() : Promise.resolve(),
     MISSIONS_EXPENSES_ENABLED && expenseStore.pendingForMe.length === 0 ? expenseStore.fetchPendingForMe() : Promise.resolve(),
   ])
-  if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
+  leaveTypesStore.fetchAll().catch(() => {})
   applyDeepLink()
 })
 

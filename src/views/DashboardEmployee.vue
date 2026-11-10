@@ -135,7 +135,7 @@ const { t, locale }  = useI18n()
 const router = useRouter()
 
 if (!leaves.recentWindow) leaves.fetchRecent(false).catch(() => {})
-if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
+leaveTypesStore.fetchAll().catch(() => {})
 // Toujours rafraîchi (pas de garde "si vide") : le solde peut changer suite
 // à une approbation décidée par un tiers pendant que ce tableau de bord
 // reste ouvert en arrière-plan — un solde figé sur son état d'avant

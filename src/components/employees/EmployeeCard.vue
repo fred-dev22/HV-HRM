@@ -36,13 +36,13 @@ const auth = useAuthStore()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const categoryStore = useEmployeeCategoryStore()
-if (positionStore.positions.length === 0) positionStore.fetchAll()
-if (permissionStore.permissions.length === 0) permissionStore.fetchAll()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+positionStore.fetchAll().catch(() => {})
+permissionStore.fetchAll().catch(() => {})
+categoryStore.fetchAll().catch(() => {})
 // Liste complete (pas le prop `employees`, potentiellement filtre par la
 // recherche/le scope actif de la liste) — necessaire au selecteur de
 // validateur direct ci-dessous, voir aussi hasAccount.
-if (store.employees.length === 0) store.fetchAll()
+store.fetchAll().catch(() => {})
 
 const STATUS_LABELS: Record<string, string> = { active: 'Actif', trial: 'Période d\'essai', onleave: 'En congé', inactive: 'Désactivé' }
 const GENDER_LABELS: Record<Gender, string> = { M: 'Homme', F: 'Femme' }

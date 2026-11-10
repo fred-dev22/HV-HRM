@@ -281,7 +281,7 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="management"]', title: 'Employés et entités', description: 'Créez et gérez vos employés et entités depuis cette section.' },
   { target: '[data-tour="absences"]', title: "Demandes d'absence", description: "Suivez et validez les demandes de congé de votre équipe, et consultez les soldes." },
 ]
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 if (!leaves.recentWindow) leaves.fetchRecent(auth.hasPermission('CONGE_VOIR_TOUT')).catch(() => {})
 // Chiffres exacts calcules en base (aucune liste d'employes chargee ici).
 if (!dashboard.summary) dashboard.fetchSummary().catch(() => {})

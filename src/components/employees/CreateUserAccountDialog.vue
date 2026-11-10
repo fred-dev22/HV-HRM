@@ -24,7 +24,7 @@ const store = useUserStore()
 const employeeStore = useEmployeeStore()
 const categoryStore = useEmployeeCategoryStore()
 onMounted(() => {
-  if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+  categoryStore.fetchAll().catch(() => {})
 })
 
 const step = ref<'form' | 'reveal'>('form')

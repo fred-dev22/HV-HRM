@@ -300,21 +300,36 @@ export const useEmployeeStore = defineStore('employees', () => {
     if (posStore.positions.length === 0) await posStore.fetchAll()
   }
 
-  async function fetchAll() {
-    loading.value = !loadedFetches.has('fetchAll')
-    error.value = null
-    try {
-      await ensurePositionsLoaded()
-      const { data } = await api.get<BackendEmployee[]>('/employees')
-      employees.value = data.map(mapEmployee)
-      loadedFetches.add('fetchAll')
-      allLoaded.value = true
-    } catch (err) {
-      error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
-      throw err
-    } finally {
-      loading.value = false
-    }
+  // Liste complete des employes (sert aux selecteurs : validateur, interimaire...).
+  // Relue a chaque ouverture d'un ecran qui l'utilise, sans loader apres le premier
+  // chargement. Les appels simultanes partagent la meme requete, et une relecture
+  // de moins de 5 s est sautee, sauf { force: true } apres un changement de droits
+  // ou de comptes : sans cela un employe qui vient de recevoir le droit de valider
+  // n'apparaissait pas dans le choix du validateur avant un rechargement de page.
+  let fetchAllInflight: Promise<void> | null = null
+  let fetchAllAt = 0
+  async function fetchAll(opts: { force?: boolean } = {}): Promise<void> {
+    if (fetchAllInflight) return fetchAllInflight
+    if (!opts.force && allLoaded.value && Date.now() - fetchAllAt < 5000) return
+    fetchAllInflight = (async () => {
+      loading.value = !loadedFetches.has('fetchAll')
+      error.value = null
+      try {
+        await ensurePositionsLoaded()
+        const { data } = await api.get<BackendEmployee[]>('/employees')
+        employees.value = data.map(mapEmployee)
+        loadedFetches.add('fetchAll')
+        allLoaded.value = true
+        fetchAllAt = Date.now()
+      } catch (err) {
+        error.value = getApiErrorMessage(err, 'Impossible de charger les employés')
+        throw err
+      } finally {
+        loading.value = false
+        fetchAllInflight = null
+      }
+    })()
+    return fetchAllInflight
   }
 
   // Annuaire minimal (voir mapDirectoryEmployee) — a utiliser pour peupler

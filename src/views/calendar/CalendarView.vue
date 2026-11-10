@@ -449,7 +449,7 @@ const leaveTransactionStore = useLeaveTransactionStore()
 const companySettingsStore  = useCompanySettingsStore()
 const categoryStore    = useEmployeeCategoryStore()
 const entityStore      = useEntityStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 const { calendar, annualHolidays, ponctualHolidays } = storeToRefs(calendarStore)
 
 const pageLoading = computed(() => calendarStore.loading || leaveTypesStore.loading)
@@ -617,7 +617,7 @@ const selectedEmployeeName = computed(() =>
 async function selectEmployeeScope() {
   if (scope.value === 'employee') return
   if (!(await confirmDiscardIfDirty())) return
-  if (employeeStore.directory.length === 0) await employeeStore.fetchDirectory().catch(() => {})
+  await employeeStore.fetchDirectory().catch(() => {})
   refreshConfiguredEmployeeCalendars()
   scope.value = 'employee'
   if (!selectedEmployeeId.value && employeeOptions.value[0]) selectedEmployeeId.value = employeeOptions.value[0].id

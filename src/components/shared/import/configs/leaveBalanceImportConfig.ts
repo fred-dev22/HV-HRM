@@ -12,7 +12,7 @@ import type { ImportConfig } from '../importTypes'
 export function buildLeaveBalanceImportConfig(): ImportConfig {
   const employeeStore = useEmployeeStore()
   const leaveTypesStore = useLeaveTypesStore()
-  if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+  employeeStore.fetchDirectory().catch(() => {})
 
   return {
     title: 'Soldes de congés initiaux',

@@ -31,10 +31,10 @@ onMounted(() => {
   // creation/suppression d'employe, donc une liste deja chargee peut etre
   // perimee (nombre de places restantes faux dans le picker).
   positionStore.fetchAll()
-  if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+  categoryStore.fetchAll().catch(() => {})
   // Liste complete (pas directory, qui n'expose jamais hasAccount) —
   // necessaire au selecteur de validateur direct ci-dessous.
-  if (store.employees.length === 0) store.fetchAll()
+  store.fetchAll().catch(() => {})
 })
 
 const STATUS_LABELS: Record<string, string> = { active: 'Actif', trial: 'Période d\'essai', onleave: 'En congé', inactive: 'Désactivé' }

@@ -231,7 +231,7 @@ const showImport = ref(false)
 const leaveBalanceImportConfig = computed(() => buildLeaveBalanceImportConfig())
 
 onMounted(() => {
-  if (entityStore.entities.length === 0) entityStore.fetchAll()
+  entityStore.fetchAll().catch(() => {})
 })
 
 // ── Crédit manuel ────────────────────────────────────────────

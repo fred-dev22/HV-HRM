@@ -319,7 +319,7 @@ import { useEntityStore } from '../../stores/entities'
 const contractStore = useContractStore()
 const applicationStore = useApplicationStore()
 const entityStore = useEntityStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 
 onMounted(() => {
   contractStore.fetchAll()

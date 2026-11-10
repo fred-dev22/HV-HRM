@@ -27,7 +27,7 @@ const emit = defineEmits<{ close: [] }>()
 const store = useEntityStore()
 const empStore = useEmployeeStore()
 const auth = useAuthStore()
-if (empStore.employees.length === 0) empStore.fetchAll()
+empStore.fetchAll().catch(() => {})
 
 const TYPE_LABELS: Record<string, string> = { Direction: 'Direction', Department: 'Département', Service: 'Service' }
 const TYPE_BADGE: Record<string, string> = { Direction: 'bg-danger-bg text-danger', Department: 'bg-success-bg text-success', Service: 'bg-tint text-primary' }

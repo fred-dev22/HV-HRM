@@ -21,7 +21,7 @@ const emit = defineEmits<{
 
 const store  = useLeaveTypesStore()
 const entityStore = useEntityStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 const isEdit = computed(() => !!props.editId)
 const error  = ref('')
 

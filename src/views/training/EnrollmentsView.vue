@@ -126,7 +126,7 @@ import EmployeePicker from '../../components/ui/EmployeePicker.vue'
 const enrollmentStore = useEnrollmentStore()
 const sessionStore = useSessionStore()
 const employeeStore = useEmployeeStore()
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+employeeStore.fetchDirectory().catch(() => {})
 const employeeItems = computed(() =>
   employeeStore.directory.map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, status: e.status })),
 )

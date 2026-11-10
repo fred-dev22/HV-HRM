@@ -30,12 +30,12 @@ const missionConfigStore = useMissionConfigStore()
 const employeeStore = useEmployeeStore()
 const categoryStore = useEmployeeCategoryStore()
 const auth = useAuthStore()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 if (missionConfigStore.expenseTypes.length === 0) missionConfigStore.fetchExpenseTypes()
 // N'importe qui peut soumettre pour n'importe qui (decision du 01/08) — voir
 // AbsenceCreate.vue pour le detail (fetchAll echouerait en 403 sans
 // EMPLOYE_VOIR_TOUT/EQUIPE).
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+employeeStore.fetchDirectory().catch(() => {})
 
 const TRANSPORT_MODES: { value: TransportMode; label: string }[] = [
   { value: 'PersonalCar', label: 'Voiture personnelle' },

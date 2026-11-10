@@ -40,7 +40,7 @@ export function validateTimeEntryRow(row: ParsedRow): string | undefined {
 
 export function buildTimeEntryImportConfig(): ImportConfig {
   const employeeStore = useEmployeeStore()
-  if (employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {})
+  employeeStore.fetchDirectory().catch(() => {})
 
   return {
     title: 'Saisies manuelles de temps',

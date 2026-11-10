@@ -63,7 +63,7 @@ import EntityTabsContent  from '../../components/entities/EntityTabsContent.vue'
 
 const auth  = useAuthStore()
 const store = useEntityStore()
-if (store.entities.length === 0) store.fetchAll()
+store.fetchAll().catch(() => {})
 
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
 const kpiIcon = 'w-9 h-9 rounded-lg flex items-center justify-center shrink-0'

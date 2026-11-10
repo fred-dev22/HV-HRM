@@ -366,8 +366,8 @@ const posImportConfig = computed(() => buildPositionImportConfig())
 // ═══════════════════════ Catégorie ═══════════════════════
 const catStore = useEmployeeCategoryStore()
 const permStore = usePermissionStore()
-if (catStore.categories.length === 0) catStore.fetchAll()
-if (permStore.permissions.length === 0) permStore.fetchAll()
+catStore.fetchAll().catch(() => {})
+permStore.fetchAll().catch(() => {})
 
 const catColumns = [
   { key: 'code',          label: 'Code',         width: '100px' },
@@ -475,7 +475,7 @@ async function togglePermission(permissionId: string, checked: boolean) {
 
 // ═══════════════════════ Métier ═══════════════════════
 const jobStore = useJobStore()
-if (jobStore.jobs.length === 0) jobStore.fetchAll()
+jobStore.fetchAll().catch(() => {})
 
 const jobColumns = [
   { key: 'code',     label: 'Code',      width: '100px' },
@@ -539,7 +539,7 @@ const entityStore = useEntityStore()
 // chaque creation/suppression d'employe ailleurs dans l'app (meme raison
 // que EmployeeCreate.vue, voir decision du 30/07).
 posStore.fetchAll()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 
 const posColumns = [
   { key: 'code',             label: 'Code',    width: '100px' },

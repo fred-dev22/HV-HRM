@@ -134,11 +134,11 @@ watchEffect(() => {
 })
 
 function prefill() {
-  if (entityStore.entities.length === 0) entityStore.fetchAll()
+  entityStore.fetchAll().catch(() => {})
   // Liste complete (pas directory, qui n'expose jamais hasAccount) : necessaire
   // au selecteur de validateur direct.
-  if (employeeStore.employees.length === 0) employeeStore.fetchAll()
-  if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+  employeeStore.fetchAll().catch(() => {})
+  categoryStore.fetchAll().catch(() => {})
   validatorTouched.value = false
   const { first, last } = splitName(props.contract.candidateName)
   form.FirstName = first

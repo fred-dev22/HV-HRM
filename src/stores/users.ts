@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
 import { withToast } from '../lib/withToast'
+import { useEmployeeStore } from './employees'
 
 export interface CreateUserAccountPayload {
   employeeId: string
@@ -28,6 +29,12 @@ interface EffectivePermissionsResponse {
 export const useUserStore = defineStore('users', () => {
   const error = ref<string | null>(null)
 
+  // Un compte cree ou un droit accorde/retire change qui peut valider : on relit
+  // la liste des employes (en silence) pour que les choix de validateur suivent.
+  function refreshEmployees() {
+    useEmployeeStore().fetchAll({ force: true }).catch(() => {})
+  }
+
   async function createUserAccount(payload: CreateUserAccountPayload) {
     error.value = null
     return withToast('Création du compte en cours…', async () => {
@@ -41,6 +48,7 @@ export const useUserStore = defineStore('users', () => {
           IsActive: true,
           MustChangePassword: payload.mustChangePassword,
         })
+        refreshEmployees()
         return data
       } catch (err) {
         error.value = getApiErrorMessage(err, 'Impossible de créer le compte utilisateur')
@@ -60,6 +68,7 @@ export const useUserStore = defineStore('users', () => {
   async function grantUserPermission(userId: string, permissionId: string) {
     try {
       const { data } = await api.post<EffectivePermissionsResponse>(`/users/${userId}/permissions`, { PermissionId: permissionId })
+      refreshEmployees()
       return data
     } catch (err) {
       error.value = getApiErrorMessage(err, "Impossible d'ajouter cette permission")
@@ -70,6 +79,7 @@ export const useUserStore = defineStore('users', () => {
   async function revokeUserPermission(userId: string, permissionId: string) {
     try {
       const { data } = await api.delete<EffectivePermissionsResponse>(`/users/${userId}/permissions/${permissionId}`)
+      refreshEmployees()
       return data
     } catch (err) {
       error.value = getApiErrorMessage(err, 'Impossible de retirer cette permission')

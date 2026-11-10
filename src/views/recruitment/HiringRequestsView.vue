@@ -217,8 +217,8 @@ const entityStore = useEntityStore()
 const positionStore = usePositionStore()
 const employeeStore = useEmployeeStore()
 const auth = useAuthStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+entityStore.fetchAll().catch(() => {})
+employeeStore.fetchDirectory().catch(() => {})
 
 // Bénéficiaire réel de la demande, distinct de la personne qui remplit le
 // formulaire (voir ForWhomSelector.vue). Exclut soi-même de la liste "Pour

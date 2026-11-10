@@ -94,8 +94,8 @@ export function validateScheduleRow(row: ParsedRow, lookups: ScheduleLookups): s
 export function buildScheduleImportConfig(): ImportConfig {
   const employeeStore = useEmployeeStore()
   const categoryStore = useEmployeeCategoryStore()
-  if (employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {})
-  if (categoryStore.categories.length === 0) categoryStore.fetchAll().catch(() => {})
+  employeeStore.fetchDirectory().catch(() => {})
+  categoryStore.fetchAll().catch(() => {})
 
   const lookups: ScheduleLookups = {
     // Code de categorie et matricule uniquement (uniques en base) ; si jamais deux

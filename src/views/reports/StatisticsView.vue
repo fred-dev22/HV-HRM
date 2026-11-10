@@ -140,9 +140,9 @@ const leaveStore    = useLeaveRequestStore()
 const leaveTypesStore = useLeaveTypesStore()
 const missionStore  = useMissionStore()
 const employeeStore = useEmployeeStore()
-if (employeeStore.employees.length === 0) employeeStore.fetchAll()
+employeeStore.fetchAll().catch(() => {})
 if (leaveStore.all.length === 0) leaveStore.fetchAll()
-if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
+leaveTypesStore.fetchAll().catch(() => {})
 if (MISSIONS_EXPENSES_ENABLED && missionStore.all.length === 0) missionStore.fetchAll()
 
 // ── Classes du design system ─────────────────────────────────

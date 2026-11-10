@@ -34,7 +34,7 @@ const missionStore = useMissionStore()
 const missionConfigStore = useMissionConfigStore()
 const categoryStore = useEmployeeCategoryStore()
 const auth = useAuthStore()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 if (missionConfigStore.expenseTypes.length === 0) missionConfigStore.fetchExpenseTypes()
 
 const TRANSPORT_LABELS: Record<TransportMode, string> = {

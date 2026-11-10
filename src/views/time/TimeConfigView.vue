@@ -347,7 +347,7 @@ async function selectTab(key: TabKey) {
   tab.value = key
   if (key === 'import') {
     await Promise.all([store.fetchConfig().then(() => (cfg.value = store.config && { ...store.config })), store.fetchImports(), loadUnmatched()])
-    if (employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {})
+    employeeStore.fetchDirectory().catch(() => {})
   }
   if (key === 'types') types.value = await store.fetchTypes()
   if (key === 'settings') {

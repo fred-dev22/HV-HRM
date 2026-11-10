@@ -35,11 +35,11 @@ const attachmentStore = useAttachmentStore()
 if (missionConfigStore.expenseTypes.length === 0) missionConfigStore.fetchExpenseTypes()
 if (missionConfigStore.ceilings.length === 0) missionConfigStore.fetchCeilings()
 if (missionStore.mine.length === 0) missionStore.fetchMine()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 // N'importe qui peut soumettre pour n'importe qui (decision du 01/08) — voir
 // AbsenceCreate.vue pour le detail (fetchAll echouerait en 403 sans
 // EMPLOYE_VOIR_TOUT/EQUIPE).
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+employeeStore.fetchDirectory().catch(() => {})
 
 function fmt(n: number) { return n.toLocaleString('fr-FR') }
 

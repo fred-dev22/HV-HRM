@@ -30,7 +30,11 @@ const store = useApprovalPoolStore()
 const empStore = useEmployeeStore()
 const categoryStore = useEmployeeCategoryStore()
 const entityStore = useEntityStore()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
+// Les droits de validation se lisent sur la liste complete des employes : relue en
+// silence a chaque ouverture, pour que quelqu'un qui vient de recevoir le droit de
+// valider apparaisse tout de suite dans le choix des validateurs.
+empStore.fetchAll().catch(() => {})
 
 // ── Mode de validation des congés (retour client du 09/09) ─────────────
 // Pool par entité vs validateur direct par employé — mutuellement exclusifs,

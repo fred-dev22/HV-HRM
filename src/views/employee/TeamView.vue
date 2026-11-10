@@ -43,7 +43,7 @@ const entityStore = useEntityStore()
 // (sans les sous-entités) + employés dont on valide les demandes, avec le motif.
 ;(async () => {
   try {
-    if (entityStore.entities.length === 0) await entityStore.fetchAll()
+    await entityStore.fetchAll().catch(() => {})
   } catch {
     // Le nom d'entite reste vide si la liste des entites n'est pas accessible :
     // ce n'est pas une raison de ne pas afficher l'equipe.

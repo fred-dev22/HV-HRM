@@ -80,6 +80,8 @@ function toBackendPayload(payload: Partial<Entity>) {
   return body
 }
 
+let entitiesLoadedOnce = false
+
 export const useEntityStore = defineStore('entities', {
   state: () => ({
     entities: [] as Entity[],
@@ -141,7 +143,8 @@ export const useEntityStore = defineStore('entities', {
 
   actions: {
     async fetchAll() {
-      this.loading = true
+      // Relecture silencieuse : le loader n'apparait qu'au tout premier chargement.
+      this.loading = !entitiesLoadedOnce
       this.error = null
       try {
         // L'effectif et le nom du responsable viennent du backend
@@ -149,6 +152,7 @@ export const useEntityStore = defineStore('entities', {
         // employes ici.
         const { data } = await api.get<BackendOrganizationUnit[]>('/organization-units')
         this.entities = data.map(mapEntity)
+        entitiesLoadedOnce = true
       } catch (err) {
         this.error = getApiErrorMessage(err, "Impossible de charger les unités organisationnelles")
         throw err

@@ -19,7 +19,7 @@ import type { EntityType } from '../../types'
 const emit = defineEmits<{ close: []; created: [] }>()
 const store = useEntityStore()
 const empStore = useEmployeeStore()
-if (empStore.employees.length === 0) empStore.fetchAll()
+empStore.fetchAll().catch(() => {})
 
 const entityColumns = [{ key: 'code', label: 'Code', width: '90px' }, { key: 'name', label: 'Nom' }]
 // Une entité désactivée reste visible (grisée, non sélectionnable) plutôt

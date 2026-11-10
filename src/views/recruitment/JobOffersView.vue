@@ -249,7 +249,7 @@ const jobOfferStore = useJobOfferStore()
 const hiringRequestStore = useHiringRequestStore()
 const evalTemplateStore = useEvalTemplateStore()
 const entityStore = useEntityStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 
 onMounted(() => {
   jobOfferStore.fetchAll()

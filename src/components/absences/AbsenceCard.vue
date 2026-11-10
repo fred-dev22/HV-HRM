@@ -43,8 +43,8 @@ const calendarStore = useCalendarStore()
 const attachmentStore = useAttachmentStore()
 const auth = useAuthStore()
 const employeeStore = useEmployeeStore()
-if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+leaveTypesStore.fetchAll().catch(() => {})
+employeeStore.fetchDirectory().catch(() => {})
 // Toujours rafraîchi (pas de garde "si vide") : le solde utilisé pour
 // l'avertissement "solde insuffisant" ci-dessous doit refléter les
 // approbations décidées entre-temps, voir DashboardEmployee.vue.

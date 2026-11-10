@@ -184,7 +184,7 @@ const route         = useRoute()
 // Toujours rafraîchi (pas de garde "si vide") : le solde peut changer suite
 // à une approbation décidée par un tiers, voir DashboardEmployee.vue.
 balanceStore.fetchMyBalances()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 
 // ── Classes du design system ─────────────────────────────────
 const card = 'bg-card border border-border rounded-[10px] p-4'

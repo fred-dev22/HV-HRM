@@ -157,7 +157,7 @@ const store = useEmployeeStore()
 const entityStore = useEntityStore()
 const auth = useAuthStore()
 const categoryStore = useEmployeeCategoryStore()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 // Chargé ici (pas seulement depuis Classification > Poste) — sinon le menu
 // "Poste" de l'assistant d'import reste vide tant que l'utilisateur n'a pas
 // déjà visité cet écran dans la session.

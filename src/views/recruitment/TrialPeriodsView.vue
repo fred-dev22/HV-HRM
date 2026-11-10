@@ -120,7 +120,7 @@ import { useEntityStore } from '../../stores/entities'
 
 const trialStore = useTrialStore()
 const entityStore = useEntityStore()
-if (entityStore.entities.length === 0) entityStore.fetchAll()
+entityStore.fetchAll().catch(() => {})
 onMounted(() => trialStore.fetchAll())
 
 /* ── Styles KPI ─────────────────────────────────────────────── */

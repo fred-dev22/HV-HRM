@@ -170,7 +170,7 @@ const scope = computed<LeavePageParams['scope']>(() => canSeeAll.value ? 'all' :
 function reload() { return store.refreshPage() }
 
 onMounted(() => {
-  if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
+  leaveTypesStore.fetchAll().catch(() => {})
   // AbsenceWorkflowActions n'affiche Approuver/Retourner/Refuser que pour
   // les demandes presentes dans pendingForMe (etape courante = moi) — sans
   // ce fetch, un validateur arrivant directement sur cet ecran (sans passer

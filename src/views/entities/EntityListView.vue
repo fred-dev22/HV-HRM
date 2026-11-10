@@ -170,10 +170,10 @@ import type { Entity, EntityType } from '../../types'
 
 const store = useEntityStore()
 const auth = useAuthStore()
-if (store.entities.length === 0) store.fetchAll()
+store.fetchAll().catch(() => {})
 // Les listes de responsables (import, aperçu) viennent des employes : chargés ici, plus par le tableau de bord.
 const employeeStore = useEmployeeStore()
-if (employeeStore.employees.length === 0) employeeStore.fetchAll().catch(() => {})
+employeeStore.fetchAll().catch(() => {})
 
 const quickBtn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer bg-background text-muted-foreground hover:text-foreground'
 

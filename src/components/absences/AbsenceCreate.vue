@@ -41,15 +41,15 @@ const leaveTypesStore       = useLeaveTypesStore()
 const auth                  = useAuthStore()
 
 if (calendarStore.holidays.length === 0) calendarStore.fetchHolidays(new Date().getFullYear())
-if (leaveTypesStore.leaveTypes.length === 0) leaveTypesStore.fetchAll()
+leaveTypesStore.fetchAll().catch(() => {})
 // Toujours rafraîchi (pas de garde "si vide") : voir DashboardEmployee.vue.
 leaveTransactionStore.fetchMyBalances()
-if (categoryStore.categories.length === 0) categoryStore.fetchAll()
+categoryStore.fetchAll().catch(() => {})
 // N'importe qui peut soumettre pour n'importe qui (decision du 01/08) — un
 // simple employé n'a pas EMPLOYE_VOIR_TOUT/EQUIPE, fetchAll() échouerait en
 // 403. L'annuaire allégé (voir stores/employees.ts fetchDirectory) est
 // accessible à tout compte authentifié et suffit pour ce sélecteur.
-if (employeeStore.directory.length === 0) employeeStore.fetchDirectory()
+employeeStore.fetchDirectory().catch(() => {})
 
 // Un compte système (Employee.IsSystem, ex. "Admin HV") n'a pas
 // d'existence RH réelle — jamais de solde, jamais éligible à un congé pour

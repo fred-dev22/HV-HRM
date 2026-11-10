@@ -198,7 +198,7 @@ const navStore = useNavigationStore()
 const route    = useRoute()
 const router   = useRouter()
 const showEditCard = ref(false)
-if (empStore.employees.length === 0) empStore.fetchAll()
+empStore.fetchAll().catch(() => {})
 
 // ── Classes du design system ─────────────────────────────────
 const card = 'bg-card border border-border rounded-lg p-4 flex flex-col gap-3'
@@ -222,7 +222,7 @@ function typeBadge(type: string): string {
   return m[type] ?? 'bg-neutral-bg text-neutral'
 }
 
-if (store.entities.length === 0) store.fetchAll()
+store.fetchAll().catch(() => {})
 
 const entityId = computed(() => route.params.id as string)
 const entity   = computed(() => store.getEntityById(entityId.value))
