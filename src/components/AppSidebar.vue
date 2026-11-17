@@ -38,6 +38,7 @@
         <SidebarSection :label="t('sidebar.dashboard')">
           <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.overview')"    :to="{ name: 'hr-dashboard' }" />
           <SidebarItem :icon="CalendarRange"   :label="t('sidebar.my_planning')" :to="{ name: 'hr-planning' }" />
+          <SidebarItem :icon="Table"           :label="planningScope === 'team' ? t('sidebar.team_planning') : t('sidebar.global_planning')" :to="{ name: 'hr-planning-global' }" />
         </SidebarSection>
 
         <SidebarSection v-if="auth.hasAnyPermission(['CONGE_VOIR_TOUT', 'CONGE_VOIR_EQUIPE'])" :label="t('sidebar.absence_requests')" data-tour="absences">
@@ -163,6 +164,8 @@
       <SidebarSection :label="t('sidebar.my_space')">
         <SidebarItem :icon="LayoutDashboard" :label="t('sidebar.dashboard')"   :to="{ name: 'employee-dashboard' }" />
         <SidebarItem :icon="CalendarRange"   :label="t('sidebar.my_planning')" :to="{ name: 'employee-planning' }" />
+        <!-- Manager : son planning d'equipe est dans "Mon equipe". Les autres : planning global simplifie. -->
+        <SidebarItem v-if="planningScope !== 'team'" :icon="Table" :label="t('sidebar.global_planning')" :to="{ name: 'employee-planning-global' }" />
       </SidebarSection>
 
       <SidebarSection :label="t('sidebar.my_requests')">
@@ -190,6 +193,7 @@
             :badge-orange="true"
           />
           <SidebarItem v-if="auth.hasPermission('EMPLOYE_VOIR_EQUIPE')" :icon="Users" :label="t('sidebar.members')" :to="{ name: 'employee-team' }" />
+          <SidebarItem v-if="planningScope === 'team'" :icon="Table" :label="t('sidebar.team_planning')" :to="{ name: 'employee-team-planning' }" />
         </SidebarSection>
       </template>
     </template>
@@ -212,6 +216,7 @@ import {
   FileSpreadsheet, Plug, ClipboardCheck, Tags, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-vue-next'
 import { useAuthStore }       from '../stores/auth'
+import { planningScopeFor }   from '../stores/planning'
 import { useNavigationStore } from '../stores/navigation'
 import { useLeaveRequestStore } from '../stores/leaveRequests'
 import { useMissionStore } from '../stores/missions'
@@ -256,6 +261,8 @@ const canSeeConfigSection = computed(() => auth.hasAnyPermission([
   'CONFIG_CATEGORIES_EMPLOYE', 'CONFIG_METIERS_POSTES',
   ...(MISSIONS_EXPENSES_ENABLED ? ['CONFIG_FRAIS_MISSION'] : []),
 ]))
+// Portee du planning global : meme regle que le serveur (planning-scope.ts).
+const planningScope = computed(() => planningScopeFor((codes) => auth.hasAnyPermission(codes)))
 const canSeeMyTeamSection = computed(() => auth.hasAnyPermission([
   'CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER', 'EMPLOYE_VOIR_EQUIPE',
 ]))
