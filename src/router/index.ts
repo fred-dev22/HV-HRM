@@ -86,6 +86,7 @@ const ROUTE_PERMISSIONS: Record<string, string | string[]> = {
   'hr-expenses':         ['FRAIS_VOIR_TOUT', 'FRAIS_VOIR_EQUIPE'],
   'employee-to-validate': ['CONGE_VALIDER', 'MISSION_VALIDER', 'FRAIS_VALIDER'],
   'employee-team':        'EMPLOYE_VOIR_EQUIPE',
+  'employee-team-planning': ['CONGE_VOIR_EQUIPE', 'EMPLOYE_VOIR_EQUIPE'],
   'hr-deadlines':        ['EMPLOYE_VOIR_TOUT', 'EMPLOYE_VOIR_EQUIPE'],
   'hr-time':                  ['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'],
   'employee-time':            ['TEMPS_ACCES', 'TEMPS_SAISIR', 'TEMPS_VALIDER'],
@@ -174,6 +175,12 @@ const router = createRouter({
     },
     { path: '/hr/planning', name: 'hr-planning',
       component: () => import('../views/employee/EmployeePlanningView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+    // Planning global (grille collaborateurs x jours) : meme ecran pour les trois
+    // entrees de menu, le serveur decide de ce qui est visible selon les droits.
+    { path: '/hr/planning/global', name: 'hr-planning-global',
+      component: () => import('../views/planning/GlobalPlanningView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
     // Echeances a venir (backlog "Rappels d'echeances") — fins de CDD / stage /
@@ -308,6 +315,16 @@ const router = createRouter({
     {
       path: '/employee/planning', name: 'employee-planning',
       component: () => import('../views/employee/EmployeePlanningView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+    {
+      path: '/employee/planning/global', name: 'employee-planning-global',
+      component: () => import('../views/planning/GlobalPlanningView.vue'),
+      meta: { requiresAuth: true, layout: 'dashboard' },
+    },
+    {
+      path: '/employee/team/planning', name: 'employee-team-planning',
+      component: () => import('../views/planning/GlobalPlanningView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
     { path: '/employee/missions', name: 'employee-missions', component: () => import('../views/missions/MissionListView.vue'),  meta: { requiresAuth: true, layout: 'dashboard' } },
