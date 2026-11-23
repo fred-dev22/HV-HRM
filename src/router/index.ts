@@ -219,6 +219,13 @@ const router = createRouter({
       component: () => import('../views/configuration/MissionConfigView.vue'),
       meta: { requiresAuth: true, layout: 'dashboard' },
     },
+    // ── Paramètres de l'application (compte administrateur de lancement) ──
+    { path: '/settings', redirect: '/settings/mail' },
+    {
+      path: '/settings/mail', name: 'settings-mail',
+      component: () => import('../views/settings/MailSettingsView.vue'),
+      meta: { requiresAuth: true, layout: 'settings' },
+    },
     // Redirects de compatibilité — les 3 écrans séparés ont fusionné dans
     // Classification (voir decision du 29/07).
     { path: '/hr/config/jobs', redirect: '/hr/config/classification' },

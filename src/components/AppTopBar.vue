@@ -66,7 +66,7 @@
           </div>
         </div>
       </div>
-      <button :class="iconBtnClass" :title="t('topbar.settings')">
+      <button :class="iconBtnClass" :title="t('topbar.settings')" @click="openSettings">
         <Settings class="w-4 h-4" />
       </button>
       <button :class="iconBtnClass" :title="t('topbar.help')">
@@ -138,6 +138,7 @@ import AboutModal from './AboutModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { brand } from '../config/appConfig'
 import { useNotificationStore, type AppNotification } from '../stores/notifications'
+import { useMailSettingsStore } from '../stores/mailSettings'
 import { formatRelativeDateTime } from '../lib/date'
 import type { AuthUser } from '../types'
 
@@ -146,6 +147,7 @@ defineProps<{ user: AuthUser | null }>()
 const router       = useRouter()
 const auth         = useAuthStore()
 const notifStore   = useNotificationStore()
+const mailStore    = useMailSettingsStore()
 const { t } = useI18n()
 
 const iconBtnClass =
@@ -210,6 +212,14 @@ function handleNotifClick(n: AppNotification) {
 function goToProfile() {
   activeDropdown.value = null
   router.push(auth.isHRSpace ? { name: 'hr-profile' } : { name: 'employee-profile' })
+}
+
+// Engrenage : ouvre les paramètres de l'application, réservés au compte
+// administrateur de lancement (le serveur le vérifie aussi). Pour les autres
+// comptes, il ne se passe rien.
+async function openSettings() {
+  if (mailStore.canConfigure === null) await mailStore.fetchStatus()
+  if (mailStore.canConfigure) router.push({ name: 'settings-mail' })
 }
 
 async function openSearch() {
