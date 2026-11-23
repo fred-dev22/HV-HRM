@@ -81,6 +81,26 @@ export const useMailSettingsStore = defineStore('mailSettings', () => {
     )
   }
 
+  // Supprime toute la configuration enregistree : les emails ne partent plus et la bande d'alerte reapparait.
+  async function reset() {
+    error.value = null
+    return withToast(
+      'Réinitialisation de la configuration…',
+      async () => {
+        try {
+          const { data } = await api.delete<MailSettings>('/mail-settings')
+          settings.value = data
+          configured.value = data.configured
+          return data
+        } catch (err) {
+          error.value = getApiErrorMessage(err, 'Impossible de réinitialiser la configuration')
+          throw err
+        }
+      },
+      () => error.value ?? 'Réinitialisation impossible',
+    )
+  }
+
   async function sendTest(to: string): Promise<{ ok: boolean; error: string | null }> {
     try {
       const { data } = await api.post<{ ok: boolean; error: string | null }>('/mail-settings/test', { to })
@@ -90,5 +110,5 @@ export const useMailSettingsStore = defineStore('mailSettings', () => {
     }
   }
 
-  return { configured, canConfigure, settings, error, fetchStatus, fetchSettings, save, sendTest }
+  return { configured, canConfigure, settings, error, fetchStatus, fetchSettings, save, reset, sendTest }
 })
