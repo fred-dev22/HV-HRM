@@ -8,10 +8,11 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Cloud, Server, Mail, Send, Save, CircleCheck, TriangleAlert, ShieldCheck, Check } from 'lucide-vue-next'
+import { Cloud, Server, Mail, Send, Save, CircleCheck, TriangleAlert, ShieldCheck, Check, RotateCcw } from 'lucide-vue-next'
 import { SkeletonLoader } from '../../components'
 import SecretField from '../../components/ui/form-field/SecretField.vue'
 import * as cls from '../../lib/formClasses'
+import { confirmDialog } from '../../lib/confirm'
 import { useAuthStore } from '../../stores/auth'
 import { useMailSettingsStore, type MailProvider } from '../../stores/mailSettings'
 
@@ -132,8 +133,42 @@ async function save() {
   }
 }
 
+/* ── Reinitialisation ──────────────────────────────────────────── */
+const resetting = ref(false)
+
+async function resetConfig() {
+  const ok = await confirmDialog(
+    "Réinitialiser la configuration des emails ? Tous les identifiants enregistrés seront supprimés et plus aucun email ne partira tant qu'une nouvelle configuration n'est pas enregistrée.",
+    { danger: true },
+  )
+  if (!ok) return
+  resetting.value = true
+  saved.value = false
+  saveError.value = ''
+  testResult.value = null
+  try {
+    await store.reset()
+    for (const k of Object.keys(errors)) delete errors[k]
+    form.sender = ''
+    form.graphTenantId = ''
+    form.graphClientId = ''
+    form.graphClientSecret = ''
+    form.smtpHost = ''
+    form.smtpPort = 587
+    form.smtpSecure = false
+    form.smtpAuth = true
+    form.smtpUser = ''
+    form.smtpPassword = ''
+    saveCount.value++
+  } catch {
+    saveError.value = store.error ?? 'Impossible de réinitialiser la configuration'
+  } finally {
+    resetting.value = false
+  }
+}
+
 /* ── Email de test ─────────────────────────────────────────────── */
-const testTo = ref(auth.user?.email ?? '')
+const testTo = ref('')
 const testing = ref(false)
 const testResult = ref<{ ok: boolean; error: string | null; to?: string } | null>(null)
 
@@ -242,16 +277,14 @@ const cardHint = 'text-[12px] text-muted-foreground mt-0.5'
           <template v-if="form.provider === 'Graph'">
             <h2 :class="cardTitle">Identifiants Microsoft Graph</h2>
             <div class="flex flex-col gap-4 mt-3">
-              <div :class="cls.fieldRow">
-                <SecretField
-                  v-model="form.graphTenantId" label="Identifiant du tenant *"
-                  :saved="settings.graph.hasTenantId" :hint="settings.graph.tenantIdHint" :error="errors.graphTenantId"
-                />
-                <SecretField
-                  v-model="form.graphClientId" label="Identifiant du client (application) *"
-                  :saved="settings.graph.hasClientId" :hint="settings.graph.clientIdHint" :error="errors.graphClientId"
-                />
-              </div>
+              <SecretField
+                v-model="form.graphTenantId" label="Identifiant du tenant *"
+                :saved="settings.graph.hasTenantId" :hint="settings.graph.tenantIdHint" :error="errors.graphTenantId"
+              />
+              <SecretField
+                v-model="form.graphClientId" label="Identifiant du client (application) *"
+                :saved="settings.graph.hasClientId" :hint="settings.graph.clientIdHint" :error="errors.graphClientId"
+              />
               <SecretField
                 v-model="form.graphClientSecret" label="Secret du client *" secret
                 :saved="settings.graph.hasSecret" :error="errors.graphClientSecret"
@@ -288,7 +321,7 @@ const cardHint = 'text-[12px] text-muted-foreground mt-0.5'
                   <span class="block text-[11px] text-muted-foreground">À décocher uniquement pour un relais interne sans authentification.</span>
                 </span>
               </label>
-              <div v-if="form.smtpAuth" :class="cls.fieldRow">
+              <template v-if="form.smtpAuth">
                 <SecretField
                   v-model="form.smtpUser" label="Identifiant *"
                   :saved="settings.smtp.hasUser" :hint="settings.smtp.userHint" :error="errors.smtpUser"
@@ -297,7 +330,7 @@ const cardHint = 'text-[12px] text-muted-foreground mt-0.5'
                   v-model="form.smtpPassword" label="Mot de passe *" secret
                   :saved="settings.smtp.hasPassword" :error="errors.smtpPassword"
                 />
-              </div>
+              </template>
             </div>
           </template>
 
@@ -309,6 +342,9 @@ const cardHint = 'text-[12px] text-muted-foreground mt-0.5'
 
         <div class="flex items-center gap-3 flex-wrap border-t border-border pt-5">
           <button :class="cls.btnPrimary" :disabled="saving" @click="save"><Save class="w-4 h-4" /> Enregistrer</button>
+          <button v-if="settings.configured" :class="[cls.btnOutline, '!text-danger']" :disabled="resetting || saving" @click="resetConfig">
+            <RotateCcw class="w-4 h-4" /> Réinitialiser
+          </button>
           <span v-if="saved" class="text-[12px] text-success inline-flex items-center gap-1"><CircleCheck class="w-3.5 h-3.5" /> Configuration enregistrée</span>
           <span v-if="saveError" :class="cls.fieldError">{{ saveError }}</span>
         </div>
