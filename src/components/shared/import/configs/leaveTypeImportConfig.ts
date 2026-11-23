@@ -36,6 +36,7 @@ export function buildLeaveTypeImportConfig(): ImportConfig {
       // formulaire manuel.
       { key: 'AppliesToGender', csvHeader: 'Genre concerné', label: 'Genre concerné', required: false, type: 'select', sample: '', options: () => GENDER_OPTIONS },
       { key: 'AppliesToExpatriate', csvHeader: 'Statut expatrié', label: 'Statut expatrié', required: false, type: 'boolean', sample: '' },
+      { key: 'AppliesToLeaveRegime', csvHeader: 'Régime concerné', label: 'Régime de congé annuel', required: false, type: 'select', sample: '', options: () => [{ value: 'Calendar', label: 'Calendaire' }, { value: 'Working', label: 'Ouvrables' }] },
       {
         key: 'OrganizationUnitId', csvHeader: 'Code entité', label: 'Entité', required: false, type: 'select', sample: '',
         options: () => entityStore.approvedEntities.map(e => ({ value: e.id, label: e.name, code: e.code })),

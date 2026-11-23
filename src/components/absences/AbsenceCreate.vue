@@ -145,7 +145,7 @@ const beneficiaryEligibility = computed(() => {
   if (!id) return null
   const emp = employeeStore.getById(id)
   if (!emp) return null
-  return { gender: emp.gender, isExpatriate: emp.isExpatriate, entityId: emp.entityId }
+  return { gender: emp.gender, isExpatriate: emp.isExpatriate, entityId: emp.entityId, leaveRegime: emp.leaveRegime ?? null }
 })
 const leaveTypeItems = computed(() =>
   leaveTypesStore.activeTypes

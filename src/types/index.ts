@@ -19,6 +19,8 @@ export interface AuthUser {
   // l'utilisateur connecte (voir lib/eligibility.ts, DashboardEmployee.vue).
   gender?:         'M' | 'F'
   isExpatriate?:   boolean
+  // Regime de conge annuel (GRT) : voir Employee.leaveRegime.
+  leaveRegime?:    'Calendar' | 'Working' | null
   // Compte d'amorçage cree par le seed (ex: "Admin HV"), pas un vrai
   // membre du personnel — voir Employee.IsSystem (schema.prisma). N'a ni
   // solde de conges ni existence RH reelle : ne doit jamais pouvoir soumettre
@@ -290,6 +292,11 @@ export interface Employee {
   // décompté de son solde — pas un "expatrié". Voir utils/calendar.ts et
   // computeWorkingDays côté backend.
   isExpatriate: boolean
+  // Regime de conge annuel (demande GRT) : Calendar = jours calendaires,
+  // Working = jours ouvrables, null = non renseigne. Sert a cibler un type de
+  // conge (LeaveType.appliesToLeaveRegime) : chaque employe recoit et voit le
+  // type de son regime.
+  leaveRegime?: 'Calendar' | 'Working' | null
   // Validateur direct (retour client, 08/09) : bascule le workflow de
   // validation de congé de cet employé sur UN validateur unique, à la place
   // du pool par entité — undefined/absent = comportement par défaut inchangé

@@ -53,6 +53,8 @@ const form = reactive({
 const appliesToGenderText = ref('')
 const appliesToExpatriateText = ref('')
 const organizationUnitIdText = ref('')
+// Regime de conge annuel (GRT) : '' = tous, 'Calendar' | 'Working'.
+const appliesToLeaveRegimeText = ref('')
 // Uniquement à la création — n'a pas de sens sur un type déjà existant.
 // Pré-cochée par défaut (décision du 31/07) : le cas courant est de vouloir
 // que les employés déjà présents en bénéficient tout de suite plutôt que
@@ -154,6 +156,7 @@ function populate() {
       appliesToGenderText.value = lt.appliesToGender ?? ''
       appliesToExpatriateText.value = lt.appliesToExpatriate === undefined || lt.appliesToExpatriate === null ? '' : String(lt.appliesToExpatriate)
       organizationUnitIdText.value = lt.organizationUnitId ?? ''
+      appliesToLeaveRegimeText.value = lt.appliesToLeaveRegime ?? ''
     }
   } else {
     Object.assign(form, {
@@ -164,6 +167,7 @@ function populate() {
     appliesToGenderText.value = ''
     appliesToExpatriateText.value = ''
     organizationUnitIdText.value = ''
+    appliesToLeaveRegimeText.value = ''
   }
   errors.name = ''
   errors.code = ''
@@ -203,6 +207,8 @@ async function handleSave() {
     appliesToGender:     appliesToGenderText.value ? (appliesToGenderText.value as 'M' | 'F') : undefined,
     appliesToExpatriate: appliesToExpatriateText.value === '' ? undefined : appliesToExpatriateText.value === 'true',
     organizationUnitId:  organizationUnitIdText.value || undefined,
+    // null (et non undefined) : permet de retirer la restriction d'un type existant.
+    appliesToLeaveRegime: appliesToLeaveRegimeText.value ? (appliesToLeaveRegimeText.value as 'Calendar' | 'Working') : null,
   }
   try {
     if (isEdit.value && props.editId) {
@@ -364,6 +370,15 @@ async function handleSave() {
                 <option value="">Toutes les entités</option>
                 <option v-for="e in entityStore.approvedEntities" :key="e.id" :value="e.id">{{ e.code }} · {{ e.name }}</option>
               </select>
+            </div>
+            <div :class="cls.field" class="mt-4">
+              <label :class="cls.fieldLabel">Régime de congé annuel</label>
+              <select v-model="appliesToLeaveRegimeText" :class="cls.fieldSelect">
+                <option value="">Tous les régimes</option>
+                <option value="Calendar">Calendaire uniquement</option>
+                <option value="Working">Ouvrables uniquement</option>
+              </select>
+              <span class="text-[11px] text-muted-foreground">Pour deux types de congé annuel (calendaire et ouvrables) : chaque employé reçoit et voit celui de son régime, défini sur sa fiche.</span>
             </div>
           </FormSection>
 

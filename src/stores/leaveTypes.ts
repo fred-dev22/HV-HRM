@@ -28,6 +28,8 @@ export interface LeaveTypeConfig {
   // sur Holiday (voir types/index.ts).
   appliesToGender?:     'M' | 'F' | null
   appliesToExpatriate?: boolean | null
+  // Regime de conge annuel (GRT) : ne concerne que les employes de ce regime (absent = tous).
+  appliesToLeaveRegime?: 'Calendar' | 'Working' | null
   organizationUnitId?:  string | null
   // Decompte calendaire (retour client, 08/09) : false (par defaut) = jours
   // ouvres, le comportement actuel. true = tous les jours du calendrier
@@ -60,6 +62,7 @@ interface BackendLeaveType {
   IsSystem: boolean
   AppliesToGender: string | null
   AppliesToExpatriate: boolean | null
+  AppliesToLeaveRegime?: string | null
   OrganizationUnitId: string | null
   CountCalendarDays: boolean
   BlockIfInsufficientBalance?: boolean
@@ -98,6 +101,7 @@ function mapLeaveType(raw: BackendLeaveType): LeaveTypeConfig {
     icon: ICON_BY_CODE[raw.Code] ?? DEFAULT_ICON,
     appliesToGender: (raw.AppliesToGender as 'M' | 'F' | null) ?? undefined,
     appliesToExpatriate: raw.AppliesToExpatriate ?? undefined,
+    appliesToLeaveRegime: (raw.AppliesToLeaveRegime as 'Calendar' | 'Working' | null | undefined) ?? undefined,
     organizationUnitId: raw.OrganizationUnitId ?? undefined,
     countCalendarDays: raw.CountCalendarDays,
     blockIfInsufficientBalance: raw.BlockIfInsufficientBalance ?? true,
@@ -124,6 +128,7 @@ function toBackendPayload(payload: Partial<LeaveTypeConfig>) {
   if (payload.isSystem !== undefined) body.IsSystem = payload.isSystem
   if (payload.appliesToGender !== undefined) body.AppliesToGender = payload.appliesToGender
   if (payload.appliesToExpatriate !== undefined) body.AppliesToExpatriate = payload.appliesToExpatriate
+  if (payload.appliesToLeaveRegime !== undefined) body.AppliesToLeaveRegime = payload.appliesToLeaveRegime
   if (payload.organizationUnitId !== undefined) body.OrganizationUnitId = payload.organizationUnitId
   if (payload.countCalendarDays !== undefined) body.CountCalendarDays = payload.countCalendarDays
   if (payload.blockIfInsufficientBalance !== undefined) body.BlockIfInsufficientBalance = payload.blockIfInsufficientBalance

@@ -43,6 +43,7 @@ interface BackendEmployee {
   // l'utilisateur connecte — voir lib/eligibility.ts et DashboardEmployee.vue.
   Gender: string
   IsExpatriate: boolean
+  LeaveRegime?: string | null
   IsSystem: boolean
 }
 
@@ -119,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
       entityName,
       gender:       employee.Gender === 'F' ? 'F' : 'M',
       isExpatriate: employee.IsExpatriate,
+      leaveRegime:  (employee.LeaveRegime as 'Calendar' | 'Working' | null | undefined) ?? null,
       isSystem:     employee.IsSystem,
     }
   }

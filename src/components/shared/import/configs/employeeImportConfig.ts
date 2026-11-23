@@ -9,6 +9,10 @@ const GENDER_OPTIONS = [
   { value: 'M', label: 'Homme' },
   { value: 'F', label: 'Femme' },
 ]
+const LEAVE_REGIME_OPTIONS = [
+  { value: 'Calendar', label: 'Calendaire' },
+  { value: 'Working', label: 'Ouvrables' },
+]
 const MARITAL_OPTIONS = [
   { value: 'Single', label: 'Célibataire' },
   { value: 'Married', label: 'Marié(e)' },
@@ -104,6 +108,7 @@ export function buildEmployeeImportConfig(): ImportConfig {
       },
       { key: 'Status', csvHeader: 'Statut', label: 'Statut', required: true, type: 'select', sample: 'Actif', options: () => STATUS_OPTIONS },
       { key: 'IsExpatriate', csvHeader: 'Expatrié', label: 'Expatrié', required: false, type: 'boolean', sample: '' },
+      { key: 'LeaveRegime', csvHeader: 'Régime de congé annuel', label: 'Régime de congé annuel', required: false, type: 'select', sample: '', options: () => LEAVE_REGIME_OPTIONS },
     ],
     extraColumns: [
       { key: 'createAccount', csvHeader: 'Créer un compte', label: 'Créer un compte', required: false, type: 'boolean', sample: '' },

@@ -80,6 +80,7 @@ interface BackendEmployee {
   UserId: string | null
   Status: string
   IsExpatriate: boolean
+  LeaveRegime?: string | null
   DirectValidatorId: string | null
   // Droits de validation effectivement accordes au compte (voir type Employee
   // ci-dessus / findAll() backend). Absent des reponses allegees (directory).
@@ -122,6 +123,7 @@ function mapEmployee(raw: BackendEmployee, paletteIndex: number): Employee {
     hasAccount:   raw.UserId != null,
     userId:       raw.UserId ?? undefined,
     isExpatriate: raw.IsExpatriate,
+    leaveRegime:  (raw.LeaveRegime as Employee['leaveRegime']) ?? null,
     directValidatorId: raw.DirectValidatorId ?? undefined,
     validatorPermissions: raw.ValidatorPermissions ?? [],
   }
@@ -142,6 +144,7 @@ interface BackendDirectoryEmployee {
   EmployeeCategoryId: string | null
   Status: string
   IsExpatriate: boolean
+  LeaveRegime?: string | null
   // Necessaire au filtrage des types de conge/jours feries restreints par
   // genre (voir lib/eligibility.ts) — pas une donnee sensible au meme titre
   // que les autres champs qu'omet cette reponse allegee (voir sa doc).
@@ -179,6 +182,7 @@ function mapDirectoryEmployee(raw: BackendDirectoryEmployee, paletteIndex: numbe
     employeeCategoryId: raw.EmployeeCategoryId ?? undefined,
     hasAccount:   false,
     isExpatriate: raw.IsExpatriate,
+    leaveRegime:  (raw.LeaveRegime as Employee['leaveRegime']) ?? null,
     // L'annuaire allege ne porte pas les droits du compte — les selecteurs de
     // validateur travaillent sur la liste complete (fetchAll), pas sur celle-ci.
     validatorPermissions: [],
@@ -205,6 +209,8 @@ function toBackendPayload(payload: Partial<Employee>): Record<string, unknown> {
   if (payload.employeeCategoryId !== undefined) body.EmployeeCategoryId = payload.employeeCategoryId || null
   if (payload.status !== undefined) body.Status = STATUS_TO_BACKEND[payload.status]
   if (payload.isExpatriate !== undefined) body.IsExpatriate = payload.isExpatriate
+  // null / '' = regime non renseigne (efface le regime).
+  if (payload.leaveRegime !== undefined) body.LeaveRegime = payload.leaveRegime || null
   // '' (sentinel "aucun validateur direct" côté formulaire) -> null, pour
   // permettre de repasser au pool par entité par défaut (voir PositionId
   // ci-dessus, même pattern de désassignation explicite).

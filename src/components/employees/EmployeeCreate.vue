@@ -85,6 +85,7 @@ const form = reactive({
   gender: '' as Gender | '', birthDate: '', birthPlace: '',
   maritalStatus: '' as MaritalStatus | '', idType: '' as IdDocumentType | '', idNumber: '',
   isExpatriate: false,
+  leaveRegime: '' as '' | 'Calendar' | 'Working',
   directValidatorId: '' as string,
 })
 const error = ref('')
@@ -202,6 +203,7 @@ async function create() {
       idNumber: form.idNumber || undefined,
       employeeCategoryId: form.employeeCategoryId,
       isExpatriate: form.isExpatriate,
+      leaveRegime: form.leaveRegime || null,
       directValidatorId: form.directValidatorId,
       // Un employé fraîchement créé n'a jamais de compte — hasAccount ne
       // devient vrai que via l'action "Créer un compte utilisateur" (voir
@@ -293,6 +295,16 @@ async function create() {
               <span class="block text-[11px] text-muted-foreground mt-0.5">(régime de congés différent : le week-end n'est jamais décompté ; les jours fériés restent exclus dans les deux cas)</span>
             </span>
           </label>
+
+          <div :class="[cls.field, 'mt-3.5']">
+            <label :class="cls.fieldLabel">Régime de congé annuel <span :class="cls.fieldOptional">(optionnel)</span></label>
+            <select v-model="form.leaveRegime" :class="cls.fieldSelect">
+              <option value="">Non renseigné</option>
+              <option value="Calendar">Calendaire</option>
+              <option value="Working">Ouvrables</option>
+            </select>
+            <span class="text-[11px] text-muted-foreground">Détermine le type de congé annuel de l'employé (calendaire ou ouvrables).</span>
+          </div>
 
           </FormSection>
 

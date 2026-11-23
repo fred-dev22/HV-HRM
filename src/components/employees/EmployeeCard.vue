@@ -113,6 +113,7 @@ const form = ref({
   entityId: '' as string | null, entityName: '',
   employeeCategoryId: '' as string, contractType: 'CDI' as ContractType,
   hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false,
+  leaveRegime: '' as '' | 'Calendar' | 'Working',
   gender: 'M' as Gender, birthDate: '', birthPlace: '',
   maritalStatus: 'Single' as MaritalStatus, idType: 'NationalId' as IdDocumentType, idNumber: '',
   directValidatorId: '' as string,
@@ -157,6 +158,7 @@ function enterEdit() {
     positionId: e.positionId ?? '', positionTitle: e.jobTitle,
     entityId: e.entityId, entityName: e.entityName ?? '', employeeCategoryId: e.employeeCategoryId ?? '', contractType: e.contractType,
     hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate,
+    leaveRegime: e.leaveRegime ?? '',
     gender: e.gender, birthDate: e.birthDate, birthPlace: e.birthPlace ?? '',
     maritalStatus: e.maritalStatus, idType: e.idType, idNumber: e.idNumber ?? '',
     directValidatorId: e.directValidatorId ?? '',
@@ -184,7 +186,7 @@ async function save() {
   // vrai blocage se fait a la soumission d'une demande de conge cote backend
   // (routeToApproval), la ou le message a du sens.
   try {
-    await store.updateEmployee(current.value.id, { ...form.value, jobTitle: form.value.positionTitle, positionId: form.value.positionId || undefined })
+    await store.updateEmployee(current.value.id, { ...form.value, leaveRegime: form.value.leaveRegime || null, jobTitle: form.value.positionTitle, positionId: form.value.positionId || undefined })
     isEditMode.value = false
   } catch {
     saveError.value = store.error ?? "L'enregistrement a échoué. Veuillez réessayer."
@@ -476,6 +478,15 @@ async function deletePermanently() {
               <input type="checkbox" v-model="form.isExpatriate" class="accent-primary" /> Employé expatrié
             </label>
             <div v-else :class="readBox">{{ current.isExpatriate ? 'Expatrié' : 'Local' }}</div>
+          </div>
+          <div :class="cls.field">
+            <label :class="cls.fieldLabel">Régime de congé annuel</label>
+            <select v-if="isEditMode" v-model="form.leaveRegime" :class="cls.fieldSelect">
+              <option value="">Non renseigné</option>
+              <option value="Calendar">Calendaire</option>
+              <option value="Working">Ouvrables</option>
+            </select>
+            <div v-else :class="readBox">{{ current.leaveRegime === 'Calendar' ? 'Calendaire' : current.leaveRegime === 'Working' ? 'Ouvrables' : 'Non renseigné' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Statut</label>
