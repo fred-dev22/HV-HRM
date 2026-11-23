@@ -12,6 +12,7 @@
 import AppTopBar from '../components/AppTopBar.vue'
 import AppNavBar from '../components/AppNavBar.vue'
 import AppSidebar from '../components/AppSidebar.vue'
+import MailConfigBanner from '../components/MailConfigBanner.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -20,6 +21,7 @@ const auth = useAuthStore()
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
     <AppTopBar :user="auth.user" />
+    <MailConfigBanner />
     <div id="below-topbar" class="flex flex-col flex-1 min-h-0 relative">
       <AppNavBar />
       <div class="flex flex-1 min-h-0">
