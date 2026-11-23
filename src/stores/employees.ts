@@ -82,6 +82,7 @@ interface BackendEmployee {
   IsExpatriate: boolean
   LeaveRegime?: string | null
   DirectValidatorId: string | null
+  ValidatorInterimId?: string | null
   // Droits de validation effectivement accordes au compte (voir type Employee
   // ci-dessus / findAll() backend). Absent des reponses allegees (directory).
   ValidatorPermissions?: string[]
@@ -125,6 +126,7 @@ function mapEmployee(raw: BackendEmployee, paletteIndex: number): Employee {
     isExpatriate: raw.IsExpatriate,
     leaveRegime:  (raw.LeaveRegime as Employee['leaveRegime']) ?? null,
     directValidatorId: raw.DirectValidatorId ?? undefined,
+    validatorInterimId: raw.ValidatorInterimId ?? undefined,
     validatorPermissions: raw.ValidatorPermissions ?? [],
   }
 }
@@ -215,6 +217,7 @@ function toBackendPayload(payload: Partial<Employee>): Record<string, unknown> {
   // permettre de repasser au pool par entité par défaut (voir PositionId
   // ci-dessus, même pattern de désassignation explicite).
   if (payload.directValidatorId !== undefined) body.DirectValidatorId = payload.directValidatorId || null
+  if (payload.validatorInterimId !== undefined) body.ValidatorInterimId = payload.validatorInterimId || null
   return body
 }
 

@@ -39,6 +39,9 @@ const CANCELLABLE: ExpenseReport['status'][] = ['Draft', 'InApprovalN1', 'InAppr
 const isOwner   = () => props.report.employeeId === auth.user?.id || props.report.createdById === auth.user?.id
 const canValidate = () => auth.hasPermission('FRAIS_VALIDER') && !isOwner() && IN_APPROVAL.includes(props.report.status)
 
+// Vue en tant qu'interimaire du validateur prevu (renseigne par le serveur dans la liste "a valider").
+const interimOf = () => expenseStore.pendingForMe.find(x => x.id === props.report.id)?.actingAsInterimOfName ?? props.report.actingAsInterimOfName
+
 function submit()  { expenseStore.submit(props.report.id) }
 async function cancel() {
   if (await confirmDialog('Annuler cette note de frais ?')) expenseStore.cancel(props.report.id)
@@ -97,6 +100,7 @@ async function confirmReject() {
 <template>
   <div class="flex items-center gap-1.5 flex-wrap">
     <template v-if="canValidate()">
+      <span v-if="interimOf()" class="text-[11px] font-medium text-warning bg-warning-bg rounded-full px-2 py-1 whitespace-nowrap">Validation en tant qu'intérimaire de {{ interimOf() }}</span>
       <button :class="approveCls" @click="openApprove"><Check class="w-3.5 h-3.5" /> Approuver</button>
       <button :class="returnCls" @click="openReturn"><Undo2 class="w-3.5 h-3.5" /> Retourner</button>
       <button :class="rejectCls" @click="openReject"><X class="w-3.5 h-3.5" /> Refuser</button>

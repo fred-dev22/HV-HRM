@@ -15,6 +15,7 @@ interface BackendDecision {
   DecidedAt: string | null
   CreatedAt: string
   validatedByEmployee?: BackendEmployeeRef
+  OnBehalfOf?: BackendEmployeeRef | null
 }
 interface BackendExpenseLine {
   Id: string
@@ -45,6 +46,7 @@ interface BackendExpenseReport {
   lines: BackendExpenseLine[]
   TotalAmount?: number
   decisions?: BackendDecision[]
+  ActingAsInterimOf?: BackendEmployeeRef | null
 }
 
 function initialsFromFullName(name: string): string {
@@ -66,6 +68,7 @@ function mapDecision(d: BackendDecision): ValidationStep {
     action: DECISION_ACTION[d.Decision] ?? 'pending',
     date: d.DecidedAt ?? '',
     comment: d.Comment ?? undefined,
+    onBehalfOfName: d.OnBehalfOf?.FullName ?? undefined,
   }
 }
 
@@ -106,6 +109,7 @@ function mapExpenseReport(raw: BackendExpenseReport): ExpenseReport {
     submittedAt: raw.SubmittedAt ?? undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
+    actingAsInterimOfName: raw.ActingAsInterimOf?.FullName ?? undefined,
     validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
   }
 }
@@ -153,6 +157,8 @@ export const useExpenseStore = defineStore('expenses', () => {
   const team         = ref<ExpenseReport[]>([])
   const all          = ref<ExpenseReport[]>([])
   const pendingForMe = ref<ExpenseReport[]>([])
+  // Deja decides par moi : restent visibles dans "à valider" apres ma decision.
+  const validatedByMe = ref<ExpenseReport[]>([])
   const loading      = ref(false)
   // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
   // (la liste affichee est relue en silence), meme si elle est vide.
@@ -204,6 +210,16 @@ export const useExpenseStore = defineStore('expenses', () => {
     }
   }
 
+  async function fetchValidatedByMe() {
+    try {
+      const { data } = await api.get<BackendExpenseReport[]>('/expense-reports/validated-by-me')
+      validatedByMe.value = data.map(mapExpenseReport)
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Impossible de charger les notes de frais déjà traitées')
+      throw err
+    }
+  }
+
   async function fetchPendingForMe() {
     loading.value = !loadedFetches.has('fetchPendingForMe')
     error.value = null
@@ -225,13 +241,13 @@ export const useExpenseStore = defineStore('expenses', () => {
   }
 
   function replaceEverywhere(updated: ExpenseReport) {
-    for (const list of [mine, team, all, pendingForMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
       const idx = list.value.findIndex(r => r.id === updated.id)
       if (idx !== -1) list.value[idx] = updated
     }
   }
   function removeEverywhere(id: string) {
-    for (const list of [mine, team, all, pendingForMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
       list.value = list.value.filter(r => r.id !== id)
     }
   }
@@ -239,6 +255,8 @@ export const useExpenseStore = defineStore('expenses', () => {
   // suite la ligne de "à valider" pour l'acteur courant, sans attendre un
   // rechargement complet de la page.
   function removeFromPending(id: string) {
+    const decided = pendingForMe.value.find(r => r.id === id)
+    if (decided && !validatedByMe.value.some(r => r.id === id)) validatedByMe.value.unshift(decided)
     pendingForMe.value = pendingForMe.value.filter(r => r.id !== id)
   }
 
@@ -423,8 +441,8 @@ export const useExpenseStore = defineStore('expenses', () => {
   }
 
   return {
-    mine, team, all, pendingForMe, loading, error,
-    fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchOne,
+    mine, team, all, pendingForMe, validatedByMe, loading, error,
+    fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchValidatedByMe, fetchOne,
     create, submit, createAndSubmit, saveDraft, update, remove, deletePermanently,
     approve, reject, returnReport, cancel,
   }

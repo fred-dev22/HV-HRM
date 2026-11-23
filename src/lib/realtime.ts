@@ -37,12 +37,16 @@ const PERMISSIONS: Record<DataDomain, { team: string; all: string; validate: str
 // longueur de la liste locale (voir plus haut).
 function refreshWorkflowStore(
   domain: 'leave' | 'mission' | 'expense',
-  store: { fetchMine: () => unknown; fetchTeam: () => unknown; fetchAll: () => unknown; fetchPendingForMe: () => unknown },
+  store: { fetchMine: () => unknown; fetchTeam: () => unknown; fetchAll: () => unknown; fetchPendingForMe: () => unknown; fetchValidatedByMe: () => unknown },
 ) {
   const auth = useAuthStore()
   const perms = PERMISSIONS[domain]!
   store.fetchMine()
-  if (auth.hasPermission(perms.validate)) store.fetchPendingForMe()
+  if (auth.hasPermission(perms.validate)) {
+    store.fetchPendingForMe()
+    // Demandes deja decidees par ce validateur : leur statut evolue avec les niveaux suivants.
+    Promise.resolve(store.fetchValidatedByMe()).catch(() => {})
+  }
   if (auth.hasPermission(perms.team)) store.fetchTeam()
   if (auth.hasPermission(perms.all)) store.fetchAll()
 }
@@ -56,7 +60,13 @@ function refreshLeaveStore(store: ReturnType<typeof useLeaveRequestStore>) {
   const auth = useAuthStore()
   const perms = PERMISSIONS.leave!
   if (store.mineLoaded) store.fetchMine()
-  if (auth.hasPermission(perms.validate)) store.fetchPendingForMe()
+  if (auth.hasPermission(perms.validate)) {
+    store.fetchPendingForMe()
+    // Demandes deja decidees par ce validateur : leur statut global change
+    // quand le niveau suivant decide (ex. "validation N+2" -> "Approuvee").
+    // Sans cette relecture, la ligne gardait l'ancien statut jusqu'au rechargement.
+    if (store.validatedByMe.length > 0) store.fetchValidatedByMe().catch(() => {})
+  }
   if (auth.hasPermission(perms.team) && store.teamLoaded) store.fetchTeam()
   if (store.allLoaded && auth.hasPermission(perms.all)) store.fetchAll()
   if (store.recentWindow) store.fetchRecent(auth.hasPermission(perms.all), store.recentWindow)

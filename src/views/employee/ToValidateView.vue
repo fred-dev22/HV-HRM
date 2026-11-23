@@ -1,13 +1,13 @@
 <template>
   <ListPageLayout
     title="Demandes à valider"
-    :subtitle="`${leaveStore.pendingForMe.length + pendingMissions.length + pendingExpenses.length} en attente de validation`"
+    :subtitle="`${totalPending} en attente de validation`"
     :columns="columns"
     :items="pageItems"
     :total="totalCount"
     :total-text="`${totalCount} élément(s)`"
-    :search-placeholder="scope === 'absences' ? 'Rechercher une demande…' : scope === 'missions' ? 'Rechercher une mission…' : 'Rechercher une note…'"
-    scope-label="À valider :"
+    search-placeholder="Rechercher une demande, un employé…"
+    scope-label="Type :"
     :scope-options="scopeOptions"
     v-model:scope="scope"
     v-model:search-query="searchQuery"
@@ -17,9 +17,21 @@
   >
     <!-- Actions contextuelles -->
     <template #row-actions="{ item }">
-      <AbsenceWorkflowActions v-if="scope === 'absences'" :leave="item" />
-      <MissionWorkflowActions v-else-if="scope === 'missions'" :mission="item" />
-      <ExpenseWorkflowActions v-else :report="item" />
+      <AbsenceWorkflowActions v-if="kindOf(item) === 'absences'" :leave="item" />
+      <MissionWorkflowActions v-else-if="kindOf(item) === 'missions'" :mission="item" />
+      <ExpenseWorkflowActions v-else-if="kindOf(item) === 'expenses'" :report="item" />
+      <button v-else :class="L.btnOutline" @click.stop="openCard(item)">Traiter</button>
+    </template>
+
+    <!-- Cellules de la vue "Toutes" -->
+    <template #cell-kindLabel="{ item }">
+      <span class="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-tint text-primary">{{ KIND_LABELS[kindOf(item)] }}</span>
+    </template>
+    <template #cell-allRef="{ item }">
+      <span class="truncate block">{{ summaryOf(item) }}</span>
+    </template>
+    <template #cell-allDate="{ item }">
+      <span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ formatDate(item.createdAt) }}</span>
     </template>
 
     <!-- Cellules ABSENCES -->
@@ -31,6 +43,7 @@
           <div v-if="item.createdByName && item.createdByName !== item.employeeName" class="text-[10px] text-muted-foreground truncate">
             Créé par {{ item.createdByName }}
           </div>
+          <div v-if="item.actingAsInterimOfName" class="text-[10px] font-medium text-warning truncate">Intérimaire de {{ item.actingAsInterimOfName }}</div>
         </div>
       </div>
     </template>
@@ -63,16 +76,19 @@
           <div class="min-w-0">
             <div class="text-sm font-semibold text-foreground truncate">{{ item.employeeName }}</div>
             <div class="text-[11px] text-muted-foreground">
-              {{ scope === 'absences' ? item.leaveTypeName : (item.referenceCode || '') }}
+              {{ kindOf(item) === 'absences' ? item.leaveTypeName : kindOf(item) === 'time' ? 'Saisie de temps' : (item.referenceCode || '') }}
             </div>
           </div>
         </div>
         <div v-if="item.createdByName && item.createdByName !== item.employeeName" class="text-[12px]">
           <div class="text-muted-foreground text-[11px]">Créé par</div>{{ item.createdByName }}
         </div>
+        <div v-if="item.actingAsInterimOfName" class="text-[12px] text-warning bg-warning-bg rounded-md px-2.5 py-2">
+          Vous validez cette demande en tant qu'intérimaire de {{ item.actingAsInterimOfName }}.
+        </div>
         <div><StatusPill :status="item.status" /></div>
 
-        <template v-if="scope === 'absences'">
+        <template v-if="kindOf(item) === 'absences'">
           <div class="grid grid-cols-2 gap-2 text-[12px]">
             <div><div class="text-muted-foreground text-[11px]">Début</div>{{ formatDate(item.startDate) }}</div>
             <div><div class="text-muted-foreground text-[11px]">Fin</div>{{ formatDate(item.endDate) }}</div>
@@ -87,7 +103,7 @@
           </div>
         </template>
 
-        <template v-else-if="scope === 'missions'">
+        <template v-else-if="kindOf(item) === 'missions'">
           <div class="grid grid-cols-2 gap-2 text-[12px]">
             <div><div class="text-muted-foreground text-[11px]">Destination</div>{{ item.destination }}</div>
             <div><div class="text-muted-foreground text-[11px]">Durée</div>{{ item.daysCount }}j</div>
@@ -98,6 +114,14 @@
             <div class="text-muted-foreground text-[11px]">Total mission (estimé)</div>
             <span class="font-semibold text-primary">{{ fmtNum(item.estimatedTotal ?? 0) }} MGA</span>
           </div>
+        </template>
+
+        <template v-else-if="kindOf(item) === 'time'">
+          <div class="grid grid-cols-2 gap-2 text-[12px]">
+            <div><div class="text-muted-foreground text-[11px]">Date</div>{{ formatDate(item.date) }}</div>
+            <div><div class="text-muted-foreground text-[11px]">Heures</div>{{ item.hours }} h</div>
+          </div>
+          <div v-if="item.comments" class="text-[12px]"><div class="text-muted-foreground text-[11px]">Commentaire</div>{{ item.comments }}</div>
         </template>
 
         <template v-else>
@@ -111,20 +135,20 @@
         </template>
 
         <button :class="L.btnPrimary" class="w-full justify-center" @click="openCard(item)">Ouvrir la fiche</button>
-        <AbsenceWorkflowActions v-if="scope === 'absences'" :leave="item" />
-        <MissionWorkflowActions v-else-if="scope === 'missions'" :mission="item" />
-        <ExpenseWorkflowActions v-else :report="item" />
+        <AbsenceWorkflowActions v-if="kindOf(item) === 'absences'" :leave="item" />
+        <MissionWorkflowActions v-else-if="kindOf(item) === 'missions'" :mission="item" />
+        <ExpenseWorkflowActions v-else-if="kindOf(item) === 'expenses'" :report="item" />
       </div>
     </template>
 
     <template #empty>
       <ClipboardCheck class="w-8 h-8" />
-      <p class="text-[13px]">{{ scope === 'absences' ? 'Aucune demande d\'absence' : scope === 'missions' ? 'Aucun ordre de mission' : 'Aucune note de frais' }}</p>
+      <p class="text-[13px]">Aucune demande</p>
     </template>
 
-    <AbsenceCard v-if="scope === 'absences' && openAbsenceId !== null" :leaves="(filtered as LeaveRequest[])" :request-id="openAbsenceId" @close="openAbsenceId = null" />
-    <MissionCard v-if="scope === 'missions' && openMissionId !== null" :missions="(filtered as unknown as MissionOrder[])" :mission-id="openMissionId" @close="openMissionId = null" />
-    <ExpenseCard v-if="scope === 'expenses' && openExpenseId !== null" :reports="(filtered as unknown as ExpenseReport[])" :report-id="openExpenseId" @close="openExpenseId = null" />
+    <AbsenceCard v-if="openAbsenceId !== null" :leaves="absenceRows" :request-id="openAbsenceId" @close="openAbsenceId = null" />
+    <MissionCard v-if="openMissionId !== null" :missions="missionRows" :mission-id="openMissionId" @close="openMissionId = null" />
+    <ExpenseCard v-if="openExpenseId !== null" :reports="expenseRows" :report-id="openExpenseId" @close="openExpenseId = null" />
   </ListPageLayout>
 </template>
 
@@ -145,8 +169,10 @@ import * as L from '../../lib/listClasses'
 import { useLeaveRequestStore } from '../../stores/leaveRequests'
 import { useMissionStore } from '../../stores/missions'
 import { useExpenseStore } from '../../stores/expenses'
+import { useTimeStore } from '../../stores/time'
+import { useAuthStore } from '../../stores/auth'
 import { useLeaveTypesStore } from '../../stores/leaveTypes'
-import { MISSIONS_EXPENSES_ENABLED } from '../../config/features'
+import { MISSIONS_EXPENSES_ENABLED, TIME_MODULE_ENABLED } from '../../config/features'
 import type { LeaveRequest, MissionOrder, ExpenseReport } from '../../types'
 
 const route = useRoute()
@@ -154,52 +180,47 @@ const router = useRouter()
 const leaveStore = useLeaveRequestStore()
 const missionStore = useMissionStore()
 const expenseStore = useExpenseStore()
+const timeStore = useTimeStore()
+const auth = useAuthStore()
 const leaveTypesStore = useLeaveTypesStore()
 
-const ALL_SCOPES = ['absences', 'missions', 'expenses'] as const
-type Scope = typeof ALL_SCOPES[number]
-const VALID_SCOPES: readonly Scope[] = MISSIONS_EXPENSES_ENABLED ? ALL_SCOPES : ['absences']
+type Kind = 'absences' | 'missions' | 'expenses' | 'time'
+type Scope = 'all' | Kind
+const TIME_ENABLED = TIME_MODULE_ENABLED && auth.hasAnyPermission(['TEMPS_VALIDER'])
+const VALID_SCOPES: readonly Scope[] = [
+  'all', 'absences',
+  ...(MISSIONS_EXPENSES_ENABLED ? (['missions', 'expenses'] as const) : []),
+  ...(TIME_ENABLED ? (['time'] as const) : []),
+]
+const KIND_LABELS: Record<Kind, string> = { absences: 'Absence', missions: 'Mission', expenses: 'Note de frais', time: 'Temps' }
 
-// Retour client du 23/09 : plus d'avertissement de préavis nulle part
-// (aucune page), le préavis minimum n'est de toute façon plus bloquant
-// depuis le 01/08 (noticeWarning() supprimée, elle affichait ce même
-// avertissement côté validateur).
-
-const initialScope = VALID_SCOPES.includes(route.query.scope as Scope)
-  ? (route.query.scope as Scope)
-  : 'absences'
-const scope = ref<'absences' | 'missions' | 'expenses'>(initialScope)
-const scopeOptions = MISSIONS_EXPENSES_ENABLED
-  ? [
-      { value: 'absences', label: 'Absences' },
-      { value: 'missions', label: 'Missions' },
-      { value: 'expenses', label: 'Notes de frais' },
-    ]
-  : [{ value: 'absences', label: 'Absences' }]
+// Par defaut : tous les types dans une seule liste, avec un filtre par type.
+const initialScope = VALID_SCOPES.includes(route.query.scope as Scope) ? (route.query.scope as Scope) : 'all'
+const scope = ref<Scope>(initialScope)
 
 const openAbsenceId = ref<string | null>(null)
 const openMissionId = ref<string | null>(null)
 const openExpenseId = ref<string | null>(null)
-function openCard(item: LeaveRequest | MissionOrder | ExpenseReport) {
-  if (scope.value === 'absences') openAbsenceId.value = (item as LeaveRequest).id
-  else if (scope.value === 'missions') openMissionId.value = (item as MissionOrder).id
-  else openExpenseId.value = (item as ExpenseReport).id
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function kindOf(item: any): Kind { return scope.value === 'all' ? item.kind : (scope.value as Kind) }
+function openCard(item: any) {
+  const k = kindOf(item)
+  if (k === 'absences') openAbsenceId.value = item.id
+  else if (k === 'missions') openMissionId.value = item.id
+  else if (k === 'expenses') openExpenseId.value = item.id
+  else router.push({ path: '/employee/time', query: { tab: 'validation' } })
 }
 
-// Deep-link depuis une notification/un email (`?scope=...&open=<id>`, voir
-// workflow-notifier.service.ts hrefToValidate) — ouvre directement la fiche
-// concernee. Un `watch` (pas seulement onMounted) est necessaire : cliquer
-// une notif alors qu'on est deja sur /employee/to-validate ne remonte pas le
-// composant, seule la query change.
+// Deep-link depuis une notification/un email (`?scope=...&open=<id>`) : ouvre la
+// fiche concernee. Un `watch` est necessaire : cliquer une notif alors qu'on est
+// deja sur cette page ne remonte pas le composant, seule la query change.
 function applyDeepLink() {
   const id = route.query.open
   if (typeof id !== 'string' || !id) return
-  if (VALID_SCOPES.includes(route.query.scope as Scope)) {
-    scope.value = route.query.scope as Scope
-  }
-  if (scope.value === 'absences') openAbsenceId.value = id
-  else if (scope.value === 'missions') openMissionId.value = id
-  else openExpenseId.value = id
+  const k = route.query.scope as string
+  if (k === 'missions') openMissionId.value = id
+  else if (k === 'expenses') openExpenseId.value = id
+  else openAbsenceId.value = id
   const { open, scope: scopeQuery, ...rest } = route.query
   void open; void scopeQuery
   router.replace({ query: rest })
@@ -208,10 +229,13 @@ watch(() => route.query.open, (id) => { if (id) applyDeepLink() })
 
 onMounted(async () => {
   await Promise.all([
-    leaveStore.pendingForMe.length === 0 ? leaveStore.fetchPendingForMe() : Promise.resolve(),
-    leaveStore.validatedByMe.length === 0 ? leaveStore.fetchValidatedByMe() : Promise.resolve(),
-    MISSIONS_EXPENSES_ENABLED && missionStore.pendingForMe.length === 0 ? missionStore.fetchPendingForMe() : Promise.resolve(),
-    MISSIONS_EXPENSES_ENABLED && expenseStore.pendingForMe.length === 0 ? expenseStore.fetchPendingForMe() : Promise.resolve(),
+    leaveStore.fetchPendingForMe().catch(() => {}),
+    leaveStore.validatedByMe.length === 0 ? leaveStore.fetchValidatedByMe().catch(() => {}) : Promise.resolve(),
+    MISSIONS_EXPENSES_ENABLED ? missionStore.fetchPendingForMe().catch(() => {}) : Promise.resolve(),
+    MISSIONS_EXPENSES_ENABLED ? missionStore.fetchValidatedByMe().catch(() => {}) : Promise.resolve(),
+    MISSIONS_EXPENSES_ENABLED ? expenseStore.fetchPendingForMe().catch(() => {}) : Promise.resolve(),
+    MISSIONS_EXPENSES_ENABLED ? expenseStore.fetchValidatedByMe().catch(() => {}) : Promise.resolve(),
+    TIME_ENABLED ? timeStore.fetchPending() : Promise.resolve(),
   ])
   leaveTypesStore.fetchAll().catch(() => {})
   applyDeepLink()
@@ -243,39 +267,85 @@ const expenseColumns: ListColumn[] = [
   { key: 'totalAmount', label: 'Total', align: 'right', width: 150 },
   { key: 'status', label: 'Statut', width: 130 },
 ]
-const columns = computed(() => scope.value === 'absences' ? absenceColumns : scope.value === 'missions' ? missionColumns : expenseColumns)
+const allColumns: ListColumn[] = [
+  { key: 'kindLabel', label: 'Type', hideable: false, width: 130 },
+  { key: 'allRef', label: 'Demande', width: 260 },
+  { key: 'employeeName', label: 'Employé', width: 200 },
+  { key: 'allDate', label: 'Soumis le', width: 120 },
+  { key: 'status', label: 'Statut', width: 130 },
+]
+const columns = computed(() => scope.value === 'absences' ? absenceColumns : scope.value === 'missions' ? missionColumns : scope.value === 'expenses' ? expenseColumns : allColumns)
 
 const searchQuery = ref('')
 const page = ref(1)
 const pageSize = ref(10)
 watch([scope, searchQuery, pageSize], () => { page.value = 1 })
 
-// "à valider" reste une file d'attente (pendingForMe) au sommet, mais un
-// validateur doit aussi garder une trace permanente des demandes de son
-// equipe qu'il a deja traitees (validatedByMe) — sinon elles disparaissent
-// de son ecran des qu'il valide, ce qui n'est pas ce qu'on veut.
-const pendingAbsences = computed(() => {
-  const decidedIds = new Set(leaveStore.pendingForMe.map(l => l.id))
-  const decided = leaveStore.validatedByMe.filter(l => !decidedIds.has(l.id))
-  return [...leaveStore.pendingForMe, ...decided]
-})
-const pendingMissions = computed(() => missionStore.pendingForMe)
-const pendingExpenses = computed(() => expenseStore.pendingForMe)
+// "à valider" : les demandes en attente de ma decision d'abord, puis celles que j'ai
+// deja traitees (elles restent visibles apres ma decision, voir validatedByMe).
+function withDecided<T extends { id: string }>(pending: T[], decided: T[]): T[] {
+  const ids = new Set(pending.map(x => x.id))
+  return [...pending, ...decided.filter(x => !ids.has(x.id))]
+}
+const absenceRows = computed(() => withDecided(leaveStore.pendingForMe, leaveStore.validatedByMe))
+const missionRows = computed(() => MISSIONS_EXPENSES_ENABLED ? withDecided(missionStore.pendingForMe, missionStore.validatedByMe) : [])
+const expenseRows = computed(() => MISSIONS_EXPENSES_ENABLED ? withDecided(expenseStore.pendingForMe, expenseStore.validatedByMe) : [])
+const timeRows = computed(() => TIME_ENABLED ? timeStore.pending : [])
 
-const filtered = computed<(LeaveRequest | MissionOrder | ExpenseReport)[]>(() => {
-  if (scope.value === 'absences') {
-    let rows = pendingAbsences.value
-    if (searchQuery.value) { const q = searchQuery.value.toLowerCase(); rows = rows.filter(l => l.employeeName.toLowerCase().includes(q) || l.leaveTypeName.toLowerCase().includes(q)) }
-    return rows
+const totalPending = computed(() => leaveStore.pendingForMe.length + missionStore.pendingForMe.length + expenseStore.pendingForMe.length + timeRows.value.length)
+
+const scopeOptions = computed(() => {
+  const withCount = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label)
+  const options = [
+    { value: 'all', label: withCount('Toutes', totalPending.value) },
+    { value: 'absences', label: withCount('Absences', leaveStore.pendingForMe.length) },
+  ]
+  if (MISSIONS_EXPENSES_ENABLED) {
+    options.push({ value: 'missions', label: withCount('Missions', missionStore.pendingForMe.length) })
+    options.push({ value: 'expenses', label: withCount('Notes de frais', expenseStore.pendingForMe.length) })
   }
-  if (scope.value === 'missions') {
-    let rows = pendingMissions.value
-    if (searchQuery.value) { const q = searchQuery.value.toLowerCase(); rows = rows.filter(m => m.referenceCode.toLowerCase().includes(q) || m.employeeName.toLowerCase().includes(q) || m.destination.toLowerCase().includes(q)) }
-    return rows
+  if (TIME_ENABLED) options.push({ value: 'time', label: withCount('Temps', timeRows.value.length) })
+  return options
+})
+
+function summaryOf(item: any): string {
+  const k = kindOf(item)
+  if (k === 'absences') return `${item.leaveTypeName} · ${formatDate(item.startDate)} → ${formatDate(item.endDate)}`
+  if (k === 'missions') return `${item.referenceCode} · ${item.destination} · ${shortDate(item.departureDate)} → ${shortDate(item.returnDate)}`
+  if (k === 'expenses') return `${item.referenceCode} · ${item.title} · ${fmtNum(item.totalAmount)} ${item.currency}`
+  return `Saisie du ${formatDate(item.date)} · ${item.hours} h`
+}
+
+const pendingIds = computed(() => new Set([
+  ...leaveStore.pendingForMe.map(x => x.id), ...missionStore.pendingForMe.map(x => x.id),
+  ...expenseStore.pendingForMe.map(x => x.id), ...timeRows.value.map(x => x.id),
+]))
+
+// Liste unifiee : en attente d'abord, puis le reste du plus recent au plus ancien.
+const tagged = computed<any[]>(() => [
+  ...absenceRows.value.map(x => ({ ...x, kind: 'absences' })),
+  ...missionRows.value.map(x => ({ ...x, kind: 'missions' })),
+  ...expenseRows.value.map(x => ({ ...x, kind: 'expenses' })),
+  ...timeRows.value.map(x => ({ ...x, kind: 'time' })),
+])
+function searchTextOf(r: any): string {
+  if (r.kind === 'absences') return `${r.leaveTypeName ?? ''} ${r.reason ?? ''}`
+  if (r.kind === 'missions') return `${r.referenceCode ?? ''} ${r.destination ?? ''}`
+  if (r.kind === 'expenses') return `${r.referenceCode ?? ''} ${r.title ?? ''}`
+  return 'temps saisie'
+}
+const filtered = computed<any[]>(() => {
+  let rows = scope.value === 'all' ? tagged.value : tagged.value.filter(r => r.kind === scope.value)
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    rows = rows.filter(r => `${r.employeeName ?? ''} ${searchTextOf(r)}`.toLowerCase().includes(q))
   }
-  let rows = pendingExpenses.value
-  if (searchQuery.value) { const q = searchQuery.value.toLowerCase(); rows = rows.filter(r => r.referenceCode.toLowerCase().includes(q) || r.employeeName.toLowerCase().includes(q) || r.title.toLowerCase().includes(q)) }
-  return rows
+  return [...rows].sort((a, b) => {
+    const pa = pendingIds.value.has(a.id) ? 0 : 1
+    const pb = pendingIds.value.has(b.id) ? 0 : 1
+    if (pa !== pb) return pa - pb
+    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+  })
 })
 
 const totalCount = computed(() => filtered.value.length)

@@ -1,12 +1,12 @@
 <template>
   <div class="flex flex-col py-1">
     <div
-      v-for="(s, i) in history"
+      v-for="(s, i) in sorted"
       :key="i"
       class="flex items-start gap-3 relative pb-4 last:pb-0"
     >
       <!-- Connecteur vertical -->
-      <div v-if="i < history.length - 1" class="absolute left-[11px] top-6 w-0.5 h-[calc(100%-8px)] bg-border z-0"></div>
+      <div v-if="i < sorted.length - 1" class="absolute left-[11px] top-6 w-0.5 h-[calc(100%-8px)] bg-border z-0"></div>
 
       <!-- Dot -->
       <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 relative z-[1] border-2 border-current" :class="dotColor(s.action)">
@@ -18,6 +18,7 @@
         <div class="flex items-center gap-2 flex-wrap">
           <UserAvatar :name="s.actorName" size="sm" />
           <span class="text-[13px] font-semibold text-foreground">{{ s.actorName }}</span>
+          <span v-if="s.onBehalfOfName" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-warning-bg text-warning whitespace-nowrap">Intérimaire de {{ s.onBehalfOfName }}</span>
           <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-bg text-neutral whitespace-nowrap">{{ levelLabel(s.level) }}</span>
           <span v-if="s.date" class="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">{{ formatDate(s.date) }}</span>
         </div>
@@ -32,11 +33,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Send, Check, X, CornerUpLeft, Clock, Circle, MoreHorizontal } from 'lucide-vue-next'
 import UserAvatar from './UserAvatar.vue'
 import type { ValidationStep } from '../../types'
 
-defineProps<{ history: ValidationStep[] }>()
+const props = defineProps<{ history: ValidationStep[] }>()
+// Ordre chronologique (la plus ancienne decision en haut) ; les etapes sans date
+// (en attente) restent en bas, a leur ordre d'origine.
+const sorted = computed(() => {
+  const dated = props.history.filter(s => s.date).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  return [...dated, ...props.history.filter(s => !s.date)]
+})
 
 function dotIcon(action: ValidationStep['action']) {
   const m: Record<ValidationStep['action'], typeof Send> = {
