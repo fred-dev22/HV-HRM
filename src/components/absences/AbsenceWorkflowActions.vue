@@ -56,6 +56,9 @@ const canValidate = () =>
   auth.hasPermission('CONGE_VALIDER') && !isOwner() && IN_APPROVAL.includes(props.leave.status) &&
   store.pendingForMe.some(l => l.id === props.leave.id)
 
+// Vue en tant qu'interimaire du validateur prevu (renseigne par le serveur dans la liste "a valider").
+const interimOf = () => store.pendingForMe.find(x => x.id === props.leave.id)?.actingAsInterimOfName ?? props.leave.actingAsInterimOfName
+
 function submit()  { store.submit(props.leave.id) }
 function markDone() { store.markDone(props.leave.id) }
 function regularize() { store.regularize(props.leave.id) }
@@ -121,6 +124,7 @@ async function confirmReject() {
 <template>
   <div class="flex items-center gap-1.5 flex-wrap">
     <template v-if="canValidate()">
+      <span v-if="interimOf()" class="text-[11px] font-medium text-warning bg-warning-bg rounded-full px-2 py-1 whitespace-nowrap">Validation en tant qu'intérimaire de {{ interimOf() }}</span>
       <button :class="approveCls" @click="openApprove"><Check class="w-3.5 h-3.5" /> Approuver</button>
       <button :class="returnCls" @click="openReturn"><Undo2 class="w-3.5 h-3.5" /> Retourner</button>
       <button :class="rejectCls" @click="openReject"><X class="w-3.5 h-3.5" /> Refuser</button>

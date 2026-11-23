@@ -25,6 +25,7 @@ interface BackendDecision {
   DecidedAt: string | null
   CreatedAt: string
   validatedByEmployee?: BackendEmployeeRef
+  OnBehalfOf?: BackendEmployeeRef | null
 }
 interface BackendAllowanceLine {
   expenseTypeId: string
@@ -60,6 +61,7 @@ interface BackendMissionOrder {
   createdByEmployee?: BackendEmployeeRef
   EstimatedTotal?: number
   decisions?: BackendDecision[]
+  ActingAsInterimOf?: BackendEmployeeRef | null
   allowance?: { lines: BackendAllowanceLine[]; total: number }
   missionExpenseLines?: BackendMissionExpenseLine[]
   linkedMissionOrder?: { Id: string; ReferenceCode: string; Destination: string; Status: string; employee?: BackendEmployeeRef } | null
@@ -84,6 +86,7 @@ function mapDecision(d: BackendDecision): ValidationStep {
     action: DECISION_ACTION[d.Decision] ?? 'pending',
     date: d.DecidedAt ?? '',
     comment: d.Comment ?? undefined,
+    onBehalfOfName: d.OnBehalfOf?.FullName ?? undefined,
   }
 }
 
@@ -151,6 +154,7 @@ function mapMissionOrder(raw: BackendMissionOrder): MissionOrder {
     linkedMission: raw.linkedMissionOrder ? mapLinkedMission(raw.linkedMissionOrder) : undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
+    actingAsInterimOfName: raw.ActingAsInterimOf?.FullName ?? undefined,
     validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
   }
 }
@@ -210,6 +214,8 @@ export const useMissionStore = defineStore('missions', () => {
   const team         = ref<MissionOrder[]>([])
   const all          = ref<MissionOrder[]>([])
   const pendingForMe = ref<MissionOrder[]>([])
+  // Deja decides par moi : restent visibles dans "à valider" apres ma decision.
+  const validatedByMe = ref<MissionOrder[]>([])
   const loading      = ref(false)
   // Fonctions de lecture deja reussies au moins une fois : pas de loader ensuite
   // (la liste affichee est relue en silence), meme si elle est vide.
@@ -267,6 +273,16 @@ export const useMissionStore = defineStore('missions', () => {
     }
   }
 
+  async function fetchValidatedByMe() {
+    try {
+      const { data } = await api.get<BackendMissionOrder[]>('/mission-orders/validated-by-me')
+      validatedByMe.value = data.map(mapMissionOrder)
+    } catch (err) {
+      error.value = getApiErrorMessage(err, 'Impossible de charger les ordres de mission déjà traités')
+      throw err
+    }
+  }
+
   async function fetchPendingForMe() {
     loading.value = !loadedFetches.has('fetchPendingForMe')
     error.value = null
@@ -298,13 +314,13 @@ export const useMissionStore = defineStore('missions', () => {
   // chargées (mine/team/all/pendingForMe) — évite un refetch complet après
   // chaque action de workflow.
   function replaceEverywhere(updated: MissionOrder) {
-    for (const list of [mine, team, all, pendingForMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
       const idx = list.value.findIndex(m => m.id === updated.id)
       if (idx !== -1) list.value[idx] = updated
     }
   }
   function removeEverywhere(id: string) {
-    for (const list of [mine, team, all, pendingForMe]) {
+    for (const list of [mine, team, all, pendingForMe, validatedByMe]) {
       list.value = list.value.filter(m => m.id !== id)
     }
   }
@@ -312,6 +328,8 @@ export const useMissionStore = defineStore('missions', () => {
   // suite la ligne de "à valider" pour l'acteur courant, sans attendre un
   // rechargement complet de la page.
   function removeFromPending(id: string) {
+    const decided = pendingForMe.value.find(m => m.id === id)
+    if (decided && !validatedByMe.value.some(m => m.id === id)) validatedByMe.value.unshift(decided)
     pendingForMe.value = pendingForMe.value.filter(m => m.id !== id)
   }
 
@@ -502,8 +520,8 @@ export const useMissionStore = defineStore('missions', () => {
   }
 
   return {
-    mine, team, all, pendingForMe, loading, error,
-    fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchOne, estimate,
+    mine, team, all, pendingForMe, validatedByMe, loading, error,
+    fetchMine, fetchTeam, fetchAll, fetchPendingForMe, fetchValidatedByMe, fetchOne, estimate,
     create, submit, createAndSubmit, saveDraft, update, remove, deletePermanently,
     approve, reject, returnMission, cancel,
   }

@@ -16,6 +16,7 @@ interface BackendDecision {
   DecidedAt: string | null
   CreatedAt: string
   validatedByEmployee?: BackendEmployeeRef
+  OnBehalfOf?: BackendEmployeeRef | null
 }
 interface BackendLeaveRequest {
   Id: string
@@ -40,6 +41,7 @@ interface BackendLeaveRequest {
   interimEmployee?: BackendEmployeeRef
   createdByEmployee?: BackendEmployeeRef
   decisions?: BackendDecision[]
+  ActingAsInterimOf?: BackendEmployeeRef | null
   InsufficientBalance?: boolean
 }
 
@@ -62,6 +64,7 @@ function mapDecision(d: BackendDecision): ValidationStep {
     action: DECISION_ACTION[d.Decision] ?? 'pending',
     date: d.DecidedAt ?? '',
     comment: d.Comment ?? undefined,
+    onBehalfOfName: d.OnBehalfOf?.FullName ?? undefined,
   }
 }
 
@@ -93,6 +96,7 @@ function mapLeaveRequest(raw: BackendLeaveRequest): LeaveRequest {
     rejectionReason: raw.RejectionReason ?? undefined,
     createdAt: raw.CreatedAt,
     modifiedAt: raw.ModifiedAt ?? undefined,
+    actingAsInterimOfName: raw.ActingAsInterimOf?.FullName ?? undefined,
     validationHistory: raw.decisions ? raw.decisions.filter(d => d.Decision !== 'Cancelled').map(mapDecision) : undefined,
     insufficientBalance: raw.InsufficientBalance ?? false,
   }
