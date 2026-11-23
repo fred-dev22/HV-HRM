@@ -73,7 +73,18 @@ function refreshLeaveStore(store: ReturnType<typeof useLeaveRequestStore>) {
   }
 }
 
+// Ecrans qui se relisent eux-memes sur un evenement (ex. le planning global) : ils
+// s'inscrivent a l'ouverture et se desinscrivent a la fermeture.
+const domainListeners = new Map<string, Set<() => void>>()
+export function onDomainChanged(domain: string, fn: () => void): () => void {
+  const set = domainListeners.get(domain) ?? new Set()
+  set.add(fn)
+  domainListeners.set(domain, set)
+  return () => { set.delete(fn) }
+}
+
 function refreshDomain(domain: DataDomain) {
+  domainListeners.get(domain)?.forEach((fn) => fn())
   if (domain === 'leave')    refreshLeaveStore(useLeaveRequestStore())
   if (domain === 'mission')  refreshWorkflowStore('mission', useMissionStore())
   if (domain === 'expense')  refreshWorkflowStore('expense', useExpenseStore())
