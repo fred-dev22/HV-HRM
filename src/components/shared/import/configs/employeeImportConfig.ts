@@ -108,6 +108,7 @@ export function buildEmployeeImportConfig(): ImportConfig {
       },
       { key: 'Status', csvHeader: 'Statut', label: 'Statut', required: true, type: 'select', sample: 'Actif', options: () => STATUS_OPTIONS },
       { key: 'IsExpatriate', csvHeader: 'Expatrié', label: 'Expatrié', required: false, type: 'boolean', sample: '' },
+      { key: 'IsCadre', csvHeader: 'Cadre', label: 'Cadre', required: false, type: 'boolean', sample: '' },
       { key: 'LeaveRegime', csvHeader: 'Régime de congé annuel', label: 'Régime de congé annuel', required: false, type: 'select', sample: '', options: () => LEAVE_REGIME_OPTIONS },
     ],
     extraColumns: [

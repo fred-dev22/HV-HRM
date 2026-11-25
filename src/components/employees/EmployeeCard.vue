@@ -4,6 +4,7 @@
  * frontdesk. Sélection de l'entité via TableLookupField (vraie entité).
  */
 import { ref, computed, watch } from 'vue'
+import { TIME_MODULE_ENABLED } from '../../config/features'
 import { ShieldCheck, KeyRound, UserX, RotateCcw, Trash2, UserRoundCog, Info } from 'lucide-vue-next'
 import CardModalShell from '../shared/CardModalShell.vue'
 import StatusPill from '../ui/StatusPill.vue'
@@ -25,6 +26,9 @@ import { useUserStore } from '../../stores/users'
 import { usePermissionStore } from '../../stores/permissions'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import type { Employee, ContractType, EmployeeStatus, Gender, MaritalStatus, IdDocumentType } from '../../types'
+
+// Case "Cadre" proposee seulement si le module Temps de travail est actif.
+const timeModuleEnabled = computed(() => TIME_MODULE_ENABLED)
 
 const props = defineProps<{ employees: Employee[]; employeeId: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -112,7 +116,7 @@ const form = ref({
   positionId: '' as string | null, positionTitle: '',
   entityId: '' as string | null, entityName: '',
   employeeCategoryId: '' as string, contractType: 'CDI' as ContractType,
-  hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false,
+  hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false, isCadre: false,
   leaveRegime: '' as '' | 'Calendar' | 'Working',
   gender: 'M' as Gender, birthDate: '', birthPlace: '',
   maritalStatus: 'Single' as MaritalStatus, idType: 'NationalId' as IdDocumentType, idNumber: '',
@@ -157,7 +161,7 @@ function enterEdit() {
     firstName: e.firstName, lastName: e.lastName, email: e.email ?? '', phone: e.phone ?? '',
     positionId: e.positionId ?? '', positionTitle: e.jobTitle,
     entityId: e.entityId, entityName: e.entityName ?? '', employeeCategoryId: e.employeeCategoryId ?? '', contractType: e.contractType,
-    hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate,
+    hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate, isCadre: e.isCadre ?? false,
     leaveRegime: e.leaveRegime ?? '',
     gender: e.gender, birthDate: e.birthDate, birthPlace: e.birthPlace ?? '',
     maritalStatus: e.maritalStatus, idType: e.idType, idNumber: e.idNumber ?? '',
@@ -478,6 +482,13 @@ async function deletePermanently() {
               <input type="checkbox" v-model="form.isExpatriate" class="accent-primary" /> Employé expatrié
             </label>
             <div v-else :class="readBox">{{ current.isExpatriate ? 'Expatrié' : 'Local' }}</div>
+          </div>
+          <div v-if="timeModuleEnabled" :class="cls.field">
+            <label :class="cls.fieldLabel">Catégorie de paie</label>
+            <label v-if="isEditMode" class="flex items-center gap-2 h-[34px] text-[13px] text-foreground cursor-pointer">
+              <input type="checkbox" v-model="form.isCadre" class="accent-primary" /> Cadre (exclu du calcul des heures supplémentaires et de l'export paie)
+            </label>
+            <div v-else :class="readBox">{{ current.isCadre ? 'Cadre' : 'Non cadre' }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Régime de congé annuel</label>

@@ -300,6 +300,8 @@ export interface Employee {
   // décompté de son solde — pas un "expatrié". Voir utils/calendar.ts et
   // computeWorkingDays côté backend.
   isExpatriate: boolean
+  // Cadre : exclu du calcul des heures supplementaires et de l'export paie (module Temps).
+  isCadre?: boolean
   // Regime de conge annuel (demande GRT) : Calendar = jours calendaires,
   // Working = jours ouvrables, null = non renseigne. Sert a cibler un type de
   // conge (LeaveType.appliesToLeaveRegime) : chaque employe recoit et voit le

@@ -4,6 +4,7 @@
  * Sélection de l'entité et du poste via TableLookupField (vraies données).
  */
 import { ref, reactive, computed, onMounted, watchEffect } from 'vue'
+import { TIME_MODULE_ENABLED } from '../../config/features'
 import { Info, Lock } from 'lucide-vue-next'
 import CreateModalShell from '../shared/CreateModalShell.vue'
 import TableLookupField from '../ui/table-lookup/TableLookupField.vue'
@@ -17,6 +18,9 @@ import { usePositionStore } from '../../stores/positions'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import type { ContractType, EmployeeStatus, Gender, MaritalStatus, IdDocumentType } from '../../types'
 import EmployeePicker from '../ui/EmployeePicker.vue'
+
+// Case "Cadre" proposee seulement si le module Temps de travail est actif.
+const timeModuleEnabled = computed(() => TIME_MODULE_ENABLED)
 
 const emit = defineEmits<{ close: []; created: [] }>()
 
@@ -85,6 +89,7 @@ const form = reactive({
   gender: '' as Gender | '', birthDate: '', birthPlace: '',
   maritalStatus: '' as MaritalStatus | '', idType: '' as IdDocumentType | '', idNumber: '',
   isExpatriate: false,
+  isCadre: false,
   leaveRegime: '' as '' | 'Calendar' | 'Working',
   directValidatorId: '' as string,
 })
@@ -203,6 +208,7 @@ async function create() {
       idNumber: form.idNumber || undefined,
       employeeCategoryId: form.employeeCategoryId,
       isExpatriate: form.isExpatriate,
+      isCadre: form.isCadre,
       leaveRegime: form.leaveRegime || null,
       directValidatorId: form.directValidatorId,
       // Un employé fraîchement créé n'a jamais de compte — hasAccount ne
@@ -293,6 +299,13 @@ async function create() {
             <span>
               Employé expatrié
               <span class="block text-[11px] text-muted-foreground mt-0.5">(régime de congés différent : le week-end n'est jamais décompté ; les jours fériés restent exclus dans les deux cas)</span>
+            </span>
+          </label>
+
+          <label v-if="timeModuleEnabled" class="flex items-start gap-2.5 mt-3.5 cursor-pointer text-[13px] text-foreground">
+            <input type="checkbox" v-model="form.isCadre" class="accent-primary mt-0.5" />
+            <span>Cadre
+              <span class="block text-[11px] text-muted-foreground mt-0.5">(exclu du calcul des heures supplémentaires et de l'export paie)</span>
             </span>
           </label>
 
