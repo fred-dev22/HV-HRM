@@ -45,6 +45,28 @@ export interface TimeEntry {
   createdAt: string
 }
 
+// Saisie en lot (RH) : un meme element pour plusieurs employes sur une periode.
+export interface TimeEntryBatchPayload {
+  EmployeeIds: string[]
+  From: string
+  To: string
+  // 0 = dimanche ... 6 = samedi.
+  Weekdays: number[]
+  IncludeHolidays: boolean
+  EntryType: TimeEntryType
+  Hours?: number
+  StartTime?: string
+  EndTime?: string
+  Comments?: string
+  // true : controle seulement, rien n'est cree.
+  DryRun?: boolean
+}
+export interface TimeEntryBatchReport {
+  planned: number
+  created: number
+  employees: { employeeId: string; name: string; code: string; planned: number; skipped: { reason: string; dates: string[] }[] }[]
+}
+
 export interface TimeEntryHistoryItem { id: string; action: string; actorId: string; comment: string | null; createdAt: string }
 
 export interface TimeEntryQuery {
@@ -234,6 +256,18 @@ export const useTimeStore = defineStore('time', {
     async create(payload: { Date: string; EntryType: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string; EmployeeId?: string }) {
       await api.post('/time/entries', payload)
       this.viewCache = {}
+    },
+    async createBatch(payload: TimeEntryBatchPayload): Promise<TimeEntryBatchReport> {
+      const { data } = await api.post('/time/entries/batch', payload)
+      if (!payload.DryRun) this.viewCache = {}
+      return {
+        planned: data.Planned,
+        created: data.Created,
+        employees: data.Employees.map((e: any) => ({
+          employeeId: e.EmployeeId, name: e.FullName, code: e.EmployeeNumber, planned: e.Planned,
+          skipped: e.Skipped.map((s: any) => ({ reason: s.Reason, dates: s.Dates })),
+        })),
+      }
     },
     async updateEntry(id: string, payload: { Date?: string; EntryType?: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string }) {
       await api.patch(`/time/entries/${id}`, payload)

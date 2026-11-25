@@ -21,6 +21,8 @@ defineProps<{
   // `createDisabledReason` s'affiche en infobulle.
   createDisabled?: boolean
   createDisabledReason?: string
+  // Libelle du bouton principal pendant l'attente (defaut : "Creation…").
+  savingLabel?: string
 }>()
 
 const emit = defineEmits<{ close: []; create: []; saveDraft: [] }>()
@@ -82,7 +84,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               >
                 <Loader2 v-if="isSaving" class="animate-spin w-4 h-4" />
                 <Check v-else class="w-4 h-4" />
-                {{ isSaving ? 'Création…' : createLabel }}
+                {{ isSaving ? (savingLabel ?? 'Création…') : createLabel }}
               </button>
               <button
                 @click="emit('close')"

@@ -24,6 +24,7 @@
       <div class="flex items-center gap-2">
         <button :class="L.btnOutline" :disabled="exporting" @click="exportReport"><FileDown class="w-4 h-4" /> Rapport</button>
         <button v-if="isHr" :class="L.btnOutline" @click="showImport = true"><Upload class="w-4 h-4" /> Importer</button>
+        <button v-if="isHr" :class="L.btnOutline" @click="showBatch = true"><Users class="w-4 h-4" /> Saisie en lot</button>
         <button :class="L.btnPrimary" @click="showCreate = true"><Plus class="w-4 h-4" /> Nouvelle saisie</button>
       </div>
     </template>
@@ -114,6 +115,7 @@
     </template>
 
     <TimeEntryCreate v-if="showCreate" @close="showCreate = false" @saved="load" />
+    <TimeEntryBatch v-if="showBatch" @close="showBatch = false" @saved="load" />
     <ImportWizardModal v-if="showImport" :open="showImport" :config="importConfig" @close="showImport = false" @imported="load" />
     <TimeEntryCard v-if="openId" :entries="rows" :entry-id="openId" :is-hr="isHr" :start-in-edit="startInEdit" @close="openId = null" @changed="load" />
   </ListPageLayout>
@@ -127,10 +129,11 @@
  * annulation et rapport CSV.
  */
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { Plus, FileDown, Upload, Clock, ListChecks, Hourglass, CircleCheck } from 'lucide-vue-next'
+import { Plus, FileDown, Upload, Users, Clock, ListChecks, Hourglass, CircleCheck } from 'lucide-vue-next'
 import { StatusPill, UserAvatar, ListPageLayout } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import TimeEntryCreate from '../../components/time/TimeEntryCreate.vue'
+import TimeEntryBatch from '../../components/time/TimeEntryBatch.vue'
 import TimeEntryCard from '../../components/time/TimeEntryCard.vue'
 import ImportWizardModal from '../../components/shared/import/ImportWizardModal.vue'
 import { buildTimeEntryImportConfig } from '../../components/shared/import/configs/timeEntryImportConfig'
@@ -245,6 +248,7 @@ const kpis = computed(() => [
 // ── Actions ──
 const showCreate = ref(false)
 const showImport = ref(false)
+const showBatch = ref(false)
 const importConfig = computed(() => buildTimeEntryImportConfig())
 const openId = ref<string | null>(null)
 const startInEdit = ref(false)
