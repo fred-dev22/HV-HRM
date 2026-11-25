@@ -33,16 +33,8 @@
           <div :class="L.cardHeader"><div :class="L.cardTitle"><span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center justify-center shrink-0">3</span> <TrendingUp class="w-4 h-4" /> Calcul T5 : heures supplémentaires</div></div>
           <p class="text-[13px] text-muted-foreground mb-3">Répartit les heures supplémentaires par code (HS01 à HS10), ajoute le panier et la permanence. Les cadres sont exclus.</p>
           <div class="flex items-end gap-3 flex-wrap">
-            <div v-if="methodChoice" :class="cls.field" class="flex-1 min-w-[220px]">
-              <label :class="cls.fieldLabel">Méthode</label>
-              <select v-model="method" :class="cls.fieldSelect">
-                <option value="daily">Dépassement de l'horaire du jour</option>
-                <option value="weekly">Cumul hebdomadaire au-delà de 40 h</option>
-              </select>
-            </div>
-            <p v-else class="text-[13px] flex-1 min-w-[220px] pb-2">
-              Méthode : <strong>{{ fixedMethod === 'weekly' ? 'cumul hebdomadaire au-delà de 40 h' : "dépassement de l'horaire du jour" }}</strong>
-              <span class="text-muted-foreground"> (réglée dans Configuration, Réglages)</span>
+            <p class="text-[13px] flex-1 min-w-[220px] pb-2">
+              Méthode : <strong>cumul hebdomadaire au-delà de 40 h</strong>
             </p>
             <div :class="cls.field" class="min-w-[200px]">
               <label :class="cls.fieldLabel">Code à calculer</label>
@@ -121,7 +113,6 @@ function savedPeriod(): { from: string; to: string } | null {
 const saved = savedPeriod()
 const from = ref(saved?.from ?? `${today.slice(0, 8)}01`)
 const to = ref(saved?.to ?? today)
-const method = ref<'daily' | 'weekly'>('daily')
 // Mode par code : vide = tous les codes. Les codes calcules automatiquement par T5.
 const onlyCode = ref('')
 const CALCULATED_CODES = [
@@ -135,11 +126,6 @@ const CALCULATED_CODES = [
   { code: '2210', label: '2210 : permanence' },
 ]
 
-// Methode reglee pour le client : fixe (journaliere ou hebdomadaire) ou "les deux"
-// (choix a chaque calcul). Sans reglage lisible, on propose le choix.
-const methodValue = computed(() => store.settings.find(s => s.key === 'overtime_method')?.value)
-const methodChoice = computed(() => methodValue.value === undefined || methodValue.value === 2)
-const fixedMethod = computed<'daily' | 'weekly'>(() => (methodValue.value === 1 ? 'weekly' : 'daily'))
 onMounted(() => {
   store.fetchSettings().catch(() => {})
   loadReport()
@@ -182,9 +168,9 @@ async function runDaily() {
   }
 }
 async function runOvertime() {
-  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, methodChoice.value ? method.value : undefined, onlyCode.value), 'Calcul impossible')
+  const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, undefined, onlyCode.value), 'Calcul impossible')
   if (r) {
-    overtimeText.value = `${r.calculated} ligne(s) de paie${r.code ? ` ${r.code}` : ''} (méthode ${r.method === 'weekly' ? 'hebdomadaire' : 'journalière'}), ${r.excludedCadres} cadre(s) exclu(s).`
+    overtimeText.value = `${r.calculated} ligne(s) de paie${r.code ? ` ${r.code}` : ''} (calcul hebdomadaire), ${r.excludedCadres} cadre(s) exclu(s).`
     await loadReport()
   }
 }

@@ -152,27 +152,6 @@
 
     <!-- ─────────── Reglages ─────────── -->
     <section v-if="tab === 'settings'" class="flex flex-col gap-4">
-      <div v-if="methodSetting" :class="L.card">
-        <div :class="L.cardHeader"><div :class="L.cardTitle"><Calculator class="w-4 h-4" /> Méthode de calcul des heures supplémentaires</div></div>
-        <p class="text-[12px] text-muted-foreground mb-3">Chaque client utilise sa méthode. Le choix est enregistré dès que vous cliquez et s'applique au prochain calcul (Export paie).</p>
-        <div class="grid grid-cols-3 gap-3 max-lg:grid-cols-1">
-          <button
-            v-for="m in METHOD_OPTIONS" :key="m.value" type="button" :disabled="busy"
-            class="text-left rounded-lg border p-3.5 transition-colors cursor-pointer"
-            :class="methodSetting.value === m.value ? 'border-primary bg-tint' : 'border-border bg-background hover:border-primary'"
-            @click="chooseMethod(m.value)"
-          >
-            <div class="flex items-center gap-2 text-[13px] font-semibold" :class="methodSetting.value === m.value ? 'text-primary' : 'text-foreground'">
-              <span class="w-3.5 h-3.5 rounded-full border-2 inline-flex items-center justify-center shrink-0" :class="methodSetting.value === m.value ? 'border-primary' : 'border-border'">
-                <span v-if="methodSetting.value === m.value" class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              </span>
-              {{ m.label }}
-            </div>
-            <p class="text-[12px] text-muted-foreground mt-1.5">{{ m.hint }}</p>
-          </button>
-        </div>
-      </div>
-
       <div :class="L.card">
         <div :class="L.cardHeader"><div :class="L.cardTitle"><SlidersHorizontal class="w-4 h-4" /> Corrections du temps travaillé</div></div>
         <p class="text-[12px] text-muted-foreground mb-3">Options appliquées au prochain calcul des heures. Le changement est enregistré dès que vous cliquez.</p>
@@ -255,7 +234,7 @@
  * de permanence.
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Lock, Trash2, Coins, Calculator, UserX, Link2, CircleCheck } from 'lucide-vue-next'
+import { FolderOpen, Folder, Upload, Settings, SlidersHorizontal, Tag, Pencil, Lock, Trash2, Coins, UserX, Link2, CircleCheck } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
@@ -308,24 +287,8 @@ const toggleSettings = computed(() => editableSettings.value
   .map(s => ({ ...s, label: s.label.replace(/\s*\(1 = oui\)/i, '') })))
 const numberSettings = computed(() => editableSettings.value.filter(s => !TOGGLE_KEYS.includes(s.key) && s.key !== METHOD_KEY))
 
-// Methode de calcul des heures supplementaires : 0 journalier, 1 hebdomadaire, 2 les deux.
+// Le calcul des heures supplementaires se fait toujours a la semaine : plus de choix de methode.
 const METHOD_KEY = 'overtime_method'
-const METHOD_OPTIONS = [
-  { value: 0, label: 'Journalière', hint: "Chaque jour est comparé à son horaire prévu : l'excédent du jour est une heure supplémentaire, datée du jour travaillé." },
-  { value: 1, label: 'Hebdomadaire', hint: "Seul compte le cumul de la semaine au-delà de 40 h (hors dimanche, férié et nuit). Ligne datée du dimanche de fin de semaine." },
-  { value: 2, label: 'Les deux', hint: 'Les deux méthodes sont proposées : la méthode se choisit à chaque calcul dans Export paie.' },
-]
-const methodSetting = computed(() => {
-  const s = editableSettings.value.find(x => x.key === METHOD_KEY)
-  return s ? s : null
-})
-async function chooseMethod(value: number) {
-  const r = await run('Enregistrement...', () => store.saveSetting(METHOD_KEY, value), 'Enregistrement impossible')
-  if (r.ok) {
-    const target = editableSettings.value.find(x => x.key === METHOD_KEY)
-    if (target) target.value = value
-  }
-}
 
 async function run<T>(label: string, action: () => Promise<T>, fallback: string): Promise<{ ok: boolean; result?: T; message?: string }> {
   busy.value = true
