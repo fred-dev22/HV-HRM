@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
 import { withToast } from '../lib/withToast'
+import { toDateInput } from '../lib/date'
 import { useEntityStore } from './entities'
 import { usePositionStore } from './positions'
 import type { Employee, ContractType, EmployeeStatus } from '../types'
@@ -111,12 +112,12 @@ function mapEmployee(raw: BackendEmployee, paletteIndex: number): Employee {
     entityName:   entity?.name,
     email:        raw.Email,
     phone:        raw.MobilePhone ?? raw.WorkPhone ?? undefined,
-    hireDate:     raw.HireDate,
-    contractType: CONTRACT_TYPE_FROM_BACKEND[raw.ContractType] ?? 'CDI',
+    hireDate:     toDateInput(raw.HireDate),
+    contractType:CONTRACT_TYPE_FROM_BACKEND[raw.ContractType] ?? 'CDI',
     status:       STATUS_FROM_BACKEND[raw.Status] ?? 'active',
     managerId:    entity?.managerId ?? undefined,
     gender:        raw.Gender === 'F' ? 'F' : 'M',
-    birthDate:     raw.BirthDate,
+    birthDate:     toDateInput(raw.BirthDate),
     birthPlace:    raw.BirthPlace ?? undefined,
     maritalStatus: (raw.MaritalStatus as Employee['maritalStatus']) ?? 'Single',
     idType:        (raw.IdType as Employee['idType']) ?? 'NationalId',

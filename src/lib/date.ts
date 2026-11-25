@@ -11,6 +11,13 @@ export function formatDate(iso: string | null | undefined): string {
   return `${d}-${mo}-${y}`
 }
 
+// Date backend (ISO complet ou YYYY-MM-DD) au format attendu par un champ
+// <input type="date">, qui reste vide face à une valeur ISO complète. Même
+// extraction par préfixe que formatDate, pour la même raison de fuseau.
+export function toDateInput(iso: string | null | undefined): string {
+  return /^\d{4}-\d{2}-\d{2}/.exec(iso ?? '')?.[0] ?? ''
+}
+
 // Date du jour en YYYY-MM-DD (heure locale, pas UTC) — utilisé comme borne
 // `max` sur les champs date de naissance / date d'embauche, qui n'ont
 // aucune raison d'accepter une date future.
