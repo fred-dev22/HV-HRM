@@ -22,6 +22,9 @@
           </div>
         </div>
 
+        <!-- Alerte heures supplementaires : visible du manager (module Temps de travail) -->
+        <OvertimeAlertCard time-route="employee-time" class="mb-3.5" />
+
         <div class="grid grid-cols-2 gap-3 max-md:grid-cols-1">
           <div :class="card">
             <div :class="cardHeader">
@@ -111,6 +114,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Plus, List, Plane, Calendar, Check, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import AbsenceCreate from '../components/absences/AbsenceCreate.vue'
+import OvertimeAlertCard from '../components/time/OvertimeAlertCard.vue'
 import { StatusPill } from '../components'
 import { formatDate } from '../lib/date'
 import { confirmDialog } from '../lib/confirm'

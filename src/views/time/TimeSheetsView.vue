@@ -49,6 +49,7 @@
  * tous les employes (RH).
  */
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, CalendarSearch } from 'lucide-vue-next'
 import * as cls from '../../lib/formClasses'
 import * as L from '../../lib/listClasses'
@@ -76,7 +77,9 @@ const subTabs = computed(() => {
   else if (auth.hasPermission('TEMPS_VALIDER')) tabs.push({ key: 'team', label: 'Mon équipe' })
   return tabs
 })
-const sub = ref<SubKey>('individual')
+// ?view=team|global ouvre directement cette synthese (lien de l'alerte heures supplementaires).
+const asked = useRoute().query.view
+const sub = ref<SubKey>(subTabs.value.find(t => t.key === asked)?.key ?? 'individual')
 
 const today = todayIso()
 const from = ref(`${today.slice(0, 8)}01`)

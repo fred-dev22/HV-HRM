@@ -67,6 +67,15 @@ export interface TimeEntryBatchReport {
   employees: { employeeId: string; name: string; code: string; planned: number; skipped: { reason: string; dates: string[] }[] }[]
 }
 
+// Alerte heures supplementaires : employes ayant atteint le seuil du mois.
+export interface OvertimeAlerts {
+  month: string
+  alertHours: number
+  legalHours: number
+  lastCalculatedDate: string | null
+  employees: { employeeId: string; name: string; code: string; hours: number; legalCapReached: boolean }[]
+}
+
 export interface TimeEntryHistoryItem { id: string; action: string; actorId: string; comment: string | null; createdAt: string }
 
 export interface TimeEntryQuery {
@@ -256,6 +265,18 @@ export const useTimeStore = defineStore('time', {
     async create(payload: { Date: string; EntryType: TimeEntryType; Hours?: number; StartTime?: string; EndTime?: string; Comments?: string; EmployeeId?: string }) {
       await api.post('/time/entries', payload)
       this.viewCache = {}
+    },
+    async fetchOvertimeAlerts(month?: string): Promise<OvertimeAlerts> {
+      const { data } = await api.get('/time/overtime-alerts', { params: { Month: month } })
+      return {
+        month: data.Month,
+        alertHours: data.AlertHours,
+        legalHours: data.LegalHours,
+        lastCalculatedDate: data.LastCalculatedDate,
+        employees: data.Employees.map((e: any) => ({
+          employeeId: e.EmployeeId, name: e.FullName, code: e.EmployeeNumber, hours: e.Hours, legalCapReached: e.LegalCapReached,
+        })),
+      }
     },
     async createBatch(payload: TimeEntryBatchPayload): Promise<TimeEntryBatchReport> {
       const { data } = await api.post('/time/entries/batch', payload)

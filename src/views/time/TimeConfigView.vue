@@ -277,10 +277,12 @@ const formError = ref('')
 const showPicker = ref(false)
 
 // Reglages 0/1 : affiches en interrupteurs (le libelle d'origine disait "1 = oui").
-const TOGGLE_KEYS = ['deduct_break', 'include_non_working_days']
+const TOGGLE_KEYS = ['deduct_break', 'include_non_working_days', 'panier_requires_continuous', 'monthly_ni_cap_company_wide']
 const TOGGLE_HINTS: Record<string, string> = {
   deduct_break: "Soustrait la durée de la pause de l'horaire du temps travaillé.",
   include_non_working_days: 'Un jour sans horaire prévu mais pointé (le dimanche par exemple) est compté.',
+  panier_requires_continuous: "La pause de l'horaire est considérée prise quand les pointages la couvrent. Un employé en service continu doit avoir un horaire sans pause.",
+  monthly_ni_cap_company_wide: 'Désactivé : chaque employé a son propre plafond mensuel non imposable.',
 }
 const toggleSettings = computed(() => editableSettings.value
   .filter(s => TOGGLE_KEYS.includes(s.key))

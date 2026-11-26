@@ -23,7 +23,7 @@
         <!-- T4 -->
         <div :class="L.card">
           <div :class="L.cardHeader"><div :class="L.cardTitle"><span class="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center justify-center shrink-0">2</span> <Clock class="w-4 h-4" /> Calcul T4 : heures journalières</div></div>
-          <p class="text-[13px] text-muted-foreground mb-3">Calcule, pour chaque employé et chaque jour, les heures travaillées (entrée et sortie de la pointeuse) et les heures prévues par son horaire.</p>
+          <p class="text-[13px] text-muted-foreground mb-3">Calcule, pour chaque employé et chaque jour, les heures travaillées (pointeuse et saisies de travail approuvées) et les heures prévues par son horaire.</p>
           <button :class="L.btnPrimary" :disabled="busy" @click="runDaily"><Calculator class="w-4 h-4" /> Lancer le calcul T4</button>
           <p v-if="dailyText" class="text-[13px] mt-3 px-3 py-2 rounded-md bg-success-bg text-success flex items-center gap-1.5"><CircleCheck class="w-4 h-4 shrink-0" /> {{ dailyText }}</p>
         </div>

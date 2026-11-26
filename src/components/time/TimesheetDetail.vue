@@ -36,6 +36,7 @@
           </tbody>
         </table>
       </div>
+      <p class="text-[11px] text-muted-foreground mt-2">Heures supplémentaires : au-delà de 40 h cumulées dans la semaine (du lundi au dimanche), hors dimanches, jours fériés et heures de nuit.</p>
     </template>
   </div>
 </template>

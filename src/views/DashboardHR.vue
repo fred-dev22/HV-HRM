@@ -46,6 +46,7 @@
 
         <!-- Pointage en bref (module Temps de travail) -->
         <TimeDashboardCard />
+        <OvertimeAlertCard time-route="hr-time" class="mb-3.5" />
 
         <!-- Échéances à venir (backlog "Rappels d'échéances") -->
         <UpcomingDeadlinesCard v-if="DEADLINES_MODULE_ENABLED && auth.hasPermission('EMPLOYE_VOIR_TOUT')" class="mb-3" />
@@ -240,6 +241,7 @@ import AbsenceWorkflowActions from '../components/absences/AbsenceWorkflowAction
 import { DEADLINES_MODULE_ENABLED } from '../config/features'
 import UpcomingDeadlinesCard from '../components/rh/UpcomingDeadlinesCard.vue'
 import TimeDashboardCard from '../components/time/TimeDashboardCard.vue'
+import OvertimeAlertCard from '../components/time/OvertimeAlertCard.vue'
 import ProductTour from '../components/ui/ProductTour.vue'
 import type { TourStep } from '../components/ui/ProductTour.vue'
 import { SkeletonLoader, StatusPill } from '../components'
