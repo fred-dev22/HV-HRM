@@ -34,7 +34,17 @@
           <div :class="sectionCard">
             <div :class="sectionHeader">
               <h2 class="text-[15px] font-semibold text-foreground">Jours ouvrables</h2>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+              <button
+                v-if="scope === 'employee'"
+                :class="[L.btnOutline, '!px-3 !py-2 !text-xs']"
+                class="disabled:opacity-40 disabled:cursor-not-allowed"
+                :disabled="calendarStore.hasWorkingDaysError || calendarStore.loading"
+                title="Donner les horaires affichés à plusieurs employés d'un coup"
+                @click="showApplyEmployees = true"
+              >
+                <Users class="w-3.5 h-3.5" /> Appliquer à plusieurs employés
+              </button>
               <button :class="[L.btnOutline, '!px-3 !py-2 !text-xs']" @click="showScheduleImport = true">
                 <Upload class="w-3.5 h-3.5" /> Importer les horaires
               </button>
@@ -119,6 +129,15 @@
                 </span>
               </div>
             </div>
+
+            <CalendarEmployeesModal
+              v-if="showApplyEmployees"
+              :employees="applyEmployees"
+              :week="calendarStore.calendar.workingDays"
+              :owner-ids="configuredEmployeeCalendars.map(c => c.employeeId)"
+              @close="showApplyEmployees = false"
+              @applied="onAppliedToEmployees"
+            />
 
             <!-- Source unique : composant réutilisé dans l'onboarding -->
             <WorkingDaysConfig />
@@ -418,8 +437,7 @@ import { ref, reactive, computed, watch, type Component } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   ClockArrowDown, Clock, CalendarDays, ListChecks, Upload, Plus,
-  Pencil, Trash2, Lock, Info, RefreshCw, Save, Globe, Tag, User,
-} from 'lucide-vue-next'
+  Pencil, Trash2, Lock, Info, RefreshCw, Save, Globe, Tag, User, Users } from 'lucide-vue-next'
 import LeaveTypeFormModal from '../../components/configuration/LeaveTypeFormModal.vue'
 import WorkingDaysConfig  from '../../components/calendar/WorkingDaysConfig.vue'
 import CreateModalShell from '../../components/shared/CreateModalShell.vue'
@@ -441,6 +459,7 @@ import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
 import { useEntityStore } from '../../stores/entities'
 import { useEmployeeStore } from '../../stores/employees'
 import EmployeePicker from '../../components/ui/EmployeePicker.vue'
+import CalendarEmployeesModal from '../../components/calendar/CalendarEmployeesModal.vue'
 import type { Holiday } from '../../types'
 
 const calendarStore   = useCalendarStore()
@@ -596,6 +615,20 @@ let lastConfirmedEmployeeId = ''
 function refreshConfiguredEmployeeCalendars() {
   calendarStore.fetchConfiguredEmployeeCalendars().then((list) => { configuredEmployeeCalendars.value = list }).catch(() => {})
 }
+const showApplyEmployees = ref(false)
+const applyEmployees = computed(() =>
+  employeeOptions.value
+    .filter(e => e.status === 'active')
+    .map(e => ({ id: e.id, name: e.name, code: e.code ?? '', entityName: e.entityName ?? '' })),
+)
+// L'employe affiche n'est relu que s'il faisait partie de la selection : sinon
+// ses modifications non enregistrees restent a l'ecran.
+async function onAppliedToEmployees(ids: string[]) {
+  refreshConfiguredEmployeeCalendars()
+  const shown = selectedEmployeeId.value
+  if (shown && ids.includes(shown)) await calendarStore.fetchCalendarByEmployee(shown).catch(() => {})
+}
+
 // Apres un import d'horaires : relit le calendrier affiche et la liste des calendriers dedies.
 async function refreshAfterScheduleImport() {
   refreshConfiguredCategoryCalendars()

@@ -57,7 +57,8 @@ describe('validateScheduleRow', () => {
   })
   it('signale des heures incoherentes', () => {
     expect(validateScheduleRow(row({ ...ok, EndTime: '' }), lookups)).toContain('ET')
-    expect(validateScheduleRow(row({ ...ok, StartTime: '18:00' }), lookups)).toContain('après')
+    expect(validateScheduleRow(row({ ...ok, StartTime: '18:00' }), lookups)).toContain('16 h')
+    expect(validateScheduleRow(row({ ...ok, StartTime: '22:00', EndTime: '06:00', BreakStartTime: '01:00', BreakEndTime: '02:00' }), lookups)).toBeUndefined()
     expect(validateScheduleRow(row({ ...ok, StartTime: 'midi' }), lookups)).toContain('HH:mm')
     expect(validateScheduleRow(row({ ...ok, BreakEndTime: '' }), lookups)).toContain('pause')
     expect(validateScheduleRow(row({ ...ok, BreakStartTime: '07:00' }), lookups)).toContain('comprise')

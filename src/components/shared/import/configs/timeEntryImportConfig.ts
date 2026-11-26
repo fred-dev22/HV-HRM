@@ -1,5 +1,6 @@
 import { ENTRY_TYPE_LABELS, useTimeStore, type TimeEntryLine, type TimeEntryLineResult } from '../../../../stores/time'
 import type { ImportConfig, ImportRowResult, ParsedRow, RowCheck } from '../importTypes'
+import { TIMES_PROBLEM, hoursBetween } from '../../../time/timeFormat'
 
 // Import des saisies manuelles de temps (sites sans pointeuse, missions, reunions,
 // paniers, permanences) depuis un fichier Excel ou CSV : une ligne par periode, plusieurs
@@ -20,7 +21,6 @@ export function normalizeTime(value: string | undefined): string {
 }
 
 const TIME_OK = /^([01]\d|2[0-3]):[0-5]\d$/
-const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
 const parseHours = (v: string | undefined) => Number((v ?? '').replace(',', '.'))
 
 export function validateTimeEntryRow(row: ParsedRow): string | undefined {
@@ -34,7 +34,8 @@ export function validateTimeEntryRow(row: ParsedRow): string | undefined {
   }
   // Entree ou sortie seule : importee telle quelle, a completer avant validation.
   if ((start && !TIME_OK.test(start)) || (end && !TIME_OK.test(end))) return 'Les heures doivent être au format HH:mm (ex : 08:30).'
-  if (start && end && toMinutes(end) <= toMinutes(start)) return "L'heure de fin doit être après l'heure de début."
+  // Une fin avant le debut est un poste de nuit (sortie le lendemain).
+  if (start && end && hoursBetween(start, end) <= 0) return TIMES_PROBLEM
   return undefined
 }
 
@@ -58,7 +59,7 @@ export function buildTimeEntryImportConfig(): ImportConfig {
 
   return {
     title: 'Saisies manuelles de temps',
-    intro: "Importez en une fois les heures de plusieurs employés (sites sans pointeuse, missions, réunions extérieures, paniers, permanences). Une ligne par période : un même employé peut avoir plusieurs lignes le même jour. Chaque ligne devient une saisie en attente, validée par le circuit de l'employé. Renseignez l'heure de début et de fin, ou seulement la durée ; une entrée ou une sortie seule sera à compléter avant validation. Un panier ou une permanence compte pour 1 par jour, sans horaires. Un manager importe seulement les lignes de son équipe, les autres sont ignorées.",
+    intro: "Importez en une fois les heures de plusieurs employés (sites sans pointeuse, missions, réunions extérieures, paniers, permanences). Une ligne par période : un même employé peut avoir plusieurs lignes le même jour. Chaque ligne devient une saisie en attente, validée par le circuit de l'employé. Renseignez l'heure de début et de fin, ou seulement la durée ; une entrée ou une sortie seule sera à compléter avant validation. Une fin avant le début est un poste de nuit : la sortie a lieu le lendemain, le contrôle le signale. Un panier ou une permanence compte pour 1 par jour, sans horaires. Un manager importe seulement les lignes de son équipe, les autres sont ignorées.",
     acceptExcel: true,
     createEndpoint: '/time/entries/lines',
     dependencies: [],

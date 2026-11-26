@@ -16,9 +16,9 @@ vi.mock('jspdf-autotable', () => ({ default: (_doc: unknown, options: { head: st
 const week: WeekDetail = {
   employee: { id: 'e', name: 'Employé Test', code: 'EMP001', service: 'DG' },
   weekStart: '2026-11-09', weekEnd: '2026-11-15', weekNumber: 46, status: 'Validated', isCadre: false,
-  controlledBy: 'Chef', controlledAt: null, validatedBy: 'RH', validatedAt: null, site: { name: 'Zone A', minutes: 15 },
+  controlledBy: 'Chef', controlledAt: null, validatedBy: 'RH', validatedAt: null, calendar: { name: 'Standard', source: 'global' }, site: { name: 'Zone A', minutes: 15 },
   days: Array.from({ length: 7 }, (_, i) => ({
-    date: `2026-11-${String(9 + i).padStart(2, '0')}`, schedule: '8 h', holiday: false, leave: null, extraHours: 0, worked: 8, overtime: 0,
+    date: `2026-11-${String(9 + i).padStart(2, '0')}`, schedule: '8 h', hours: '07:00-16:00', pause: '12:00-13:00', holiday: false, leave: null, extraHours: 0, worked: 8, overtime: 0,
     panier: i === 0, permanence: false, corrected: false, incomplete: false, pendingEntryIds: [], travelDeducted: 30,
     punches: [{ start: '07:00', end: '15:00', nextDay: false, source: 'Morpho' as const, pending: false }],
   })),
@@ -32,7 +32,7 @@ describe('impression de la semaine', () => {
     const [grid, totals] = tables
     expect(grid!.body).toHaveLength(7)
     expect(grid!.body[0]).toHaveLength(grid!.head[0]!.length)
-    expect(grid!.body[0]!.slice(0, 4)).toEqual(['Lundi', '09/11', '07:00', '15:00'])
+    expect(grid!.body[0]!.slice(0, 5)).toEqual(['Lundi', '09/11', '07:00-16:00', '07:00', '15:00'])
     expect(totals!.body[0]!.at(-1)).toBe('13 000')
     expect(save).toHaveBeenCalledWith('pointage-EMP001-semaine-46.pdf')
   })

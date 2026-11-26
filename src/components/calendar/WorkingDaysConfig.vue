@@ -27,6 +27,8 @@
             {{ dayHoursError(key) }}
           </span>
           <span v-else class="text-[11px] font-semibold text-primary bg-tint rounded px-2 py-0.5 whitespace-nowrap shrink-0">{{ calcDayHours(days[key]) }} eff.</span>
+          <!-- Fin avant le début : à signaler, pour qu'une faute de saisie se voie. -->
+          <span v-if="isOvernight(days[key].start, days[key].end)" class="text-[10px] font-semibold text-warning bg-warning-bg rounded px-1.5 py-0.5 whitespace-nowrap shrink-0" title="Poste de nuit : la sortie a lieu le lendemain">fin le lendemain</span>
 
           <!-- Séparateur visuel -->
           <span class="text-border text-base select-none shrink-0 max-md:hidden" aria-hidden="true">|</span>
@@ -70,6 +72,7 @@
 import { computed } from 'vue'
 import { Clock, CircleAlert } from 'lucide-vue-next'
 import { useCalendarStore } from '../../stores/calendar'
+import { breakProblem, hoursProblem, isOvernight, plannedMinutes } from '../../lib/scheduleHours'
 import type { WorkingDays, WorkingDayConfig } from '../../types'
 
 // hideSummary: masque le récapitulatif interne quand l'appelant affiche déjà
@@ -98,28 +101,16 @@ const DAY_LABELS: Record<keyof WorkingDays, string> = {
 }
 
 function calcDayHours(day: WorkingDayConfig): string {
-  const workMin  = calendarStore.toMinutes(day.end) - calendarStore.toMinutes(day.start)
-  const breakMin = day.breakEnabled
-    ? calendarStore.toMinutes(day.breakEnd) - calendarStore.toMinutes(day.breakStart)
-    : 0
-  return calendarStore.formatMinutes(Math.max(0, workMin - breakMin))
+  return calendarStore.formatMinutes(plannedMinutes(day))
 }
 
 function dayHoursError(key: keyof WorkingDays): string | null {
   const day = days.value[key]
-  if (!day.enabled) return null
-  if (calendarStore.toMinutes(day.end) <= calendarStore.toMinutes(day.start)) return 'Fin avant ou égale au début'
-  return null
+  return day.enabled ? hoursProblem(day) : null
 }
 
 function dayBreakError(key: keyof WorkingDays): string | null {
   const day = days.value[key]
-  if (!day.enabled || !day.breakEnabled) return null
-  const bStart = calendarStore.toMinutes(day.breakStart)
-  const bEnd   = calendarStore.toMinutes(day.breakEnd)
-  if (bEnd <= bStart)                            return 'Fin avant début'
-  if (bStart < calendarStore.toMinutes(day.start)) return 'Avant l\'heure de début'
-  if (bEnd   > calendarStore.toMinutes(day.end))   return 'Après l\'heure de fin'
-  return null
+  return day.enabled ? breakProblem(day) : null
 }
 </script>

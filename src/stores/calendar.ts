@@ -1,3 +1,4 @@
+import { breakProblem, hoursProblem, plannedMinutes, toMinutes } from '../lib/scheduleHours'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
@@ -193,12 +194,6 @@ export const useCalendarStore = defineStore('calendar', () => {
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
   ]
 
-  function toMinutes(t: string): number {
-    if (!t) return 0
-    const p = t.split(':').map(Number)
-    return (p[0] ?? 0) * 60 + (p[1] ?? 0)
-  }
-
   function formatMinutes(min: number): string {
     const h = Math.floor(min / 60)
     const m = min % 60
@@ -209,32 +204,19 @@ export const useCalendarStore = defineStore('calendar', () => {
     DAY_KEYS.filter(k => workingDays.value[k].enabled).length,
   )
 
-  // Bloque l'enregistrement quand un jour actif a des heures incohérentes
-  // (fin avant/à début, pause hors plage) — voir test #03 du plan de tests :
-  // le message d'erreur s'affichait sans jamais empêcher la sauvegarde.
+  // Bloque l'enregistrement quand un jour actif a des heures incohérentes (fin
+  // égale au début, pause hors plage). Une fin avant le début est un poste de nuit.
   const hasWorkingDaysError = computed(() =>
     DAY_KEYS.some((key) => {
       const day = workingDays.value[key]
-      if (!day.enabled) return false
-      if (toMinutes(day.end) <= toMinutes(day.start)) return true
-      if (day.breakEnabled) {
-        const bStart = toMinutes(day.breakStart)
-        const bEnd = toMinutes(day.breakEnd)
-        if (bEnd <= bStart) return true
-        if (bStart < toMinutes(day.start)) return true
-        if (bEnd > toMinutes(day.end)) return true
-      }
-      return false
+      return day.enabled && !!(hoursProblem(day) || breakProblem(day))
     }),
   )
 
   const weeklyMinutes = computed(() =>
     DAY_KEYS.reduce((total, key) => {
       const day = workingDays.value[key]
-      if (!day.enabled) return total
-      const work  = toMinutes(day.end) - toMinutes(day.start)
-      const pause = day.breakEnabled ? toMinutes(day.breakEnd) - toMinutes(day.breakStart) : 0
-      return total + Math.max(0, work - pause)
+      return day.enabled ? total + plannedMinutes(day) : total
     }, 0),
   )
 
@@ -389,6 +371,11 @@ export const useCalendarStore = defineStore('calendar', () => {
     return data
       .filter((c): c is BackendCalendar & { EmployeeId: string } => !!c.EmployeeId)
       .map((c) => ({ id: c.Id, employeeId: c.EmployeeId }))
+  }
+
+  // Une meme semaine donnee en propre a plusieurs employes (creee ou remplacee).
+  async function applyToEmployees(employeeIds: string[], days: WorkingDays) {
+    await api.post('/calendars/employees', { EmployeeIds: employeeIds, WorkDays: mapWorkingDaysToBackend(days) })
   }
 
   async function deleteEmployeeCalendar(id: string, employeeId: string) {
@@ -576,6 +563,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     fetchCalendarByEmployee,
     fetchConfiguredEmployeeCalendars,
     deleteEmployeeCalendar,
+    applyToEmployees,
     updateWorkingDays,
     updateWorkingHours,
     deleteCategoryCalendar,

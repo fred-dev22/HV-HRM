@@ -169,7 +169,7 @@
                       <input v-model="form.end" type="time" :class="cls.fieldInput" />
                     </div>
                   </div>
-                  <div v-if="duration > 0" class="flex"><span :class="cls.hintChipInfo">Durée par jour : {{ formatHours(duration) }}</span></div>
+                  <div v-if="duration > 0" class="flex"><span :class="cls.hintChipInfo">Durée par jour : {{ formatHours(duration) }}<template v-if="isNightEntry(form.start, form.end)">, sortie le lendemain</template></span></div>
                 </template>
                 <div v-else class="flex"><span :class="cls.hintChipNeutral">Compte pour 1 par jour : aucun horaire à saisir.</span></div>
 
@@ -206,7 +206,7 @@ import {
   useTimeStore, ENTRY_TYPE_LABELS,
   type TimeEntryType, type TimeEntryBatchPayload, type TimeEntryEmployee, type TimeEntryLine, type TimeEntryLineResult,
 } from '../../stores/time'
-import { formatHours, hoursBetween } from './timeFormat'
+import { TIMES_PROBLEM, confirmNight, formatHours, hoursBetween, isNightEntry } from './timeFormat'
 
 const emit = defineEmits<{ close: []; saved: [] }>()
 
@@ -358,7 +358,7 @@ function buildPayload(): TimeEntryBatchPayload | string {
   }
   if (!needsTimes.value) return payload
   if (!form.start || !form.end) return "Renseignez l'heure de début et l'heure de fin."
-  if (duration.value <= 0) return "L'heure de fin doit être après l'heure de début."
+  if (duration.value <= 0) return TIMES_PROBLEM
   return { ...payload, StartTime: form.start, EndTime: form.end }
 }
 
@@ -406,8 +406,10 @@ async function verify() {
 }
 
 async function create() {
-  toast.loading('Enregistrement...')
   const sent = [...rows.value]
+  const creating = sent.filter(r => r.check?.action === 'create' || r.check?.action === 'replace')
+  if (needsTimes.value && !(await confirmNight(creating))) return
+  toast.loading('Enregistrement...')
   const results = await store.sendEntryLines(sent.map(toLine), { dryRun: false, source: 'Manual' })
   emit('saved')
   const created = results.filter(r => r.action === 'create' || r.action === 'replace').length

@@ -66,6 +66,15 @@ export function mondayOf(date: string): string {
   return addDays(date, dow === 0 ? -6 : 1 - dow)
 }
 
+const CALENDAR_SOURCES = { employee: "propre à l'employé", category: 'de sa catégorie', global: 'global' }
+
+/** D'ou vient l'horaire de la semaine, en clair. */
+export function calendarLabel(calendar: { name: string; source: keyof typeof CALENDAR_SOURCES } | null): string {
+  return calendar
+    ? `Horaire : calendrier ${CALENDAR_SOURCES[calendar.source]} (${calendar.name}).`
+    : "Aucun calendrier : les heures de cet employé ne sont pas calculées."
+}
+
 export const SOURCE_LABELS: Record<PunchSource, string> = {
   Morpho: 'Pointeuse (Morpho)', Manual: 'Saisie manuelle', Import: 'Import de fichier', Corrected: 'Corrigé',
 }

@@ -3,7 +3,7 @@ import { changeOf, draftOf, lockReason, mondayOf } from './weekGrid'
 import type { WeekDay } from '../../stores/timeWeeks'
 
 const day = (over: Partial<WeekDay> = {}): WeekDay => ({
-  date: '2026-11-16', schedule: '8 h', holiday: false, leave: null, punches: [], extraHours: 0, worked: 0, overtime: 0,
+  date: '2026-11-16', schedule: '8 h', hours: '07:00-16:00', pause: '12:00-13:00', holiday: false, leave: null, punches: [], extraHours: 0, worked: 0, overtime: 0,
   panier: false, permanence: false, corrected: false, incomplete: false, pendingEntryIds: [], travelDeducted: 0, ...over,
 })
 const punch = (start: string | null, end: string | null, nextDay = false) => ({ start, end, nextDay, source: 'Morpho' as const, pending: false })

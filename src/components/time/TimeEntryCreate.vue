@@ -40,7 +40,7 @@
                     <input v-model="form.end" type="time" :class="cls.fieldInput" />
                   </div>
                 </div>
-                <div v-if="duration > 0" class="flex"><span :class="cls.hintChipInfo">Durée : {{ formatHours(duration) }}</span></div>
+                <div v-if="duration > 0" class="flex"><span :class="cls.hintChipInfo">Durée : {{ formatHours(duration) }}<template v-if="isNightEntry(form.start, form.end)">, sortie le lendemain</template></span></div>
                 <div v-else-if="!!form.start !== !!form.end" class="flex"><span :class="cls.hintChipNeutral">Saisie incomplète : à compléter avant validation.</span></div>
               </template>
               <div v-else class="flex"><span :class="cls.hintChipNeutral">Compte pour 1 par jour : aucun horaire à saisir.</span></div>
@@ -76,7 +76,7 @@ import { todayIso } from '../../lib/date'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, ENTRY_TYPE_LABELS, type TimeEntryType, type TimeEntryEmployee } from '../../stores/time'
-import { formatHours, hoursBetween } from './timeFormat'
+import { TIMES_PROBLEM, confirmNight, formatHours, hoursBetween, isNightEntry } from './timeFormat'
 
 const emit = defineEmits<{ close: []; saved: [] }>()
 
@@ -113,7 +113,8 @@ async function submit() {
     payload.Hours = 1
   } else {
     if (!form.start && !form.end) { error.value = 'Renseignez au moins l\'heure de début ou de fin.'; return }
-    if (form.start && form.end && duration.value <= 0) { error.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
+    if (form.start && form.end && duration.value <= 0) { error.value = TIMES_PROBLEM; return }
+    if (!(await confirmNight([form]))) return
     if (form.start) payload.StartTime = form.start
     if (form.end) payload.EndTime = form.end
   }

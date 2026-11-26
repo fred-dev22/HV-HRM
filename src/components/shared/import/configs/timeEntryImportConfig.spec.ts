@@ -46,9 +46,13 @@ describe('validateTimeEntryRow', () => {
   it('accepte une entree seule, a completer ensuite', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '08:00' }))).toBeUndefined()
   })
-  it('refuse un horaire mal forme ou une fin avant le debut', () => {
+  it('refuse un horaire mal forme, une fin egale au debut et une nuit de plus de 16 h', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: 'midi', EndTime: '17:00' }))).toContain('HH:mm')
-    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '17:00', EndTime: '08:00' }))).toContain('après')
+    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '08:00', EndTime: '08:00' }))).toContain('différer')
+    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '13:00', EndTime: '12:00' }))).toContain('16 h')
+  })
+  it('accepte un poste de nuit', () => {
+    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '22:00', EndTime: '06:00' }))).toBeUndefined()
   })
   it('refuse une duree hors de 0 a 24 h', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission', Hours: '30' }))).toBeDefined()

@@ -27,11 +27,11 @@ export async function printWeek(week: WeekDetail): Promise<void> {
   const pairHeads = Array.from({ length: PAIR_COUNT }, (_, i) => [`Entrée ${i + 1}`, `Sortie ${i + 1}`]).flat()
   autoTable(doc, {
     startY: 33,
-    head: [['Jour', 'Date', ...pairHeads, 'Sortie lendemain', 'Panier', 'Permanence', 'Congé', 'Travaillé', 'HS']],
+    head: [['Jour', 'Date', 'Horaire', ...pairHeads, 'Sortie lendemain', 'Panier', 'Permanence', 'Congé', 'Travaillé', 'HS']],
     body: week.days.map((d) => {
       const draft = draftOf(d)
       return [
-        dayName(d.date), fr(d.date).slice(0, 5), ...draft.pairs.flatMap(p => [p.start, p.end]), draft.nextDayOut,
+        dayName(d.date), fr(d.date).slice(0, 5), d.holiday ? 'Férié' : (d.hours ?? 'Repos'), ...draft.pairs.flatMap(p => [p.start, p.end]), draft.nextDayOut,
         d.panier ? 'Oui' : '', d.permanence ? 'Oui' : '', d.leave ?? (d.holiday ? 'Férié' : ''), num(d.worked), num(d.overtime),
       ]
     }),

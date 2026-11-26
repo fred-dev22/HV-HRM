@@ -1,3 +1,4 @@
+import { NIGHT_SHIFT_MAX_HOURS, breakProblem, hoursProblem } from '../../../../lib/scheduleHours'
 import { useEmployeeStore } from '../../../../stores/employees'
 import { useEmployeeCategoryStore } from '../../../../stores/employeeCategories'
 import type { ImportConfig, ParsedRow } from '../importTypes'
@@ -59,7 +60,6 @@ export function normalizeTime(value: string | undefined): string {
 }
 
 const TIME_OK = /^([01]\d|2[0-3]):[0-5]\d$/
-const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
 
 export interface ScheduleLookups {
   findCategoryId: (text: string) => string | undefined
@@ -82,11 +82,14 @@ export function validateScheduleRow(row: ParsedRow, lookups: ScheduleLookups): s
   if (!start && !end) return undefined // jour de repos
   if (!start || !end) return "Renseignez l'heure de début ET l'heure de fin (ou laissez les deux vides pour un jour de repos)."
   if (![start, end, bStart, bEnd].filter(Boolean).every(t => TIME_OK.test(t))) return 'Les heures doivent être au format HH:mm (ex : 08:00).'
-  if (toMinutes(end) <= toMinutes(start)) return "L'heure de fin doit être après l'heure de début."
+  // Une fin avant le début est un poste de nuit.
+  if (start === end) return "L'heure de fin doit être différente de l'heure de début."
+  if (hoursProblem({ start, end, breakEnabled: false, breakStart: '', breakEnd: '' })) return `Un poste de nuit ne dépasse pas ${NIGHT_SHIFT_MAX_HOURS} h : vérifiez les heures de début et de fin.`
   if (!!bStart !== !!bEnd) return 'Renseignez le début ET la fin de la pause.'
   if (bStart && bEnd) {
-    if (toMinutes(bEnd) <= toMinutes(bStart)) return 'La pause doit finir après avoir commencé.'
-    if (toMinutes(bStart) < toMinutes(start) || toMinutes(bEnd) > toMinutes(end)) return "La pause doit être comprise entre l'heure de début et l'heure de fin."
+    const problem = breakProblem({ start, end, breakEnabled: true, breakStart: bStart, breakEnd: bEnd })
+    if (problem === 'Fin avant début') return 'La pause doit finir après avoir commencé.'
+    if (problem) return "La pause doit être comprise entre l'heure de début et l'heure de fin."
   }
   return undefined
 }

@@ -79,7 +79,8 @@
             <div :class="cls.field">
               <label :class="cls.fieldLabel">Sortie</label>
               <input v-if="isEditMode && needsTimes" v-model="form.end" type="time" :class="cls.fieldInput" />
-              <div v-else :class="readBox">{{ clock(current.clockOut) }}</div>
+              <div v-else :class="readBox">{{ exitClock(current) }}</div>
+              <span v-if="isEditMode && needsTimes && isNightEntry(form.start, form.end)" class="text-[11px] text-warning">Sortie le lendemain</span>
             </div>
           </div>
           <p v-if="isEditMode && !needsTimes" class="text-[12px] text-muted-foreground mt-2">Un {{ ENTRY_TYPE_LABELS[form.entryType].toLowerCase() }} compte pour 1 par jour : aucun horaire.</p>
@@ -149,7 +150,7 @@ import { getApiErrorMessage } from '../../lib/api'
 import { confirmDialog } from '../../lib/confirm'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_SOURCE_LABELS, type TimeEntry, type TimeEntryHistoryItem } from '../../stores/time'
-import { clock, formatHours, hoursBetween, toTimeInput, HISTORY_LABELS } from './timeFormat'
+import { TIMES_PROBLEM, clock, confirmNight, exitClock, formatHours, hoursBetween, isNightEntry, toTimeInput, HISTORY_LABELS } from './timeFormat'
 
 const props = defineProps<{
   /** Saisies de la liste courante (navigation entre fiches) */
@@ -236,7 +237,8 @@ async function save() {
     payload.Hours = e.hours // saisie ancienne sans horaires : la duree est conservee
   } else {
     if (!form.start && !form.end) { saveError.value = 'Renseignez au moins l\'heure de début ou de fin.'; return }
-    if (form.start && form.end && formDuration.value <= 0) { saveError.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
+    if (form.start && form.end && formDuration.value <= 0) { saveError.value = TIMES_PROBLEM; return }
+    if (!(await confirmNight([form]))) return
     if (form.start) payload.StartTime = form.start
     if (form.end) payload.EndTime = form.end
   }
@@ -259,7 +261,8 @@ async function saveAdjustment(e: TimeEntry) {
   const payload: Parameters<typeof store.adjustEntry>[1] = { Comment: form.reason.trim() || undefined }
   if (e.clockIn || form.start || form.end) {
     if (!form.start || !form.end) { saveError.value = "Renseignez l'heure de début et l'heure de fin."; return }
-    if (formDuration.value <= 0) { saveError.value = "L'heure de fin doit être après l'heure de début."; return }
+    if (formDuration.value <= 0) { saveError.value = TIMES_PROBLEM; return }
+    if (!(await confirmNight([form]))) return
     payload.StartTime = form.start
     payload.EndTime = form.end
   } else {

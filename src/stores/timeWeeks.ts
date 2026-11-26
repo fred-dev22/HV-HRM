@@ -13,6 +13,9 @@ export interface WeekPunch { start: string | null; end: string | null; nextDay: 
 export interface WeekDay {
   date: string
   schedule: string | null
+  // Horaire et pause du calendrier applique (null : ferie ou non travaille).
+  hours: string | null
+  pause: string | null
   holiday: boolean
   leave: string | null
   punches: WeekPunch[]
@@ -41,6 +44,7 @@ export interface WeekDetail {
   controlledAt: string | null
   validatedBy: string | null
   validatedAt: string | null
+  calendar: { name: string; source: 'employee' | 'category' | 'global' } | null
   site: { name: string; minutes: number } | null
   days: WeekDay[]
   totals: WeekTotals
@@ -83,6 +87,7 @@ const mapDetail = (d: any): WeekDetail => ({
   controlledAt: d.ControlledAt,
   validatedBy: d.ValidatedBy,
   validatedAt: d.ValidatedAt,
+  calendar: d.Calendar ?? null,
   site: d.Site ? { name: d.Site.name, minutes: d.Site.minutes } : null,
   days: d.Days,
   totals: d.Totals,

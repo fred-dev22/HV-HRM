@@ -76,7 +76,7 @@
     <template #cell-clocks="{ item }">
       <div class="whitespace-nowrap text-[12px]">
         <div>Entrée : {{ clock(item.clockIn) }}</div>
-        <div class="text-muted-foreground">Sortie : {{ clock(item.clockOut) }}</div>
+        <div class="text-muted-foreground">Sortie : {{ exitClock(item) }}</div>
       </div>
     </template>
     <template #cell-comment="{ item }">
@@ -99,7 +99,7 @@
           <div><div class="text-muted-foreground text-[11px]">Date</div>{{ formatDate(item.date) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Type</div>{{ item.entryType ? ENTRY_TYPE_LABELS[item.entryType as TimeEntryType] : '-' }}</div>
           <div><div class="text-muted-foreground text-[11px]">Entrée</div>{{ clock(item.clockIn) }}</div>
-          <div><div class="text-muted-foreground text-[11px]">Sortie</div>{{ clock(item.clockOut) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Sortie</div>{{ exitClock(item) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Durée</div>{{ formatHours(item.hours) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Saisie par</div>{{ item.submittedByName || '-' }}</div>
         </div>
@@ -141,7 +141,7 @@ import { getApiErrorMessage } from '../../lib/api'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, ENTRY_TYPE_LABELS, isIncompleteEntry, type TimeEntry, type TimeEntryType } from '../../stores/time'
-import { clock, formatHours } from '../../components/time/timeFormat'
+import { clock, exitClock, formatHours } from '../../components/time/timeFormat'
 
 defineProps<{ embedded?: boolean }>()
 

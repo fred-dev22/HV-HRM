@@ -65,6 +65,10 @@
         <p v-if="week.status !== 'Validated' && week.blockers.length" class="text-[12px] text-warning bg-warning-bg rounded-md px-3 py-2 mb-2 flex items-start gap-1.5">
           <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-0.5" /> <span>Avant de contrôler ou valider : {{ week.blockers.join(' ; ') }}.</span>
         </p>
+        <p class="text-[12px] text-muted-foreground mb-2">
+          {{ calendarLabel(week.calendar) }}
+          <router-link v-if="canEditCalendar" :to="{ name: 'hr-config-calendar' }" class="text-info no-underline hover:underline">Modifier les horaires</router-link>
+        </p>
         <p v-if="week.site && week.site.minutes" class="text-[12px] text-muted-foreground mb-2">
           Site {{ week.site.name }} : {{ week.site.minutes }} min retirées à la première arrivée et au dernier départ de chaque jour de présence sur site. Les cases montrent les heures pointées, « Travaillé » le temps compté.
         </p>
@@ -91,7 +95,14 @@
             </thead>
             <tbody>
               <tr v-for="(d, i) in week.days" :key="d.date" class="border-t border-border" :class="d.incomplete ? 'bg-warning-bg/40' : ''">
-                <td class="px-2 py-1.5 whitespace-nowrap text-muted-foreground">{{ d.holiday ? 'Férié' : d.schedule ?? 'Repos' }}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
+                  <template v-if="d.holiday">Férié</template>
+                  <template v-else-if="d.hours">
+                    <span class="text-foreground">{{ d.hours }}</span>
+                    <span class="block text-[10px]">{{ d.schedule }}, {{ d.pause ? `pause ${d.pause}` : 'sans pause' }}<template v-if="isOvernight(d.hours.slice(0, 5), d.hours.slice(6))">, nuit</template></span>
+                  </template>
+                  <template v-else>Repos</template>
+                </td>
                 <td class="px-2 py-1.5 whitespace-nowrap font-medium" :class="isWeekend(d.date) ? 'text-danger' : 'text-foreground'">
                   {{ dayLabel(d.date) }}
                   <AlertTriangle v-if="d.incomplete" class="w-3 h-3 inline text-warning" aria-label="Pointage incomplet" />
@@ -185,8 +196,9 @@ import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore } from '../../stores/time'
 import { useTimeWeekStore, WEEK_STATUS_LABELS, type WeekDay, type WeekDayChange, type WeekDetail, type WeekRow } from '../../stores/timeWeeks'
-import { PAIR_COUNT, SOURCE_CLASSES, SOURCE_LABELS, addDays, changeOf, dayLabel, draftOf, isWeekend, lockReason, type DayDraft } from './weekGrid'
+import { PAIR_COUNT, SOURCE_CLASSES, SOURCE_LABELS, addDays, calendarLabel, changeOf, dayLabel, draftOf, isWeekend, lockReason, type DayDraft } from './weekGrid'
 import { formatHours } from './timeFormat'
+import { isOvernight } from '../../lib/scheduleHours'
 
 const props = defineProps<{
   /** Employes de la liste courante (navigation entre fiches) */
@@ -201,6 +213,7 @@ const store = useTimeWeekStore()
 const timeStore = useTimeStore()
 const toast = useToastStore()
 const isHr = computed(() => auth.hasPermission('TEMPS_ACCES'))
+const canEditCalendar = computed(() => auth.hasPermission('CONFIG_CALENDRIER'))
 
 const SIDES = ['start', 'end'] as const
 const timeCell = 'h-7 w-[84px] px-1 border rounded text-[12px] outline-none focus:border-primary disabled:cursor-default'

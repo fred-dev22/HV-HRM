@@ -79,7 +79,7 @@
     <template #cell-date="{ item }"><span class="whitespace-nowrap">{{ formatDate(item.date) }}</span></template>
     <template #cell-type="{ item }"><span class="text-muted-foreground whitespace-nowrap">{{ item.entryType ? ENTRY_TYPE_LABELS[item.entryType as TimeEntryType] : '-' }}</span></template>
     <template #cell-in="{ item }">{{ clock(item.clockIn) }}</template>
-    <template #cell-out="{ item }">{{ clock(item.clockOut) }}</template>
+    <template #cell-out="{ item }">{{ exitClock(item) }}</template>
     <template #cell-hours="{ item }"><span v-if="isIncompleteEntry(item)" class="text-[11px] font-medium px-2 py-[2px] rounded-full bg-warning-bg text-warning whitespace-nowrap">À compléter</span><span v-else class="font-medium whitespace-nowrap">{{ formatHours(item.hours) }}</span></template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
     <template #cell-source="{ item }"><span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap" :class="item.source === 'Import' ? 'bg-info-bg text-info' : 'bg-neutral-bg text-neutral'">{{ ENTRY_SOURCE_LABELS[item.source as TimeEntrySource] }}</span></template>
@@ -100,7 +100,7 @@
           <div><div class="text-muted-foreground text-[11px]">Date</div>{{ formatDate(item.date) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Type</div>{{ item.entryType ? ENTRY_TYPE_LABELS[item.entryType as TimeEntryType] : '-' }}</div>
           <div><div class="text-muted-foreground text-[11px]">Entrée</div>{{ clock(item.clockIn) }}</div>
-          <div><div class="text-muted-foreground text-[11px]">Sortie</div>{{ clock(item.clockOut) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Sortie</div>{{ exitClock(item) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Durée</div>{{ formatHours(item.hours) }}</div>
           <div><div class="text-muted-foreground text-[11px]">Saisie le</div>{{ formatDate(item.createdAt) }}</div>
         </div>
@@ -145,7 +145,7 @@ import { confirmDialog } from '../../lib/confirm'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_STATUS_LABELS, ENTRY_SOURCE_LABELS, isIncompleteEntry, type TimeEntry, type TimeEntryType, type TimeEntrySource, type TimeEntryQuery, type TimeEntriesSummary } from '../../stores/time'
-import { clock, formatHours, downloadCsv } from '../../components/time/timeFormat'
+import { clock, exitClock, formatHours, downloadCsv } from '../../components/time/timeFormat'
 
 defineProps<{ embedded?: boolean }>()
 
@@ -285,7 +285,7 @@ async function exportReport() {
     for (let p = 1; p <= 50; p++) {
       const res = await store.fetchEntriesPage(kind.value, { ...query.value, Page: p, Limit: 200 })
       for (const e of res.items) {
-        out.push([e.employeeNumber, e.employeeName, e.date, e.entryType ? ENTRY_TYPE_LABELS[e.entryType] : '', clock(e.clockIn), clock(e.clockOut), e.hours, ENTRY_STATUS_LABELS[e.status], e.comments ?? '', ENTRY_SOURCE_LABELS[e.source]])
+        out.push([e.employeeNumber, e.employeeName, e.date, e.entryType ? ENTRY_TYPE_LABELS[e.entryType] : '', clock(e.clockIn), exitClock(e), e.hours, ENTRY_STATUS_LABELS[e.status], e.comments ?? '', ENTRY_SOURCE_LABELS[e.source]])
       }
       if (out.length >= res.total || res.items.length === 0) break
     }
