@@ -89,6 +89,7 @@
           <div class="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
             <div :class="cls.field"><label :class="cls.fieldLabel">Saisie le</label><div :class="readBox">{{ new Date(current.createdAt).toLocaleString('fr-FR') }}</div></div>
             <div :class="cls.field"><label :class="cls.fieldLabel">Saisie par</label><div :class="readBox">{{ current.submittedByName || '-' }}</div></div>
+            <div :class="cls.field"><label :class="cls.fieldLabel">Origine</label><div :class="readBox">{{ ENTRY_SOURCE_LABELS[current.source] }}</div></div>
             <div :class="cls.field"><label :class="cls.fieldLabel">Décision de</label><div :class="readBox">{{ current.validatedByName || '-' }}</div></div>
             <div v-if="current.status === 'Rejected' && current.rejectionReason" :class="cls.field">
               <label :class="cls.fieldLabel">Motif du refus</label><div :class="readBox" class="!text-danger">{{ current.rejectionReason }}</div>
@@ -147,7 +148,7 @@ import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { confirmDialog } from '../../lib/confirm'
 import { useToastStore } from '../../stores/toast'
-import { useTimeStore, ENTRY_TYPE_LABELS, type TimeEntry, type TimeEntryHistoryItem } from '../../stores/time'
+import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_SOURCE_LABELS, type TimeEntry, type TimeEntryHistoryItem } from '../../stores/time'
 import { clock, formatHours, hoursBetween, toTimeInput, HISTORY_LABELS } from './timeFormat'
 
 const props = defineProps<{
@@ -234,10 +235,10 @@ async function save() {
   } else if (!e.clockIn && !form.start && !form.end) {
     payload.Hours = e.hours // saisie ancienne sans horaires : la duree est conservee
   } else {
-    if (!form.start || !form.end) { saveError.value = 'Renseignez l\'heure de début et l\'heure de fin.'; return }
-    if (formDuration.value <= 0) { saveError.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
-    payload.StartTime = form.start
-    payload.EndTime = form.end
+    if (!form.start && !form.end) { saveError.value = 'Renseignez au moins l\'heure de début ou de fin.'; return }
+    if (form.start && form.end && formDuration.value <= 0) { saveError.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
+    if (form.start) payload.StartTime = form.start
+    if (form.end) payload.EndTime = form.end
   }
   saving.value = true
   toast.loading('Enregistrement...')

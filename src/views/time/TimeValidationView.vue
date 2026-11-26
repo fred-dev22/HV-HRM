@@ -33,7 +33,7 @@
     <!-- Actions sur la ligne sélectionnée -->
     <template #row-actions="{ item }">
       <template v-if="tab === 'pending'">
-        <button :class="L.actApprove" :disabled="busy" @click="approve(item)"><Check class="w-3.5 h-3.5" /> Approuver</button>
+        <button :class="L.actApprove" :disabled="busy || isIncompleteEntry(item)" :title="isIncompleteEntry(item) ? 'Ajustez les heures avant d\'approuver' : ''" @click="approve(item)"><Check class="w-3.5 h-3.5" /> Approuver</button>
         <button :class="L.actReject" :disabled="busy" @click="rejecting = item"><X class="w-3.5 h-3.5" /> Rejeter</button>
       </template>
       <button :class="quickBtn" @click="openCard(item)">Détails</button>
@@ -72,7 +72,7 @@
     </template>
     <template #cell-date="{ item }"><span class="whitespace-nowrap">{{ formatDate(item.date) }}</span></template>
     <template #cell-type="{ item }"><span class="text-muted-foreground whitespace-nowrap">{{ item.entryType ? ENTRY_TYPE_LABELS[item.entryType as TimeEntryType] : '-' }}</span></template>
-    <template #cell-hours="{ item }"><span class="font-medium whitespace-nowrap">{{ formatHours(item.hours) }}</span></template>
+    <template #cell-hours="{ item }"><span v-if="isIncompleteEntry(item)" class="text-[11px] font-medium px-2 py-[2px] rounded-full bg-warning-bg text-warning whitespace-nowrap">À compléter</span><span v-else class="font-medium whitespace-nowrap">{{ formatHours(item.hours) }}</span></template>
     <template #cell-clocks="{ item }">
       <div class="whitespace-nowrap text-[12px]">
         <div>Entrée : {{ clock(item.clockIn) }}</div>
@@ -140,7 +140,7 @@ import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
-import { useTimeStore, ENTRY_TYPE_LABELS, type TimeEntry, type TimeEntryType } from '../../stores/time'
+import { useTimeStore, ENTRY_TYPE_LABELS, isIncompleteEntry, type TimeEntry, type TimeEntryType } from '../../stores/time'
 import { clock, formatHours } from '../../components/time/timeFormat'
 
 defineProps<{ embedded?: boolean }>()

@@ -56,6 +56,18 @@ export interface ImportConfig {
   transformPayload?: (row: ParsedRow, payload: Record<string, unknown>) => Record<string, unknown>
   /** Validation inter-champs au-dela de "required" sur une colonne isolee (ex: "createAccount" coché sans catégorie choisie) — retourne un message si la ligne a un problème, undefined sinon. Affiché comme avertissement (n'empêche pas l'import). */
   rowValidation?: (row: ParsedRow) => string | undefined
+  /** Controle des lignes par le serveur avant l'import (conflits, lignes ignorees). Un resultat par payload, dans le meme ordre. */
+  check?: (payloads: Record<string, unknown>[]) => Promise<RowCheck[]>
+  /** Remplace l'envoi ligne par ligne quand les lignes doivent partir ensemble. Un resultat par payload, `index` dans le meme ordre. */
+  submitAll?: (payloads: Record<string, unknown>[]) => Promise<ImportRowResult[]>
+}
+
+/** Resultat du controle d'une ligne. Une ligne en conflit demande un choix, transmis dans le payload (OnConflict). */
+export interface RowCheck {
+  level: 'ok' | 'skip' | 'conflict' | 'error'
+  message?: string
+  /** Le remplacement de l'existant est possible. */
+  canReplace?: boolean
 }
 
 export interface ParsedRow {
@@ -71,6 +83,8 @@ export interface ImportRowResult {
   index: number
   success: boolean
   error?: string
+  /** Ligne volontairement non importee (deja saisie, hors equipe, existant garde) : `error` en donne le motif. */
+  skipped?: boolean
   /** Effet de bord post-creation qui a echoue (ex: compte utilisateur non cree) — la ligne elle-meme est un succes, mais l'utilisateur doit le savoir plutot que le decouvrir plus tard. */
   warning?: string
 }

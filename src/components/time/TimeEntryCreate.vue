@@ -32,15 +32,16 @@
               <template v-if="needsTimes">
                 <div :class="cls.fieldRow">
                   <div :class="cls.field">
-                    <label :class="cls.fieldLabel">Heure de début <span class="text-danger">*</span></label>
+                    <label :class="cls.fieldLabel">Heure de début</label>
                     <input v-model="form.start" type="time" :class="cls.fieldInput" />
                   </div>
                   <div :class="cls.field">
-                    <label :class="cls.fieldLabel">Heure de fin <span class="text-danger">*</span></label>
+                    <label :class="cls.fieldLabel">Heure de fin</label>
                     <input v-model="form.end" type="time" :class="cls.fieldInput" />
                   </div>
                 </div>
                 <div v-if="duration > 0" class="flex"><span :class="cls.hintChipInfo">Durée : {{ formatHours(duration) }}</span></div>
+                <div v-else-if="!!form.start !== !!form.end" class="flex"><span :class="cls.hintChipNeutral">Saisie incomplète : à compléter avant validation.</span></div>
               </template>
               <div v-else class="flex"><span :class="cls.hintChipNeutral">Compte pour 1 par jour : aucun horaire à saisir.</span></div>
 
@@ -60,7 +61,8 @@
 /**
  * Creation d'une saisie de temps, sur CreateModalShell comme les autres
  * creations du HRM (absences, missions...). Le RH peut saisir pour un autre
- * employe ; la duree se deduit de l'heure de debut et de fin ; un panier ou une
+ * employe, un manager pour son equipe ; la duree se deduit de l'heure de debut et
+ * de fin (l'une des deux peut manquer, a completer ensuite) ; un panier ou une
  * permanence compte 1 par jour, sans horaire.
  */
 import { computed, reactive, ref } from 'vue'
@@ -73,8 +75,7 @@ import { getApiErrorMessage } from '../../lib/api'
 import { todayIso } from '../../lib/date'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
-import { useEmployeeStore } from '../../stores/employees'
-import { useTimeStore, ENTRY_TYPE_LABELS, type TimeEntryType } from '../../stores/time'
+import { useTimeStore, ENTRY_TYPE_LABELS, type TimeEntryType, type TimeEntryEmployee } from '../../stores/time'
 import { formatHours, hoursBetween } from './timeFormat'
 
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -82,17 +83,18 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 const auth = useAuthStore()
 const store = useTimeStore()
 const toast = useToastStore()
-const employeeStore = useEmployeeStore()
 
-// Seul le RH saisit pour un autre ; les autres saisissent pour eux-memes.
-const canCreateForOthers = computed(() => auth.hasPermission('TEMPS_ACCES'))
-const forWhom = ref<BeneficiaryValue>({ mode: auth.user?.isSystem ? 'for-employee' : 'self', employeeId: '' })
-// Annuaire charge seulement a l'ouverture de cette fenetre (jamais a la connexion).
-if (canCreateForOthers.value && employeeStore.directory.length === 0) employeeStore.fetchDirectory().catch(() => {})
+// Le RH saisit pour tout le monde, un manager pour son equipe ; les autres pour eux-memes.
+const canCreateForOthers = computed(() => auth.hasAnyPermission(['TEMPS_ACCES', 'TEMPS_VALIDER']))
+const canCreateForSelf = auth.hasAnyPermission(['TEMPS_ACCES', 'TEMPS_SAISIR'])
+const forWhom = ref<BeneficiaryValue>({ mode: auth.user?.isSystem || !canCreateForSelf ? 'for-employee' : 'self', employeeId: '' })
+// Liste chargee seulement a l'ouverture de cette fenetre (jamais a la connexion).
+const employees = ref<TimeEntryEmployee[]>([])
+if (canCreateForOthers.value) store.fetchEntryEmployees().then(list => (employees.value = list)).catch(() => {})
 const employeeItems = computed(() =>
-  employeeStore.directory
-    .filter(e => e.status !== 'inactive' && e.id !== auth.user?.id)
-    .map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code, initials: e.initials, avatarColor: e.avatarBg, status: e.status })),
+  employees.value
+    .filter(e => e.id !== auth.user?.id)
+    .map(e => ({ id: e.id, label: e.name, sublabel: e.entityName, code: e.code })),
 )
 
 const form = reactive({ entryType: 'travail_sur_site' as TimeEntryType, date: todayIso(), start: '', end: '', comments: '' })
@@ -110,10 +112,10 @@ async function submit() {
   if (!needsTimes.value) {
     payload.Hours = 1
   } else {
-    if (!form.start || !form.end) { error.value = 'Renseignez l\'heure de début et l\'heure de fin.'; return }
-    if (duration.value <= 0) { error.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
-    payload.StartTime = form.start
-    payload.EndTime = form.end
+    if (!form.start && !form.end) { error.value = 'Renseignez au moins l\'heure de début ou de fin.'; return }
+    if (form.start && form.end && duration.value <= 0) { error.value = 'L\'heure de fin doit être après l\'heure de début.'; return }
+    if (form.start) payload.StartTime = form.start
+    if (form.end) payload.EndTime = form.end
   }
   if (forWhom.value.mode === 'for-employee') payload.EmployeeId = forWhom.value.employeeId
   saving.value = true

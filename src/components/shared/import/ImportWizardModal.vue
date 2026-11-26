@@ -10,7 +10,7 @@
  * creation, avec en plus les etapes en ronds (meme pattern que
  * OnboardingWizard.vue) puisque c'est un assistant a plusieurs etapes.
  */
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Papa from 'papaparse'
 import { readSheet } from 'read-excel-file/browser'
@@ -20,7 +20,7 @@ import {
 import { api, getApiErrorMessage } from '../../../lib/api'
 import * as cls from '../../../lib/formClasses'
 import { useToastStore } from '../../../stores/toast'
-import type { ImportConfig, ImportColumn, ParsedRow, ImportRowResult } from './importTypes'
+import type { ImportConfig, ImportColumn, ParsedRow, ImportRowResult, RowCheck } from './importTypes'
 import { resolveColumnMapping, loadSavedMapping, saveMapping } from './columnMapping'
 
 const props = defineProps<{ open: boolean; config: ImportConfig }>()
@@ -278,8 +278,49 @@ function buildPayload(row: ParsedRow): Record<string, unknown> {
     else if (col.type === 'number') body[col.key] = Number(v)
     else body[col.key] = v
   }
-  return props.config.transformPayload ? props.config.transformPayload(row, body) : body
+  const payload = props.config.transformPayload ? props.config.transformPayload(row, body) : body
+  if (row.extra.onConflict) payload.OnConflict = row.extra.onConflict
+  return payload
 }
+
+/* ── Controle par le serveur (config.check) ─────────────────────── */
+const checks = ref(new Map<ParsedRow, RowCheck>())
+const checking = ref(false)
+const checkError = ref('')
+// Lignes completes, les seules envoyees au controle et a l'import groupe.
+const sendable = computed(() => rows.value.filter(r => !rowIssueMessage(r)))
+const checkedPayloads = computed(() => (props.config.check && step.value === 2 ? JSON.stringify(sendable.value.map(buildPayload)) : ''))
+let checkSeq = 0
+let checkTimer: ReturnType<typeof setTimeout> | undefined
+async function runCheck() {
+  const seq = ++checkSeq
+  const targets = [...sendable.value]
+  checkError.value = ''
+  try {
+    const result = targets.length ? await props.config.check!(targets.map(buildPayload)) : []
+    if (seq !== checkSeq) return
+    checks.value = new Map(targets.map((r, i) => [r, result[i]!]))
+  } catch (e) {
+    if (seq === checkSeq) checkError.value = getApiErrorMessage(e, 'Contrôle des lignes impossible')
+  } finally {
+    if (seq === checkSeq) checking.value = false
+  }
+}
+// Toute modification d'une ligne relance le controle, apres une courte pause de frappe.
+watch(checkedPayloads, (value) => {
+  clearTimeout(checkTimer)
+  if (!value) return
+  checking.value = true
+  checkTimer = setTimeout(runCheck, 350)
+})
+onUnmounted(() => clearTimeout(checkTimer))
+const checkOf = (row: ParsedRow) => (rowIssueMessage(row) ? undefined : checks.value.get(row))
+const toImport = computed(() => (props.config.check
+  ? rows.value.filter(r => checkOf(r)?.level === 'ok').length
+  : rows.value.length))
+const conflictCount = computed(() => rows.value.filter(r => checkOf(r)?.level === 'conflict').length)
+const CHECK_TONE: Record<RowCheck['level'], string> = { ok: 'text-success', skip: 'text-muted-foreground', conflict: 'text-warning', error: 'text-danger' }
+function chooseConflict(row: ParsedRow, value: string) { row.extra.onConflict = value || undefined }
 
 async function startImport() {
   step.value = 3
@@ -287,6 +328,28 @@ async function startImport() {
   done.value = false
   results.value = []
   progress.value = { current: 0, total: rows.value.length }
+
+  if (props.config.submitAll) {
+    const targets = [...sendable.value]
+    const indexOf = new Map(rows.value.map((r, i) => [r, i]))
+    for (const row of rows.value) {
+      const issue = rowIssueMessage(row)
+      if (issue) results.value.push({ index: indexOf.get(row)!, success: false, error: issue })
+    }
+    try {
+      const sent = await props.config.submitAll(targets.map(buildPayload))
+      results.value.push(...sent.map(r => ({ ...r, index: indexOf.get(targets[r.index]!)! })))
+    } catch (err) {
+      const error = getApiErrorMessage(err, 'Import impossible')
+      results.value.push(...targets.map(r => ({ index: indexOf.get(r)!, success: false, error })))
+    }
+    results.value.sort((a, b) => a.index - b.index)
+    progress.value.current = rows.value.length
+    importing.value = false
+    done.value = true
+    emit('imported')
+    return
+  }
 
   for (let i = 0; i < rows.value.length; i++) {
     const row = rows.value[i]!
@@ -314,7 +377,8 @@ async function startImport() {
 }
 
 const succeededCount = computed(() => results.value.filter(r => r.success).length)
-const failedResults = computed(() => results.value.filter(r => !r.success))
+const failedResults = computed(() => results.value.filter(r => !r.success && !r.skipped))
+const skippedResults = computed(() => results.value.filter(r => r.skipped))
 const warnedResults = computed(() => results.value.filter(r => r.success && r.warning))
 
 /* ── Navigation générale (assistant à étapes) ────────────────────── */
@@ -345,12 +409,12 @@ function goBack() {
 // variable ici puisqu'il y a plusieurs étapes.
 const primaryLabel = computed(() => {
   if (step.value === 1) return 'Suivant'
-  if (step.value === 2) return `Importer ${rows.value.length} élément(s)`
+  if (step.value === 2) return checking.value ? 'Contrôle en cours...' : `Importer ${toImport.value} élément(s)`
   return 'Fermer'
 })
 const primaryDisabled = computed(() => {
   if (step.value === 1) return !fileReady.value || !!blockingDependency.value || nextClicked.value
-  if (step.value === 2) return rows.value.length === 0
+  if (step.value === 2) return rows.value.length === 0 || checking.value || (!!props.config.check && (!!checkError.value || toImport.value === 0))
   return false
 })
 function onPrimaryClick() {
@@ -370,6 +434,9 @@ function reset() {
   fileName.value = ''
   fileReady.value = false
   rows.value = []
+  checks.value = new Map()
+  checking.value = false
+  checkError.value = ''
   pendingFile.value = null
   results.value = []
   progress.value = { current: 0, total: 0 }
@@ -558,12 +625,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                 <AlertTriangle class="w-3.5 h-3.5" /> {{ issueCount }} ligne(s) à corriger
               </span>
             </div>
+            <p v-if="checkError" class="text-[12px] text-danger mb-2">{{ checkError }} <button type="button" class="underline cursor-pointer" @click="checking = true; runCheck()">Réessayer</button></p>
+            <p v-else-if="conflictCount > 0" class="text-[12px] text-warning mb-2">{{ conflictCount }} ligne(s) chevauchent une saisie existante : choisissez pour chacune. Sans choix, elle n'est pas importée.</p>
 
             <div ref="previewTableRef" class="import-preview-scroll overflow-x-auto border border-border rounded-lg" @wheel="onPreviewWheel">
               <table class="w-full text-[12px] border-collapse">
                 <thead>
                   <tr class="bg-background">
                     <th class="px-2 py-2 text-left font-semibold text-muted-foreground w-8"></th>
+                    <th v-if="config.check" class="px-2 py-2 text-left font-semibold text-muted-foreground min-w-[240px]">Contrôle</th>
                     <th v-for="col in config.columns" :key="col.key" class="px-2 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">
                       {{ col.label }}<span v-if="col.required" class="text-danger">*</span>
                     </th>
@@ -577,7 +647,25 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                   <tr v-for="(row, i) in rows" :key="i" class="border-t border-border" :class="rowHasIssue(row) ? 'bg-danger-bg/30' : ''">
                     <td class="px-2 py-1.5 text-center">
                       <AlertTriangle v-if="rowHasIssue(row)" class="w-3.5 h-3.5 text-danger inline" :title="rowIssueMessage(row)" />
+                      <AlertTriangle v-else-if="checkOf(row) && checkOf(row)!.level !== 'ok'" class="w-3.5 h-3.5 inline" :class="CHECK_TONE[checkOf(row)!.level]" />
                       <CheckCircle2 v-else class="w-3.5 h-3.5 text-success inline" />
+                    </td>
+                    <td v-if="config.check" class="px-2 py-1.5 align-middle max-w-[260px]">
+                      <span v-if="rowIssueMessage(row)" class="text-danger">{{ rowIssueMessage(row) }}</span>
+                      <span v-else-if="!checkOf(row)" class="text-muted-foreground">Contrôle...</span>
+                      <div v-else class="flex flex-col gap-1">
+                        <span :class="CHECK_TONE[checkOf(row)!.level]">{{ checkOf(row)!.message || 'Prête' }}</span>
+                        <select
+                          v-if="checkOf(row)!.level === 'conflict' || row.extra.onConflict"
+                          :value="(row.extra.onConflict as string) || ''"
+                          class="h-7 px-1.5 border border-border rounded text-[12px] bg-background outline-none w-full"
+                          @change="chooseConflict(row, ($event.target as HTMLSelectElement).value)"
+                        >
+                          <option value="">Choisir...</option>
+                          <option value="skip">Garder l'existant</option>
+                          <option v-if="checkOf(row)!.canReplace || row.extra.onConflict === 'replace'" value="replace">Remplacer par cette ligne</option>
+                        </select>
+                      </div>
                     </td>
                     <td v-for="col in config.columns" :key="col.key" class="px-2 py-1.5">
                       <select
@@ -642,6 +730,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                   <div class="text-[22px] font-semibold text-success">{{ succeededCount }}</div>
                   <div class="text-[11px] text-success">Réussi(s)</div>
                 </div>
+                <div v-if="skippedResults.length > 0" class="flex-1 bg-warning-bg rounded-lg px-4 py-3 text-center">
+                  <div class="text-[22px] font-semibold text-warning">{{ skippedResults.length }}</div>
+                  <div class="text-[11px] text-warning">Ignoré(s)</div>
+                </div>
                 <div class="flex-1 bg-danger-bg rounded-lg px-4 py-3 text-center">
                   <div class="text-[22px] font-semibold text-danger">{{ failedResults.length }}</div>
                   <div class="text-[11px] text-danger">Échoué(s)</div>
@@ -654,6 +746,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                   <div v-for="r in failedResults" :key="r.index" class="px-3 py-2 text-[12px] border-t border-border flex items-start gap-2">
                     <span class="text-muted-foreground shrink-0">Ligne {{ r.index + 1 }}</span>
                     <span class="text-danger">{{ r.error }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="skippedResults.length > 0" class="border border-border rounded-lg overflow-hidden">
+                <div class="bg-background px-3 py-2 text-[11px] font-semibold text-muted-foreground">Lignes non importées</div>
+                <div class="max-h-56 overflow-y-auto">
+                  <div v-for="r in skippedResults" :key="r.index" class="px-3 py-2 text-[12px] border-t border-border flex items-start gap-2">
+                    <span class="text-muted-foreground shrink-0">Ligne {{ r.index + 1 }}</span>
+                    <span class="text-warning">{{ r.error }}</span>
                   </div>
                 </div>
               </div>

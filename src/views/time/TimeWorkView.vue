@@ -22,6 +22,7 @@
 
     <TimeEntriesView v-if="activeTab === 'entries'" embedded />
     <TimeValidationView v-else-if="activeTab === 'validation'" embedded />
+    <TimeWeeksView v-else-if="activeTab === 'weeks'" embedded />
     <TimeSheetsView v-else-if="activeTab === 'timesheets'" embedded />
     <TimePayrollExportView v-else-if="activeTab === 'payroll'" embedded />
     <TimeConfigView v-else-if="activeTab === 'config'" embedded />
@@ -36,24 +37,26 @@
  * l'adresse (?tab=...) : un rechargement ou un ancien lien retombe au bon endroit.
  */
 import { computed, watch, type Component } from 'vue'
-import { ClipboardList, ClipboardCheck, CalendarDays, FileSpreadsheet, Settings } from 'lucide-vue-next'
+import { ClipboardList, ClipboardCheck, CalendarCheck, CalendarDays, FileSpreadsheet, Settings } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import TimeEntriesView from './TimeEntriesView.vue'
 import TimeValidationView from './TimeValidationView.vue'
+import TimeWeeksView from './TimeWeeksView.vue'
 import TimeSheetsView from './TimeSheetsView.vue'
 import TimePayrollExportView from './TimePayrollExportView.vue'
 import TimeConfigView from './TimeConfigView.vue'
 
-type TabKey = 'entries' | 'validation' | 'timesheets' | 'payroll' | 'config'
+type TabKey = 'entries' | 'validation' | 'weeks' | 'timesheets' | 'payroll' | 'config'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
 const TABS: { key: TabKey; label: string; icon: Component; permissions: string[] }[] = [
-  { key: 'entries', icon: ClipboardList,    label: 'Saisies manuelles',  permissions: ['TEMPS_SAISIR', 'TEMPS_ACCES'] },
-  { key: 'validation', icon: ClipboardCheck, label: 'Validation',         permissions: ['TEMPS_VALIDER', 'TEMPS_ACCES'] },
+  { key: 'entries', icon: ClipboardList,    label: 'Saisies manuelles',  permissions: ['TEMPS_SAISIR', 'TEMPS_VALIDER', 'TEMPS_ACCES'] },
+  { key: 'validation', icon: ClipboardCheck, label: 'Saisies à approuver', permissions: ['TEMPS_VALIDER', 'TEMPS_ACCES'] },
+  { key: 'weeks', icon: CalendarCheck,       label: 'Validation hebdo',   permissions: ['TEMPS_VALIDER', 'TEMPS_ACCES'] },
   { key: 'timesheets', icon: CalendarDays, label: 'Feuilles de temps',  permissions: ['TEMPS_SAISIR', 'TEMPS_VALIDER', 'TEMPS_ACCES'] },
   { key: 'payroll', icon: FileSpreadsheet,    label: 'Export paie',        permissions: ['TEMPS_ACCES'] },
   { key: 'config', icon: Settings,     label: 'Configuration',      permissions: ['TEMPS_ACCES'] },

@@ -43,7 +43,41 @@ export interface TimeEntry {
   submittedByName: string
   validatedByName: string | null
   createdAt: string
+  // Origine : saisie a l'ecran ou fichier importe.
+  source: TimeEntrySource
 }
+
+export type TimeEntrySource = 'Manual' | 'Import'
+export const ENTRY_SOURCE_LABELS: Record<TimeEntrySource, string> = { Manual: 'Manuelle', Import: 'Import' }
+
+// Une saisie de travail avec l'entree ou la sortie seulement : a completer avant validation.
+export const isIncompleteEntry = (e: { entryType: TimeEntryType | null; clockIn: string | null; clockOut: string | null }) =>
+  e.entryType !== 'panier' && e.entryType !== 'permanence' && !!e.clockIn !== !!e.clockOut
+
+// Employe propose dans les fenetres de saisie : tout le monde pour le RH, son equipe pour un manager.
+export interface TimeEntryEmployee { id: string; name: string; code: string; entityName: string }
+
+export interface TimeEntryLine {
+  EmployeeId?: string
+  EmployeeNumber?: string
+  Date: string
+  EntryType: TimeEntryType
+  StartTime?: string
+  EndTime?: string
+  Hours?: number
+  Comments?: string
+  OnConflict?: 'skip' | 'replace'
+}
+export type TimeEntryLineAction = 'create' | 'replace' | 'skip' | 'conflict' | 'error'
+export interface TimeEntryLineResult {
+  index: number
+  action: TimeEntryLineAction
+  message: string | null
+  warnings: string[]
+  canReplace: boolean
+}
+// La taille d'une requete est limitee : les envois se font par paquets.
+export const ENTRY_LINES_CHUNK = 300
 
 // Saisie en lot (RH) : un meme element pour plusieurs employes sur une periode.
 export interface TimeEntryBatchPayload {
@@ -64,6 +98,7 @@ export interface TimeEntryBatchPayload {
 export interface TimeEntryBatchReport {
   planned: number
   created: number
+  lines: { employeeId: string; date: string }[]
   employees: { employeeId: string; name: string; code: string; planned: number; skipped: { reason: string; dates: string[] }[] }[]
 }
 
@@ -199,6 +234,7 @@ const mapEntry = (r: any): TimeEntry => ({
   submittedByName: r.submittedBy?.FullName ?? '',
   validatedByName: r.validatedBy?.FullName ?? null,
   createdAt: r.CreatedAt,
+  source: r.Source === 'Import' ? 'Import' : 'Manual',
 })
 const mapImport = (r: any): MorphoImport => ({
   id: r.Id,
@@ -266,6 +302,24 @@ export const useTimeStore = defineStore('time', {
       await api.post('/time/entries', payload)
       this.viewCache = {}
     },
+    async fetchEntryEmployees(): Promise<TimeEntryEmployee[]> {
+      const { data } = await api.get('/time/entries/employees')
+      return data.map((e: any) => ({ id: e.Id, name: e.FullName, code: e.EmployeeNumber, entityName: e.EntityName ?? '' }))
+    },
+    // Controle (dryRun) ou creation de saisies ligne par ligne ; `index` suit la liste envoyee.
+    async sendEntryLines(lines: TimeEntryLine[], options: { dryRun: boolean; source: TimeEntrySource }): Promise<TimeEntryLineResult[]> {
+      const out: TimeEntryLineResult[] = []
+      for (let start = 0; start < lines.length; start += ENTRY_LINES_CHUNK) {
+        const { data } = await api.post('/time/entries/lines', {
+          Lines: lines.slice(start, start + ENTRY_LINES_CHUNK), Source: options.source, DryRun: options.dryRun,
+        })
+        out.push(...data.Lines.map((l: any) => ({
+          index: start + l.Index, action: l.Action, message: l.Message, warnings: l.Warnings ?? [], canReplace: !!l.CanReplace,
+        })))
+        if (!options.dryRun) this.viewCache = {}
+      }
+      return out
+    },
     async fetchOvertimeAlerts(month?: string): Promise<OvertimeAlerts> {
       const { data } = await api.get('/time/overtime-alerts', { params: { Month: month } })
       return {
@@ -284,6 +338,7 @@ export const useTimeStore = defineStore('time', {
       return {
         planned: data.Planned,
         created: data.Created,
+        lines: (data.Lines ?? []).map((l: any) => ({ employeeId: l.EmployeeId, date: l.Date })),
         employees: data.Employees.map((e: any) => ({
           employeeId: e.EmployeeId, name: e.FullName, code: e.EmployeeNumber, planned: e.Planned,
           skipped: e.Skipped.map((s: any) => ({ reason: s.Reason, dates: s.Dates })),
@@ -401,7 +456,7 @@ export const useTimeStore = defineStore('time', {
     },
     // Calcul T5 : heures supplementaires, panier et permanence (lignes de paie).
     async calculateOvertime(from: string, to: string, method?: 'daily' | 'weekly', code?: string) {
-      const { data } = await api.post<{ calculated: number; excludedCadres: number; method: 'daily' | 'weekly'; code?: string }>('/time/calculation/overtime', { From: from, To: to, Method: method, Code: code || undefined })
+      const { data } = await api.post<{ calculated: number; excludedCadres: number; unvalidatedWeeks: number; method: 'daily' | 'weekly'; code?: string }>('/time/calculation/overtime', { From: from, To: to, Method: method, Code: code || undefined })
       return data
     },
     async calculate(from: string, to: string, method: 'daily' | 'weekly') {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeTime, validateTimeEntryRow } from './timeEntryImportConfig'
+import { checkOf, importResultOf, normalizeTime, validateTimeEntryRow } from './timeEntryImportConfig'
 import type { ParsedRow } from '../importTypes'
 
 const row = (values: Record<string, string>): ParsedRow => ({ values, raw: {}, extra: {} })
@@ -18,6 +18,19 @@ describe('normalizeTime', () => {
   })
 })
 
+describe('controle et resultat d une ligne importee', () => {
+  const result = { index: 0, action: 'conflict' as const, message: 'Chevauche : 07:00-12:00', warnings: [], canReplace: true }
+  it('un conflit demande un choix et reste non importe sans lui', () => {
+    expect(checkOf(result)).toMatchObject({ level: 'conflict', canReplace: true })
+    expect(importResultOf(result)).toMatchObject({ success: false, skipped: true })
+    expect(importResultOf(result).error).toContain('aucun choix')
+  })
+  it('un remplacement choisi est pret, une erreur est un echec', () => {
+    expect(checkOf({ ...result, action: 'replace' }).level).toBe('ok')
+    expect(importResultOf({ ...result, action: 'error', message: 'Matricule inconnu' })).toMatchObject({ success: false, skipped: false })
+  })
+})
+
 describe('validateTimeEntryRow', () => {
   it('accepte horaires valides ou duree seule', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '8:00', EndTime: '17:00' }))).toBeUndefined()
@@ -30,8 +43,10 @@ describe('validateTimeEntryRow', () => {
   it('refuse l\'absence d\'horaires et de duree', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission' }))).toContain('durée')
   })
-  it('refuse un horaire seul, mal forme ou une fin avant le debut', () => {
-    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '08:00' }))).toContain('ET')
+  it('accepte une entree seule, a completer ensuite', () => {
+    expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '08:00' }))).toBeUndefined()
+  })
+  it('refuse un horaire mal forme ou une fin avant le debut', () => {
     expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: 'midi', EndTime: '17:00' }))).toContain('HH:mm')
     expect(validateTimeEntryRow(row({ EntryType: 'mission', StartTime: '17:00', EndTime: '08:00' }))).toContain('après')
   })

@@ -170,7 +170,7 @@ async function runDaily() {
 async function runOvertime() {
   const r = await run('Calcul T5 en cours...', () => store.calculateOvertime(from.value, to.value, undefined, onlyCode.value), 'Calcul impossible')
   if (r) {
-    overtimeText.value = `${r.calculated} ligne(s) de paie${r.code ? ` ${r.code}` : ''} (calcul hebdomadaire), ${r.excludedCadres} cadre(s) exclu(s).`
+    overtimeText.value = `${r.calculated} ligne(s) de paie${r.code ? ` ${r.code}` : ''} (calcul hebdomadaire), ${r.excludedCadres} cadre(s) exclu(s).${r.unvalidatedWeeks ? ` ${r.unvalidatedWeeks} semaine(s) non validée(s) écartée(s).` : ''}`
     await loadReport()
   }
 }

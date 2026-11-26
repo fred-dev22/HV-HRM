@@ -23,8 +23,8 @@
     <template #header-actions>
       <div class="flex items-center gap-2">
         <button :class="L.btnOutline" :disabled="exporting" @click="exportReport"><FileDown class="w-4 h-4" /> Rapport</button>
-        <button v-if="isHr" :class="L.btnOutline" @click="showImport = true"><Upload class="w-4 h-4" /> Importer</button>
-        <button v-if="isHr" :class="L.btnOutline" @click="showBatch = true"><Users class="w-4 h-4" /> Saisie en lot</button>
+        <button v-if="canManage" :class="L.btnOutline" @click="showImport = true"><Upload class="w-4 h-4" /> Importer</button>
+        <button v-if="canManage" :class="L.btnOutline" @click="showBatch = true"><Users class="w-4 h-4" /> Saisie en lot</button>
         <button :class="L.btnPrimary" @click="showCreate = true"><Plus class="w-4 h-4" /> Nouvelle saisie</button>
       </div>
     </template>
@@ -80,8 +80,9 @@
     <template #cell-type="{ item }"><span class="text-muted-foreground whitespace-nowrap">{{ item.entryType ? ENTRY_TYPE_LABELS[item.entryType as TimeEntryType] : '-' }}</span></template>
     <template #cell-in="{ item }">{{ clock(item.clockIn) }}</template>
     <template #cell-out="{ item }">{{ clock(item.clockOut) }}</template>
-    <template #cell-hours="{ item }"><span class="font-medium whitespace-nowrap">{{ formatHours(item.hours) }}</span></template>
+    <template #cell-hours="{ item }"><span v-if="isIncompleteEntry(item)" class="text-[11px] font-medium px-2 py-[2px] rounded-full bg-warning-bg text-warning whitespace-nowrap">À compléter</span><span v-else class="font-medium whitespace-nowrap">{{ formatHours(item.hours) }}</span></template>
     <template #cell-status="{ item }"><StatusPill :status="item.status" /></template>
+    <template #cell-source="{ item }"><span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap" :class="item.source === 'Import' ? 'bg-info-bg text-info' : 'bg-neutral-bg text-neutral'">{{ ENTRY_SOURCE_LABELS[item.source as TimeEntrySource] }}</span></template>
     <template #cell-created="{ item }"><span class="text-muted-foreground whitespace-nowrap text-[11px]">{{ formatDate(item.createdAt) }}</span></template>
 
     <!-- Aperçu rapide -->
@@ -143,7 +144,7 @@ import { getApiErrorMessage } from '../../lib/api'
 import { confirmDialog } from '../../lib/confirm'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
-import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_STATUS_LABELS, type TimeEntry, type TimeEntryType, type TimeEntryQuery, type TimeEntriesSummary } from '../../stores/time'
+import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_STATUS_LABELS, ENTRY_SOURCE_LABELS, isIncompleteEntry, type TimeEntry, type TimeEntryType, type TimeEntrySource, type TimeEntryQuery, type TimeEntriesSummary } from '../../stores/time'
 import { clock, formatHours, downloadCsv } from '../../components/time/timeFormat'
 
 defineProps<{ embedded?: boolean }>()
@@ -153,10 +154,14 @@ const store = useTimeStore()
 const toast = useToastStore()
 
 const isHr = computed(() => auth.hasPermission('TEMPS_ACCES'))
-const kind = computed<'all' | 'mine'>(() => (isHr.value ? 'all' : 'mine'))
-const subtitle = computed(() => (isHr.value
-  ? 'Toutes les saisies de temps. Vous pouvez saisir pour un autre employé.'
-  : 'Vos saisies de temps, validées par votre validateur. Saisie possible jusqu\'à la fin du mois concerné.'))
+// Un manager (validateur) voit et saisit aussi les temps de son equipe.
+const canManage = computed(() => isHr.value || auth.hasPermission('TEMPS_VALIDER'))
+const kind = computed<'all' | 'mine'>(() => (canManage.value ? 'all' : 'mine'))
+const subtitle = computed(() => {
+  if (isHr.value) return 'Toutes les saisies de temps. Vous pouvez saisir pour un autre employé.'
+  if (canManage.value) return 'Vos saisies et celles de votre équipe. Vous pouvez saisir et importer pour elle jusqu\'au 15 du mois suivant.'
+  return 'Vos saisies de temps, validées par votre validateur. Saisie possible jusqu\'à la fin du mois concerné.'
+})
 
 const quickBtn = 'px-2.5 py-[5px] rounded text-xs font-medium cursor-pointer bg-background text-muted-foreground hover:text-foreground'
 const kpiItem = 'bg-card border border-border rounded-lg px-3.5 py-3 flex items-center gap-3'
@@ -172,6 +177,7 @@ const columns: ListColumn[] = [
   { key: 'out', label: 'Sortie', width: 90 },
   { key: 'hours', label: 'Durée', width: 100 },
   { key: 'status', label: 'Statut', width: 130 },
+  { key: 'source', label: 'Origine', width: 110 },
   { key: 'created', label: 'Saisie le', width: 120, defaultHidden: true },
 ]
 const statusScopes = [{ value: '', label: 'Toutes' }, ...Object.entries(ENTRY_STATUS_LABELS).map(([value, label]) => ({ value, label }))]
@@ -279,11 +285,11 @@ async function exportReport() {
     for (let p = 1; p <= 50; p++) {
       const res = await store.fetchEntriesPage(kind.value, { ...query.value, Page: p, Limit: 200 })
       for (const e of res.items) {
-        out.push([e.employeeNumber, e.employeeName, e.date, e.entryType ? ENTRY_TYPE_LABELS[e.entryType] : '', clock(e.clockIn), clock(e.clockOut), e.hours, ENTRY_STATUS_LABELS[e.status], e.comments ?? ''])
+        out.push([e.employeeNumber, e.employeeName, e.date, e.entryType ? ENTRY_TYPE_LABELS[e.entryType] : '', clock(e.clockIn), clock(e.clockOut), e.hours, ENTRY_STATUS_LABELS[e.status], e.comments ?? '', ENTRY_SOURCE_LABELS[e.source]])
       }
       if (out.length >= res.total || res.items.length === 0) break
     }
-    downloadCsv('saisies-manuelles.csv', ['Matricule', 'Employé', 'Date', 'Type', 'Entrée', 'Sortie', 'Heures', 'Statut', 'Commentaire'], out)
+    downloadCsv('saisies-manuelles.csv', ['Matricule', 'Employé', 'Date', 'Type', 'Entrée', 'Sortie', 'Heures', 'Statut', 'Commentaire', 'Origine'], out)
   } catch (err) {
     toast.error(getApiErrorMessage(err, 'Export impossible'))
   } finally {
