@@ -7,14 +7,14 @@
         Alerte heures supplémentaires
         <span v-if="data.employees.length" class="bg-warning-bg text-warning text-[11px] font-semibold px-2 py-[1px] rounded-full">{{ data.employees.length }}</span>
       </div>
-      <router-link :to="{ name: timeRoute, query: { tab: 'timesheets', view: isHr ? 'global' : 'team' } }" class="text-xs text-info no-underline hover:underline whitespace-nowrap">Feuilles de temps</router-link>
+      <router-link :to="{ name: timeRoute, query: { tab: 'weeks' } }" class="text-xs text-info no-underline hover:underline whitespace-nowrap">Validation hebdo</router-link>
     </div>
     <p class="text-xs text-muted-foreground mb-2.5">
-      <span class="capitalize">{{ monthLabel }}</span> : seuil d'alerte {{ hours(data.alertHours) }}, plafond légal {{ hours(data.legalHours) }}.
+      <span class="capitalize">{{ monthLabel }}</span> : seuil d'alerte {{ hours(data.alertHours) }}, seuil légal {{ hours(data.legalHours) }}.
       <template v-if="data.lastCalculatedDate">Dernières heures prises en compte : {{ formatDate(data.lastCalculatedDate) }}.</template>
     </p>
 
-    <p v-if="!data.lastCalculatedDate" class="text-[13px] text-muted-foreground">Aucune heure supplémentaire calculée pour ce mois.</p>
+    <p v-if="!data.lastCalculatedDate" class="text-[13px] text-muted-foreground">Aucune heure enregistrée pour ce mois.</p>
     <p v-else-if="!data.employees.length" class="text-[13px] text-muted-foreground">
       Personne n'a atteint le seuil ce mois-ci{{ isHr ? '' : ' dans votre équipe' }}.
     </p>
@@ -28,8 +28,8 @@
           <div class="h-full rounded-full" :class="e.legalCapReached ? 'bg-danger' : 'bg-warning'" :style="{ width: `${Math.min(100, (e.hours / data.legalHours) * 100)}%` }"></div>
         </div>
         <div class="text-[13px] font-semibold whitespace-nowrap w-[64px] text-right">{{ hours(e.hours) }}</div>
-        <span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap w-[104px] text-center" :class="e.legalCapReached ? 'bg-danger-bg text-danger' : 'bg-warning-bg text-warning'">
-          {{ e.legalCapReached ? 'Plafond atteint' : `Reste ${hours(data.legalHours - e.hours)}` }}
+        <span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap w-[124px] text-center" :class="e.legalCapReached ? 'bg-danger-bg text-danger' : 'bg-warning-bg text-warning'">
+          {{ e.legalCapReached ? 'Seuil légal atteint' : `Reste ${hours(data.legalHours - e.hours)}` }}
         </span>
       </div>
     </div>
@@ -38,9 +38,10 @@
 
 <script setup lang="ts">
 /**
- * Carte des tableaux de bord : le manager y voit les membres de son equipe (le
- * RH, tout le monde) qui ont atteint le seuil d'heures supplementaires du mois,
- * pour reorganiser les horaires avant le plafond legal.
+ * Carte des tableaux de bord : le manager y voit les employes qu'il suit (le RH,
+ * tout le monde) qui ont atteint le seuil d'heures supplementaires du mois, pour
+ * reorganiser les horaires. Une alerte leur est aussi envoyee au controle d'une
+ * semaine.
  */
 import { computed, ref } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'

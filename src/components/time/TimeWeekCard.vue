@@ -206,6 +206,7 @@ const SIDES = ['start', 'end'] as const
 const timeCell = 'h-7 w-[84px] px-1 border rounded text-[12px] outline-none focus:border-primary disabled:cursor-default'
 const HISTORY: Record<string, string> = {
   CORRECT: 'Correction', CONTROL: 'Contrôle', UNCONTROL: 'Contrôle retiré', VALIDATE: 'Validation', REOPEN: 'Réouverture',
+  ALERT: 'Alerte heures supplémentaires',
 }
 
 const currentId = ref(props.employeeId)

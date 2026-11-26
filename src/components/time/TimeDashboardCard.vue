@@ -28,7 +28,7 @@
       <div :class="tile">
         <div :class="label">Heures supp. du mois</div>
         <div :class="value">{{ hours(time.overtimeHoursMonth) }}</div>
-        <div :class="sub">calculées à ce jour</div>
+        <div :class="sub">calculées en paie (T5)</div>
       </div>
     </div>
 
