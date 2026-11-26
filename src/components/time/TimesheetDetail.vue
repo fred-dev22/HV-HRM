@@ -29,7 +29,7 @@
               <td :class="L.td">{{ clock(d.in) }}</td>
               <td :class="L.td">{{ clock(d.out) }}</td>
               <td :class="L.td">{{ d.required || '-' }}</td>
-              <td :class="L.td">{{ d.worked || '-' }}</td>
+              <td :class="L.td">{{ d.worked || '-' }}<span v-if="d.travelMinutes" class="block text-[10px] text-muted-foreground">{{ d.travelMinutes }} min de trajet retirées</span></td>
               <td :class="[L.td, d.overtime > 0 ? 'text-success font-medium' : '']">{{ d.overtime || '-' }}</td>
               <td :class="[L.td, d.absence > 0 ? 'text-danger font-medium' : '']">{{ d.absence || '-' }}</td>
             </tr>

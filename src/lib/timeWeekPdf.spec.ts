@@ -16,10 +16,10 @@ vi.mock('jspdf-autotable', () => ({ default: (_doc: unknown, options: { head: st
 const week: WeekDetail = {
   employee: { id: 'e', name: 'Employé Test', code: 'EMP001', service: 'DG' },
   weekStart: '2026-11-09', weekEnd: '2026-11-15', weekNumber: 46, status: 'Validated', isCadre: false,
-  controlledBy: 'Chef', controlledAt: null, validatedBy: 'RH', validatedAt: null,
+  controlledBy: 'Chef', controlledAt: null, validatedBy: 'RH', validatedAt: null, site: { name: 'Zone A', minutes: 15 },
   days: Array.from({ length: 7 }, (_, i) => ({
     date: `2026-11-${String(9 + i).padStart(2, '0')}`, schedule: '8 h', holiday: false, leave: null, extraHours: 0, worked: 8, overtime: 0,
-    panier: i === 0, permanence: false, corrected: false, incomplete: false, pendingEntryIds: [],
+    panier: i === 0, permanence: false, corrected: false, incomplete: false, pendingEntryIds: [], travelDeducted: 30,
     punches: [{ start: '07:00', end: '15:00', nextDay: false, source: 'Morpho' as const, pending: false }],
   })),
   totals: { worked: 56, overtime: 16, hs130: 8, hs150: 8, night: 0, holiday: 0, panier: 1, permanenceAmount: 13000 },

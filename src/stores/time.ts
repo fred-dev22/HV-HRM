@@ -213,7 +213,7 @@ export interface Timesheet {
   employee: { Id: string; FullName: string; EmployeeNumber: string; Service?: string | null }
   period: { from: string; to: string }
   summary: { required: number; worked: number; overtime: number; absence: number }
-  days: { date: string; required: number; worked: number; overtime: number; absence: number; in: string | null; out: string | null }[]
+  days: { date: string; required: number; worked: number; overtime: number; absence: number; in: string | null; out: string | null; travelMinutes?: number }[]
 }
 
 // Le backend renvoie des lignes Prisma en PascalCase : on les met en forme ici.

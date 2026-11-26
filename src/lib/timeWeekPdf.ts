@@ -20,6 +20,9 @@ export async function printWeek(week: WeekDetail): Promise<void> {
     week.validatedBy ? `validée par ${week.validatedBy}` : '',
   ].filter(Boolean).join(', ')
   doc.text(`État : ${WEEK_STATUS_LABELS[week.status]}${signed ? ` (${signed})` : ''}`, 14, 28)
+  if (week.site?.minutes) {
+    doc.text(`Site ${week.site.name} : ${week.site.minutes} min retirées à l'arrivée et au départ (colonne Travaillé)`, 150, 28)
+  }
 
   const pairHeads = Array.from({ length: PAIR_COUNT }, (_, i) => [`Entrée ${i + 1}`, `Sortie ${i + 1}`]).flat()
   autoTable(doc, {

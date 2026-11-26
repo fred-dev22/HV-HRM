@@ -16,6 +16,7 @@ import { useEmployeeStore } from '../../stores/employees'
 import { useEntityStore } from '../../stores/entities'
 import { usePositionStore } from '../../stores/positions'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
+import { useTimeSiteStore } from '../../stores/timeSites'
 import type { ContractType, EmployeeStatus, Gender, MaritalStatus, IdDocumentType } from '../../types'
 import EmployeePicker from '../ui/EmployeePicker.vue'
 
@@ -28,6 +29,7 @@ const store = useEmployeeStore()
 const entityStore = useEntityStore()
 const positionStore = usePositionStore()
 const categoryStore = useEmployeeCategoryStore()
+const siteStore = useTimeSiteStore()
 
 onMounted(() => {
   // Toujours rafraichir les postes (pas de garde sur .length) — a la
@@ -36,6 +38,7 @@ onMounted(() => {
   // perimee (nombre de places restantes faux dans le picker).
   positionStore.fetchAll()
   categoryStore.fetchAll().catch(() => {})
+  if (TIME_MODULE_ENABLED) siteStore.fetchAll().catch(() => {})
   // Liste complete (pas directory, qui n'expose jamais hasAccount) —
   // necessaire au selecteur de validateur direct ci-dessous.
   store.fetchAll().catch(() => {})
@@ -89,6 +92,7 @@ const form = reactive({
   gender: '' as Gender | '', birthDate: '', birthPlace: '',
   maritalStatus: '' as MaritalStatus | '', idType: '' as IdDocumentType | '', idNumber: '',
   isExpatriate: false,
+  timeSiteId: '',
   isCadre: false,
   leaveRegime: '' as '' | 'Calendar' | 'Working',
   directValidatorId: '' as string,
@@ -209,6 +213,7 @@ async function create() {
       employeeCategoryId: form.employeeCategoryId,
       isExpatriate: form.isExpatriate,
       isCadre: form.isCadre,
+      timeSiteId: form.timeSiteId || undefined,
       leaveRegime: form.leaveRegime || null,
       directValidatorId: form.directValidatorId,
       // Un employé fraîchement créé n'a jamais de compte — hasAccount ne
@@ -308,6 +313,14 @@ async function create() {
               <span class="block text-[11px] text-muted-foreground mt-0.5">(exclu du calcul des heures supplémentaires et de l'export paie)</span>
             </span>
           </label>
+
+          <div v-if="timeModuleEnabled" :class="[cls.field, 'mt-3.5']">
+            <label :class="cls.fieldLabel">Site de travail <span :class="cls.fieldOptional">(optionnel)</span></label>
+            <select v-model="form.timeSiteId" :class="cls.fieldSelect">
+              <option value="">Aucun</option>
+              <option v-for="s in siteStore.sites" :key="s.id" :value="s.id">{{ s.name }} ({{ s.deductionMinutes }} min)</option>
+            </select>
+          </div>
 
           <div :class="[cls.field, 'mt-3.5']">
             <label :class="cls.fieldLabel">Régime de congé annuel <span :class="cls.fieldOptional">(optionnel)</span></label>

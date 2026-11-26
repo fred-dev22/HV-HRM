@@ -25,6 +25,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useUserStore } from '../../stores/users'
 import { usePermissionStore } from '../../stores/permissions'
 import { useEmployeeCategoryStore } from '../../stores/employeeCategories'
+import { useTimeSiteStore } from '../../stores/timeSites'
 import type { Employee, ContractType, EmployeeStatus, Gender, MaritalStatus, IdDocumentType } from '../../types'
 
 // Case "Cadre" proposee seulement si le module Temps de travail est actif.
@@ -43,6 +44,9 @@ const categoryStore = useEmployeeCategoryStore()
 positionStore.fetchAll().catch(() => {})
 permissionStore.fetchAll().catch(() => {})
 categoryStore.fetchAll().catch(() => {})
+const siteStore = useTimeSiteStore()
+if (TIME_MODULE_ENABLED) siteStore.fetchAll().catch(() => {})
+const siteName = (id: string | undefined) => siteStore.sites.find(s => s.id === id)?.name ?? 'Aucun'
 // Liste complete (pas le prop `employees`, potentiellement filtre par la
 // recherche/le scope actif de la liste) — necessaire au selecteur de
 // validateur direct ci-dessous, voir aussi hasAccount.
@@ -116,7 +120,7 @@ const form = ref({
   positionId: '' as string | null, positionTitle: '',
   entityId: '' as string | null, entityName: '',
   employeeCategoryId: '' as string, contractType: 'CDI' as ContractType,
-  hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false, isCadre: false,
+  hireDate: '', status: 'active' as EmployeeStatus, isExpatriate: false, isCadre: false, timeSiteId: '',
   leaveRegime: '' as '' | 'Calendar' | 'Working',
   gender: 'M' as Gender, birthDate: '', birthPlace: '',
   maritalStatus: 'Single' as MaritalStatus, idType: 'NationalId' as IdDocumentType, idNumber: '',
@@ -161,7 +165,7 @@ function enterEdit() {
     firstName: e.firstName, lastName: e.lastName, email: e.email ?? '', phone: e.phone ?? '',
     positionId: e.positionId ?? '', positionTitle: e.jobTitle,
     entityId: e.entityId, entityName: e.entityName ?? '', employeeCategoryId: e.employeeCategoryId ?? '', contractType: e.contractType,
-    hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate, isCadre: e.isCadre ?? false,
+    hireDate: e.hireDate, status: e.status, isExpatriate: e.isExpatriate, isCadre: e.isCadre ?? false, timeSiteId: e.timeSiteId ?? '',
     leaveRegime: e.leaveRegime ?? '',
     gender: e.gender, birthDate: e.birthDate, birthPlace: e.birthPlace ?? '',
     maritalStatus: e.maritalStatus, idType: e.idType, idNumber: e.idNumber ?? '',
@@ -489,6 +493,14 @@ async function deletePermanently() {
               <input type="checkbox" v-model="form.isCadre" class="accent-primary" /> Cadre (exclu du calcul des heures supplémentaires et de l'export paie)
             </label>
             <div v-else :class="readBox">{{ current.isCadre ? 'Cadre' : 'Non cadre' }}</div>
+          </div>
+          <div v-if="timeModuleEnabled" :class="cls.field">
+            <label :class="cls.fieldLabel">Site de travail</label>
+            <select v-if="isEditMode" v-model="form.timeSiteId" :class="cls.fieldSelect">
+              <option value="">Aucun</option>
+              <option v-for="s in siteStore.sites" :key="s.id" :value="s.id">{{ s.name }} ({{ s.deductionMinutes }} min)</option>
+            </select>
+            <div v-else :class="readBox">{{ siteName(current.timeSiteId) }}</div>
           </div>
           <div :class="cls.field">
             <label :class="cls.fieldLabel">Régime de congé annuel</label>

@@ -65,6 +65,10 @@
         <p v-if="week.status !== 'Validated' && week.blockers.length" class="text-[12px] text-warning bg-warning-bg rounded-md px-3 py-2 mb-2 flex items-start gap-1.5">
           <AlertTriangle class="w-3.5 h-3.5 shrink-0 mt-0.5" /> <span>Avant de contrôler ou valider : {{ week.blockers.join(' ; ') }}.</span>
         </p>
+        <p v-if="week.site && week.site.minutes" class="text-[12px] text-muted-foreground mb-2">
+          Site {{ week.site.name }} : {{ week.site.minutes }} min retirées à la première arrivée et au dernier départ de chaque jour de présence sur site. Les cases montrent les heures pointées, « Travaillé » le temps compté.
+        </p>
+        <p v-else-if="!week.isCadre" class="text-[12px] text-muted-foreground mb-2">{{ week.site ? `Site ${week.site.name} : aucune minute à déduire.` : 'Aucun site : aucun temps de trajet déduit.' }}</p>
         <p v-if="week.isCadre" class="text-[12px] text-muted-foreground mb-2">Cadre : pas d'heures supplémentaires, de panier ni de permanence en paie.</p>
 
         <div class="border border-border rounded-md overflow-x-auto">
@@ -113,7 +117,8 @@
                 <td class="px-2 py-1.5 max-w-[130px] truncate" :title="d.leave ?? ''">{{ d.leave ?? '-' }}</td>
                 <td class="px-2 py-1.5 text-right whitespace-nowrap">
                   {{ d.worked === null ? '-' : formatHours(d.worked) }}
-                  <span v-if="d.extraHours" class="block text-[10px] text-muted-foreground">dont {{ formatHours(d.extraHours) }} sans horaires</span>
+                  <span v-if="d.extraHours" class="block text-[10px] text-muted-foreground" title="Heures déclarées sans horaires">dont {{ formatHours(d.extraHours) }} en durée</span>
+                  <span v-if="d.travelDeducted" class="block text-[10px] text-muted-foreground" title="Trajet et changement retirés">trajet -{{ d.travelDeducted }} min</span>
                 </td>
                 <td class="px-1 py-1 text-right"><span class="inline-block min-w-[52px] px-2 py-1 rounded bg-neutral-bg text-neutral" title="Calculées automatiquement, non modifiables">{{ d.overtime ? String(d.overtime).replace('.', ',') : '0' }}</span></td>
               </tr>

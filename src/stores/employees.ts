@@ -82,6 +82,7 @@ interface BackendEmployee {
   Status: string
   IsExpatriate: boolean
   IsCadre?: boolean
+  TimeSiteId?: string | null
   LeaveRegime?: string | null
   DirectValidatorId: string | null
   ValidatorInterimId?: string | null
@@ -127,6 +128,7 @@ function mapEmployee(raw: BackendEmployee, paletteIndex: number): Employee {
     userId:       raw.UserId ?? undefined,
     isExpatriate: raw.IsExpatriate,
     isCadre:      raw.IsCadre ?? false,
+    timeSiteId:   raw.TimeSiteId ?? undefined,
     leaveRegime:  (raw.LeaveRegime as Employee['leaveRegime']) ?? null,
     directValidatorId: raw.DirectValidatorId ?? undefined,
     validatorInterimId: raw.ValidatorInterimId ?? undefined,
@@ -215,6 +217,8 @@ function toBackendPayload(payload: Partial<Employee>): Record<string, unknown> {
   if (payload.status !== undefined) body.Status = STATUS_TO_BACKEND[payload.status]
   if (payload.isExpatriate !== undefined) body.IsExpatriate = payload.isExpatriate
   if (payload.isCadre !== undefined) body.IsCadre = payload.isCadre
+  // '' -> null : retirer l'employe de son site.
+  if (payload.timeSiteId !== undefined) body.TimeSiteId = payload.timeSiteId || null
   // null / '' = regime non renseigne (efface le regime).
   if (payload.leaveRegime !== undefined) body.LeaveRegime = payload.leaveRegime || null
   // '' (sentinel "aucun validateur direct" côté formulaire) -> null, pour

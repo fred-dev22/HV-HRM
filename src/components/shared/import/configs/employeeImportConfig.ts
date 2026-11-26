@@ -1,6 +1,8 @@
 import { useEntityStore } from '../../../../stores/entities'
 import { usePositionStore } from '../../../../stores/positions'
 import { useEmployeeCategoryStore } from '../../../../stores/employeeCategories'
+import { useTimeSiteStore } from '../../../../stores/timeSites'
+import { TIME_MODULE_ENABLED } from '../../../../config/features'
 import { api } from '../../../../lib/api'
 import { generatePassword } from '../../../../lib/password'
 import type { ImportConfig } from '../importTypes'
@@ -43,6 +45,8 @@ export function buildEmployeeImportConfig(): ImportConfig {
   const entityStore = useEntityStore()
   const positionStore = usePositionStore()
   const categoryStore = useEmployeeCategoryStore()
+  const siteStore = useTimeSiteStore()
+  if (TIME_MODULE_ENABLED) siteStore.fetchAll().catch(() => {})
 
   return {
     title: 'Employés',
@@ -109,6 +113,13 @@ export function buildEmployeeImportConfig(): ImportConfig {
       { key: 'Status', csvHeader: 'Statut', label: 'Statut', required: true, type: 'select', sample: 'Actif', options: () => STATUS_OPTIONS },
       { key: 'IsExpatriate', csvHeader: 'Expatrié', label: 'Expatrié', required: false, type: 'boolean', sample: '' },
       { key: 'IsCadre', csvHeader: 'Cadre', label: 'Cadre', required: false, type: 'boolean', sample: '' },
+      // Module Temps : site reconnu par son code seulement.
+      ...(TIME_MODULE_ENABLED
+        ? [{
+            key: 'TimeSiteId', csvHeader: 'Code site', label: 'Site', required: false, type: 'select' as const, sample: '', matchCodeOnly: true,
+            options: () => siteStore.sites.map(s => ({ value: s.id, label: s.name, code: s.code })),
+          }]
+        : []),
       { key: 'LeaveRegime', csvHeader: 'Régime de congé annuel', label: 'Régime de congé annuel', required: false, type: 'select', sample: '', options: () => LEAVE_REGIME_OPTIONS },
     ],
     extraColumns: [

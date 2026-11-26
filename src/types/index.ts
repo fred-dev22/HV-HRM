@@ -302,6 +302,8 @@ export interface Employee {
   isExpatriate: boolean
   // Cadre : exclu du calcul des heures supplementaires et de l'export paie (module Temps).
   isCadre?: boolean
+  // Site de travail (module Temps) : minutes de trajet retirees de la presence d'un non-cadre.
+  timeSiteId?: string
   // Regime de conge annuel (demande GRT) : Calendar = jours calendaires,
   // Working = jours ouvrables, null = non renseigne. Sert a cibler un type de
   // conge (LeaveType.appliesToLeaveRegime) : chaque employe recoit et voit le

@@ -24,6 +24,8 @@ export interface WeekDay {
   corrected: boolean
   incomplete: boolean
   pendingEntryIds: string[]
+  // Minutes de trajet et de changement retirees ce jour.
+  travelDeducted: number
 }
 export interface WeekTotals {
   worked: number; overtime: number; hs130: number; hs150: number; night: number; holiday: number; panier: number; permanenceAmount: number
@@ -39,6 +41,7 @@ export interface WeekDetail {
   controlledAt: string | null
   validatedBy: string | null
   validatedAt: string | null
+  site: { name: string; minutes: number } | null
   days: WeekDay[]
   totals: WeekTotals
   blockers: string[]
@@ -80,6 +83,7 @@ const mapDetail = (d: any): WeekDetail => ({
   controlledAt: d.ControlledAt,
   validatedBy: d.ValidatedBy,
   validatedAt: d.ValidatedAt,
+  site: d.Site ? { name: d.Site.name, minutes: d.Site.minutes } : null,
   days: d.Days,
   totals: d.Totals,
   blockers: d.Blockers,

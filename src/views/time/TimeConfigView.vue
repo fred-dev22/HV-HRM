@@ -123,6 +123,8 @@
     </section>
 
     <!-- ─────────── Types et codes de présence ─────────── -->
+    <TimeSitesPanel v-if="tab === 'sites'" />
+
     <section v-if="tab === 'types'" class="flex flex-col gap-3">
       <p class="text-[13px] text-muted-foreground">Gestion des types de présence et de leurs codes de paie. Les codes marqués d'un cadenas servent au calcul : on peut modifier leur description mais pas leur nom.</p>
       <div v-for="t in types" :key="t.id" :class="L.card">
@@ -240,6 +242,7 @@ import * as L from '../../lib/listClasses'
 import { formatDate } from '../../lib/date'
 import { getApiErrorMessage } from '../../lib/api'
 import { confirmDialog } from '../../lib/confirm'
+import TimeSitesPanel from '../../components/time/TimeSitesPanel.vue'
 import { useToastStore } from '../../stores/toast'
 import { useEmployeeStore } from '../../stores/employees'
 import { useTimeStore, type MorphoConfig, type MorphoImportSummary, type TimeSetting, type TimeType, type PermanenceRate, type UnmatchedPerson } from '../../stores/time'
@@ -258,6 +261,7 @@ const employeeStore = useEmployeeStore()
 const TABS = [
   { key: 'import', label: 'Import pointeuse' },
   { key: 'types', label: 'Types de présence' },
+  { key: 'sites', label: 'Sites' },
   { key: 'settings', label: 'Réglages' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
