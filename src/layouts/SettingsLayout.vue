@@ -9,9 +9,9 @@
  */
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { ArrowLeft, Mail, Settings } from 'lucide-vue-next'
+import { ArrowLeft, FolderOpen, Mail, Settings } from 'lucide-vue-next'
 import AppTopBar from '../components/AppTopBar.vue'
-import MailConfigBanner from '../components/MailConfigBanner.vue'
+import AppConfigBanner from '../components/AppConfigBanner.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -19,6 +19,7 @@ const route = useRoute()
 
 const ITEMS = [
   { name: 'settings-mail', to: '/settings/mail', label: 'Messagerie', hint: "Envoi des emails de l'application", icon: Mail },
+  { name: 'settings-storage', to: '/settings/storage', label: 'Stockage', hint: 'Où sont gardés les justificatifs et pièces jointes', icon: FolderOpen },
 ]
 
 const backTo = computed(() => (auth.isHRSpace ? '/hr' : '/employee'))
@@ -28,17 +29,17 @@ const isActive = (name: string) => route.name === name
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
     <AppTopBar :user="auth.user" />
-    <MailConfigBanner />
+    <AppConfigBanner />
     <div class="flex flex-1 min-h-0 max-md:flex-col">
-      <aside class="w-[264px] shrink-0 bg-card border-r border-border flex flex-col gap-1 px-3 py-5 overflow-y-auto max-md:w-full max-md:border-r-0 max-md:border-b">
+      <aside class="w-[264px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col gap-1 px-[5px] py-5 overflow-y-auto max-md:w-full max-md:border-r-0 max-md:border-b">
         <RouterLink
           :to="backTo"
-          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+          class="flex items-center gap-2 pl-5 pr-4 py-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
         >
           <ArrowLeft class="w-4 h-4" /> Retour à l'application
         </RouterLink>
 
-        <div class="flex items-center gap-2 px-3 pt-5 pb-2">
+        <div class="flex items-center gap-2 pl-5 pr-4 pt-5 pb-2">
           <Settings class="w-4 h-4 text-primary" />
           <span class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Paramètres</span>
         </div>
@@ -48,9 +49,13 @@ const isActive = (name: string) => route.name === name
             v-for="item in ITEMS"
             :key="item.name"
             :to="item.to"
+            :aria-current="isActive(item.name) ? 'page' : undefined"
             :class="[
-              'flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors',
-              isActive(item.name) ? 'bg-tint text-primary' : 'text-foreground hover:bg-background',
+              // Meme mise en evidence que la barre laterale des modules (AppSidebar).
+              'flex items-start gap-2.5 pl-5 pr-4 py-2.5 transition-colors',
+              isActive(item.name)
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground border-r-2 border-sidebar-primary'
+                : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
             ]"
           >
             <component :is="item.icon" class="w-[18px] h-[18px] mt-0.5 shrink-0" />

@@ -226,6 +226,11 @@ const router = createRouter({
       component: () => import('../views/settings/MailSettingsView.vue'),
       meta: { requiresAuth: true, layout: 'settings' },
     },
+    {
+      path: '/settings/storage', name: 'settings-storage',
+      component: () => import('../views/settings/StorageSettingsView.vue'),
+      meta: { requiresAuth: true, layout: 'settings' },
+    },
     // Redirects de compatibilité — les 3 écrans séparés ont fusionné dans
     // Classification (voir decision du 29/07).
     { path: '/hr/config/jobs', redirect: '/hr/config/classification' },

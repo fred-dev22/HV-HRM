@@ -361,7 +361,7 @@ async function deletePermanently() {
                     </button>
                     <div v-if="lineAttachments(l.id).length" class="flex flex-col gap-0.5">
                       <div v-for="a in lineAttachments(l.id)" :key="a.id" class="flex items-center gap-1">
-                        <a :href="a.fileUrl" target="_blank" rel="noopener" class="text-[10px] text-primary hover:underline truncate max-w-[80px]" :title="a.fileName">{{ a.fileName }}</a>
+                        <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="text-[10px] text-primary hover:underline truncate max-w-[80px]" :title="a.fileName">{{ a.fileName }}</a>
                         <button class="text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeLineAttachment(a.id, l.id)"><Trash2 class="w-2.5 h-2.5" /></button>
                       </div>
                     </div>
@@ -396,7 +396,7 @@ async function deletePermanently() {
                     </button>
                     <div v-if="lineAttachments(lineIds[i]!).length" class="flex flex-col gap-0.5">
                       <div v-for="a in lineAttachments(lineIds[i]!)" :key="a.id" class="flex items-center gap-1">
-                        <a :href="a.fileUrl" target="_blank" rel="noopener" class="text-[10px] text-primary hover:underline truncate max-w-[80px]" :title="a.fileName">{{ a.fileName }}</a>
+                        <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="text-[10px] text-primary hover:underline truncate max-w-[80px]" :title="a.fileName">{{ a.fileName }}</a>
                         <button class="text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeLineAttachment(a.id, lineIds[i]!)"><Trash2 class="w-2.5 h-2.5" /></button>
                       </div>
                     </div>
@@ -441,9 +441,9 @@ async function deletePermanently() {
           <ul v-else class="flex flex-col gap-1.5">
             <li v-for="a in attachments" :key="a.id" class="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-background border border-border text-[13px]">
               <Paperclip class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <a :href="a.fileUrl" target="_blank" rel="noopener" class="flex-1 truncate text-foreground hover:text-primary hover:underline" :title="a.fileName">{{ a.fileName }}</a>
+              <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="flex-1 truncate text-foreground hover:text-primary hover:underline" :title="a.fileName">{{ a.fileName }}</a>
               <span class="text-[11px] text-muted-foreground shrink-0">{{ formatFileSize(a.fileSize) }}</span>
-              <a :href="a.fileUrl" target="_blank" rel="noopener" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0" title="Ouvrir">
+              <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0" title="Ouvrir">
                 <Download class="w-3.5 h-3.5" />
               </a>
               <button class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeAttachment(a.id)">

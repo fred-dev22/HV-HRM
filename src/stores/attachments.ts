@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api, getApiErrorMessage } from '../lib/api'
 import { withToast } from '../lib/withToast'
+import { useToastStore } from './toast'
 
 // Voir Attachment.EntityType (backend schema.prisma) — liste fermee des
 // entites pouvant porter des pieces jointes.
@@ -18,6 +19,8 @@ export interface Attachment {
   entityId: string
   fileName: string
   fileUrl: string
+  // Local = fichier du dossier du serveur (a ouvrir via l'API) ; SharePoint = lien direct.
+  storage: 'Local' | 'SharePoint'
   fileSize: number
   mimeType: string
   createdBy: string
@@ -30,10 +33,19 @@ interface BackendAttachment {
   EntityId: string
   FileName: string
   FileUrl: string
+  StorageProvider?: 'Local' | 'SharePoint' | null
   FileSize: number
   MimeType: string
   CreatedBy: string
   CreatedAt: string
+}
+
+// Seul un lien SharePoint s'ouvre directement. Tout le reste passe par l'API avec le
+// jeton de connexion : fichier du dossier du serveur, et anciens depots dans le
+// dossier "uploads" de l'application (sans StorageProvider, plus servis publiquement).
+export function storageOf(fileUrl: string, provider?: 'Local' | 'SharePoint' | null): Attachment['storage'] {
+  if (provider) return provider
+  return /^https:\/\/[^/]+\.sharepoint\.com\//i.test(fileUrl) ? 'SharePoint' : 'Local'
 }
 
 function mapAttachment(raw: BackendAttachment): Attachment {
@@ -43,6 +55,7 @@ function mapAttachment(raw: BackendAttachment): Attachment {
     entityId: raw.EntityId,
     fileName: raw.FileName,
     fileUrl: raw.FileUrl,
+    storage: storageOf(raw.FileUrl, raw.StorageProvider),
     fileSize: raw.FileSize,
     mimeType: raw.MimeType,
     createdBy: raw.CreatedBy,
@@ -128,5 +141,32 @@ export const useAttachmentStore = defineStore('attachments', () => {
     }, () => error.value ?? 'Impossible de supprimer la pièce jointe')
   }
 
-  return { byEntity, loading, uploading, error, forEntity, fetchByEntity, upload, remove }
+  // Lien a afficher : un fichier du serveur n'a pas d'adresse publique (l'ouverture passe par open()).
+  function linkOf(a: Pick<Attachment, 'storage' | 'fileUrl'>): string {
+    return a.storage === 'Local' ? '#' : a.fileUrl
+  }
+
+  // Ouvre le fichier dans un nouvel onglet. SharePoint : lien direct. Fichier du serveur :
+  // telecharge avec le jeton de connexion puis l'affiche (le navigateur ne peut pas envoyer
+  // le jeton par un simple lien). L'onglet est ouvert tout de suite pour ne pas etre bloque
+  // par le navigateur, puis rempli une fois le fichier recu.
+  async function open(a: Pick<Attachment, 'id' | 'storage' | 'fileUrl'>) {
+    if (a.storage !== 'Local') {
+      window.open(a.fileUrl, '_blank', 'noopener')
+      return
+    }
+    const tab = window.open('', '_blank')
+    try {
+      const res = await api.get<Blob>(`/attachments/${a.id}/download`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      if (tab) tab.location.href = url
+      else window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000)
+    } catch (err) {
+      tab?.close()
+      useToastStore().error(getApiErrorMessage(err, "Impossible d'ouvrir le fichier"))
+    }
+  }
+
+  return { byEntity, loading, uploading, error, forEntity, fetchByEntity, upload, remove, open, linkOf }
 })

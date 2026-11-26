@@ -20,6 +20,7 @@ import { confirmDialog } from '../../lib/confirm'
 import { withToast } from '../../lib/withToast'
 import { useSubmitGuard } from '../../lib/submitGuard'
 import { useApplicationStore } from '../../stores/recruitment'
+import { useAttachmentStore, storageOf } from '../../stores/attachments'
 import type { Application, RecruitmentDocument } from '../../stores/recruitment'
 
 const props = defineProps<{
@@ -80,6 +81,12 @@ const docs = computed<RecruitmentDocument[]>(() =>
 )
 const docInput = ref<HTMLInputElement | null>(null)
 watch(currentId, (id) => { if (id) applicationStore.fetchDocuments(id) }, { immediate: true })
+
+// Le document s'ouvre avec le jeton de connexion (ou directement s'il est sur SharePoint).
+const attachmentStore = useAttachmentStore()
+function openDoc(doc: RecruitmentDocument) {
+  attachmentStore.open({ id: doc.id, fileUrl: doc.fileUrl, storage: storageOf(doc.fileUrl) })
+}
 
 function pickDoc() { docInput.value?.click() }
 async function onDocPicked(e: Event) {
@@ -196,7 +203,7 @@ function humanSize(bytes: number): string {
             <div v-if="docs.length === 0" class="text-xs text-muted-foreground italic">Aucun document televerse.</div>
             <div v-for="doc in docs" :key="doc.id" class="flex items-center gap-2 bg-background border border-border rounded-md px-2.5 h-[38px]">
               <FileText class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <a :href="doc.fileUrl" target="_blank" rel="noopener" class="text-[13px] text-primary hover:underline flex-1 truncate">{{ doc.fileName }}</a>
+              <a href="#" class="text-[13px] text-primary hover:underline flex-1 truncate" @click.prevent="openDoc(doc)">{{ doc.fileName }}</a>
               <span v-if="doc.isPrimaryCv" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-tint text-primary shrink-0">CV principal</span>
               <span class="text-[11px] text-muted-foreground shrink-0">{{ humanSize(doc.fileSize) }}</span>
               <button class="text-danger hover:brightness-90 shrink-0" title="Supprimer" @click="removeDoc(doc)">

@@ -502,9 +502,9 @@ async function deletePermanently() {
           <ul v-else class="flex flex-col gap-1.5">
             <li v-for="a in attachments" :key="a.id" class="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-background border border-border text-[13px]">
               <Paperclip class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <a :href="a.fileUrl" target="_blank" rel="noopener" class="flex-1 truncate text-foreground hover:text-primary hover:underline" :title="a.fileName">{{ a.fileName }}</a>
+              <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="flex-1 truncate text-foreground hover:text-primary hover:underline" :title="a.fileName">{{ a.fileName }}</a>
               <span class="text-[11px] text-muted-foreground shrink-0">{{ formatFileSize(a.fileSize) }}</span>
-              <a :href="a.fileUrl" target="_blank" rel="noopener" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0" title="Ouvrir">
+              <a :href="attachmentStore.linkOf(a)" @click.prevent="attachmentStore.open(a)" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0" title="Ouvrir">
                 <Download class="w-3.5 h-3.5" />
               </a>
               <button v-if="canManageJustificatif && a.createdBy === auth.user?.id" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-danger shrink-0" title="Supprimer" @click="removeAttachment(a.id)">

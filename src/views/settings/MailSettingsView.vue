@@ -6,7 +6,7 @@
  * identifiants sont chiffrés côté serveur et jamais réaffichés : un champ
  * enregistré se remplace via « Modifier », sinon il est conservé.
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Cloud, Server, Mail, Send, Save, CircleCheck, TriangleAlert, ShieldCheck, Check, RotateCcw } from 'lucide-vue-next'
 import { SkeletonLoader } from '../../components'
@@ -95,6 +95,7 @@ function validate(): boolean {
 async function save() {
   saved.value = false
   saveError.value = ''
+  testResult.value = null
   if (!validate()) return
   saving.value = true
   try {
@@ -124,6 +125,12 @@ async function save() {
     form.graphClientSecret = ''
     form.smtpUser = ''
     form.smtpPassword = ''
+    // Reprend les valeurs telles que le serveur les a enregistrées.
+    const s = store.settings
+    if (s) {
+      form.sender = s.sender
+      if (s.provider === 'Smtp') form.smtpHost = s.smtp.host
+    }
     saveCount.value++
     saved.value = true
   } catch {
@@ -172,7 +179,46 @@ const testTo = ref('')
 const testing = ref(false)
 const testResult = ref<{ ok: boolean; error: string | null; to?: string } | null>(null)
 
+// Le test porte sur la configuration ENREGISTRÉE : il n'est proposé que si
+// l'écran montre exactement celle-là. Renvoie la raison du blocage, ou ''.
+const providerLabel = (p: MailProvider | null | undefined) => (p === 'Smtp' ? 'SMTP' : 'Microsoft Graph')
+const testBlocker = computed(() => {
+  const s = settings.value
+  if (!s?.configured) return "Enregistrez d'abord une configuration pour pouvoir la tester."
+  if (form.provider !== s.provider) {
+    return `Le mode ${providerLabel(form.provider)} n'est pas enregistré (mode actif : ${providerLabel(s.provider)}). Enregistrez-le avant de le tester.`
+  }
+  const changed =
+    form.sender.trim() !== s.sender ||
+    (form.provider === 'Graph'
+      ? !!(form.graphTenantId.trim() || form.graphClientId.trim() || form.graphClientSecret.trim())
+      : form.smtpHost.trim() !== s.smtp.host ||
+        Number(form.smtpPort) !== s.smtp.port ||
+        form.smtpSecure !== s.smtp.secure ||
+        form.smtpAuth !== s.smtp.hasUser ||
+        (form.smtpAuth && !!(form.smtpUser.trim() || form.smtpPassword.trim())))
+  return changed ? 'Des modifications ne sont pas enregistrées : enregistrez-les avant de tester.' : ''
+})
+
+// Un résultat de test ne vaut que pour ce qui était affiché au moment du test.
+watch(() => JSON.stringify(form), () => { testResult.value = null })
+
+watch(() => form.provider, () => {
+  saved.value = false
+  saveError.value = ''
+  for (const k of Object.keys(errors)) delete errors[k]
+  // Un champ déjà enregistré revient à « Enregistré » : on oublie la saisie
+  // abandonnée, sinon elle serait enregistrée sans être visible.
+  const s = settings.value
+  if (s?.graph.hasTenantId) form.graphTenantId = ''
+  if (s?.graph.hasClientId) form.graphClientId = ''
+  if (s?.graph.hasSecret) form.graphClientSecret = ''
+  if (s?.smtp.hasUser) form.smtpUser = ''
+  if (s?.smtp.hasPassword) form.smtpPassword = ''
+})
+
 async function sendTest() {
+  if (testing.value || testBlocker.value) return
   testResult.value = null
   if (!/^\S+@\S+\.\S+$/.test(testTo.value.trim())) {
     testResult.value = { ok: false, error: 'Saisissez une adresse de destinataire valide.' }
@@ -181,7 +227,9 @@ async function sendTest() {
   testing.value = true
   try {
     const to = testTo.value.trim()
-    testResult.value = { ...(await store.sendTest(to)), to }
+    const tested = JSON.stringify(form)
+    const result = await store.sendTest(to)
+    if (JSON.stringify(form) === tested) testResult.value = { ...result, to }
   } finally {
     testing.value = false
   }
@@ -363,10 +411,11 @@ const cardHint = 'text-[12px] text-muted-foreground mt-0.5'
             <label :class="cls.fieldLabel">Adresse du destinataire</label>
             <input v-model="testTo" type="email" :class="cls.fieldInput" placeholder="prenom.nom@exemple.com" @keyup.enter="sendTest" />
           </div>
-          <button :class="cls.btnOutline" :disabled="testing || !settings.configured" @click="sendTest">
+          <button :class="cls.btnOutline" :disabled="testing || !!testBlocker" @click="sendTest">
             <Send class="w-4 h-4" /> {{ testing ? 'Envoi…' : 'Envoyer le test' }}
           </button>
         </div>
+        <p v-if="testBlocker" class="text-[12px] text-warning">{{ testBlocker }}</p>
         <div v-if="testResult?.ok" class="flex items-start gap-2 rounded-lg bg-success-bg text-success px-3 py-2 text-[13px]">
           <CircleCheck class="w-4 h-4 mt-0.5 shrink-0" />
           <span>Email de test envoyé à <strong>{{ testResult.to }}</strong>. Vérifiez sa boîte de réception (et les courriers indésirables).</span>
