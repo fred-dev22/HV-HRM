@@ -21,8 +21,8 @@
     @open-card="openCard"
   >
     <template #header-actions>
-      <div class="flex items-center gap-2">
-        <button :class="L.btnOutline" :disabled="exporting" @click="exportReport"><FileDown class="w-4 h-4" /> Rapport</button>
+      <!-- Libelles toujours sur une ligne : c'est le sous-titre qui passe a la ligne. -->
+      <div class="flex items-center justify-end gap-2 shrink-0 whitespace-nowrap max-md:shrink max-md:flex-wrap">
         <button v-if="canManage" :class="L.btnOutline" @click="showImport = true"><Upload class="w-4 h-4" /> Importer</button>
         <button v-if="canManage" :class="L.btnOutline" @click="showBatch = true"><Users class="w-4 h-4" /> Saisie en lot</button>
         <button :class="L.btnPrimary" @click="showCreate = true"><Plus class="w-4 h-4" /> Nouvelle saisie</button>
@@ -126,11 +126,11 @@
 /**
  * Saisies manuelles de temps, sur la liste standard du HRM (barre d'outils,
  * filtres, colonnes, apercu, pagination faite par le serveur) : toutes les
- * saisies pour le RH, les siennes sinon. Creation, fiche, modification,
- * annulation et rapport CSV.
+ * saisies pour le RH, les siennes sinon. Creation, fiche, modification et
+ * annulation.
  */
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { Plus, FileDown, Upload, Users, Clock, ListChecks, Hourglass, CircleCheck } from 'lucide-vue-next'
+import { Plus, Upload, Users, Clock, ListChecks, Hourglass, CircleCheck } from 'lucide-vue-next'
 import { StatusPill, UserAvatar, ListPageLayout } from '../../components'
 import type { ListColumn } from '../../components/shared/ListPageLayout.vue'
 import TimeEntryCreate from '../../components/time/TimeEntryCreate.vue'
@@ -145,7 +145,7 @@ import { confirmDialog } from '../../lib/confirm'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { useTimeStore, ENTRY_TYPE_LABELS, ENTRY_STATUS_LABELS, ENTRY_SOURCE_LABELS, isIncompleteEntry, type TimeEntry, type TimeEntryType, type TimeEntrySource, type TimeEntryQuery, type TimeEntriesSummary } from '../../stores/time'
-import { clock, exitClock, formatHours, downloadCsv } from '../../components/time/timeFormat'
+import { clock, exitClock, formatHours } from '../../components/time/timeFormat'
 
 defineProps<{ embedded?: boolean }>()
 
@@ -186,7 +186,6 @@ const rows = ref<TimeEntry[]>([])
 const total = ref(0)
 const summary = ref<TimeEntriesSummary | null>(null)
 const loading = ref(false)
-const exporting = ref(false)
 
 const search = ref('')
 const debouncedSearch = ref('')
@@ -274,26 +273,6 @@ async function cancel(e: TimeEntry) {
     await load()
   } catch (err) {
     toast.error(getApiErrorMessage(err, 'Annulation impossible'))
-  }
-}
-
-// Rapport : toutes les saisies correspondant aux filtres (pas seulement la page).
-async function exportReport() {
-  exporting.value = true
-  try {
-    const out: (string | number)[][] = []
-    for (let p = 1; p <= 50; p++) {
-      const res = await store.fetchEntriesPage(kind.value, { ...query.value, Page: p, Limit: 200 })
-      for (const e of res.items) {
-        out.push([e.employeeNumber, e.employeeName, e.date, e.entryType ? ENTRY_TYPE_LABELS[e.entryType] : '', clock(e.clockIn), exitClock(e), e.hours, ENTRY_STATUS_LABELS[e.status], e.comments ?? '', ENTRY_SOURCE_LABELS[e.source]])
-      }
-      if (out.length >= res.total || res.items.length === 0) break
-    }
-    downloadCsv('saisies-manuelles.csv', ['Matricule', 'Employé', 'Date', 'Type', 'Entrée', 'Sortie', 'Heures', 'Statut', 'Commentaire', 'Origine'], out)
-  } catch (err) {
-    toast.error(getApiErrorMessage(err, 'Export impossible'))
-  } finally {
-    exporting.value = false
   }
 }
 </script>

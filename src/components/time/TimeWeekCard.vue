@@ -106,7 +106,7 @@
                 <td class="px-2 py-1.5 whitespace-nowrap font-medium" :class="isWeekend(d.date) ? 'text-danger' : 'text-foreground'">
                   {{ dayLabel(d.date) }}
                   <AlertTriangle v-if="d.incomplete" class="w-3 h-3 inline text-warning" aria-label="Pointage incomplet" />
-                  <Pencil v-if="d.corrected" class="w-3 h-3 inline text-muted-foreground" aria-label="Jour corrigé" />
+                  <Pencil v-if="d.corrected" class="w-3 h-3 inline text-violet-700" aria-label="Jour corrigé" />
                 </td>
                 <template v-for="n in PAIR_COUNT" :key="n">
                   <td v-for="side in SIDES" :key="side" class="px-1 py-1" :class="side === 'start' ? 'border-l border-border' : ''">
@@ -142,7 +142,7 @@
             <span class="w-3.5 h-3.5 rounded border" :class="SOURCE_CLASSES[key]"></span> {{ label }}
           </span>
           <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded border border-dashed border-muted-foreground"></span> En attente d'approbation</span>
-          <span class="flex items-center gap-1.5"><Pencil class="w-3 h-3" /> Jour corrigé</span>
+          <span class="flex items-center gap-1.5"><Pencil class="w-3 h-3 text-violet-700" /> Jour corrigé</span>
         </div>
 
         <div v-if="isEditMode" :class="cls.field" class="mt-3 max-w-xl">

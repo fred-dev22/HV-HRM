@@ -29,6 +29,13 @@ export function todayIso(): string {
   return `${y}-${mo}-${d}`
 }
 
+// Premier et dernier jour du mois d'une date AAAA-MM-JJ.
+export function monthOf(date: string): { from: string; to: string } {
+  const [y, m] = date.split('-').map(Number)
+  const last = new Date(Date.UTC(y!, m!, 0)).getUTCDate()
+  return { from: `${date.slice(0, 8)}01`, to: `${date.slice(0, 8)}${last}` }
+}
+
 // Horodatage "intelligent" pour un instant precis (notifications, journal
 // d'activite...) — contrairement a formatDate ci-dessus, la valeur porte une
 // vraie heure (DateTime Prisma), donc new Date() est correct ici (pas de

@@ -55,6 +55,29 @@
       <span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap" :class="STATUS_CLASSES[item.status as WeekStatus]">{{ WEEK_STATUS_LABELS[item.status as WeekStatus] }}</span>
     </template>
 
+    <!-- Aperçu rapide -->
+    <template #details-panel="{ item }">
+      <div class="flex flex-col gap-3.5">
+        <div class="flex items-center gap-2.5">
+          <UserAvatar :name="item.name" size="md" />
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-foreground truncate">{{ item.name }}</div>
+            <div class="text-[11px] text-muted-foreground">{{ item.code }}<span v-if="item.isCadre"> · cadre</span></div>
+          </div>
+        </div>
+        <div><span class="text-[11px] font-medium px-2 py-[2px] rounded-full whitespace-nowrap" :class="STATUS_CLASSES[item.status as WeekStatus]">{{ WEEK_STATUS_LABELS[item.status as WeekStatus] }}</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[12px]">
+          <div class="col-span-2"><div class="text-muted-foreground text-[11px]">Semaine {{ weekNumber || '...' }}</div>Du {{ formatDate(monday) }} au {{ formatDate(addDays(monday, 6)) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Travaillé</div>{{ formatHours(item.worked) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Heures supp.</div>{{ formatHours(item.overtime) }}</div>
+          <div><div class="text-muted-foreground text-[11px]">Jours incomplets</div><span :class="item.incompleteDays ? 'text-warning' : ''">{{ item.incompleteDays }}</span></div>
+          <div><div class="text-muted-foreground text-[11px]">Saisies en attente</div><span :class="item.pendingEntries ? 'text-warning' : ''">{{ item.pendingEntries }}</span></div>
+        </div>
+        <div v-if="item.corrected" class="text-[12px] text-muted-foreground">Cette semaine a été corrigée.</div>
+        <button :class="L.btnPrimary" class="w-full justify-center" @click="openId = item.employeeId">Ouvrir la semaine</button>
+      </div>
+    </template>
+
     <template #empty>
       <CalendarCheck class="w-8 h-8" />
       <p class="text-[13px]">{{ search ? 'Aucun employé pour cette recherche.' : 'Aucun employé dans votre périmètre.' }}</p>

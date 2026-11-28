@@ -82,5 +82,6 @@ export const SOURCE_CLASSES: Record<PunchSource, string> = {
   Morpho: 'bg-info-bg border-info',
   Manual: 'bg-warning-bg border-warning',
   Import: 'bg-success-bg border-success',
-  Corrected: 'bg-danger-bg border-danger',
+  // Violet, hors des couleurs de la marque : le rouge pâle se confondait avec l'orange de la saisie manuelle.
+  Corrected: 'bg-violet-200 border-violet-700 ring-1 ring-violet-700 text-violet-950',
 }
